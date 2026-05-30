@@ -5,15 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v4.2 (Auth Fix)</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v4.2 (Refresh Fix)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
     <!-- ═══════════════════════════════════════════════════════════════
-         PART 1: FIREBASE INITIALIZATION MODULE
-         - يُنشئ Promise عالمي لانتظار جاهزية Firebase
-         - يُحلّ الـ Promise فقط بعد تهيئة Firebase بالكامل
+         PART 1: FIREBASE MODULE - يُنشئ Promise عالمي
     ═══════════════════════════════════════════════════════════════ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -30,16 +28,11 @@
             measurementId: "G-6HS8KNW1GZ"
         };
 
-        // ── Promise عالمي لانتظار Firebase ──
         window.firebaseReadyPromise = new Promise((resolve, reject) => {
             try {
                 const app = initializeApp(firebaseConfig);
-                const db = getFirestore(app);
-                const auth = getAuth(app);
-                
-                // تعريف الدوال عالمياً
-                window.db = db;
-                window.auth = auth;
+                window.db = getFirestore(app);
+                window.auth = getAuth(app);
                 window.doc = doc;
                 window.setDoc = setDoc;
                 window.getDoc = getDoc;
@@ -59,19 +52,17 @@
                 window.onAuthStateChanged = onAuthStateChanged;
                 window.signOut = signOut;
                 window.updateProfile = updateProfile;
-                
                 console.log("Firebase initialized successfully!");
-                resolve({ app, db, auth });
+                resolve({ app, db: window.db, auth: window.auth });
             } catch (err) {
                 console.error("Firebase initialization failed:", err);
-                window.firebaseReady = false;
                 reject(err);
             }
         });
     </script>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         PART 2: CSS STYLES (unchanged)
+         PART 2: CSS STYLES (identical to original)
     ═══════════════════════════════════════════════════════════════ -->
     <style>
         :root {
@@ -988,7 +979,7 @@
 <body>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         PART 3: HTML UI STRUCTURE
+         PART 3: HTML UI
     ═══════════════════════════════════════════════════════════════ -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -1247,9 +1238,10 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════
-         PART 4: MAIN APPLICATION LOGIC
-         - الإصلاح الرئيسي: await window.firebaseReadyPromise
-         - onAuthStateChanged يتم تسجيله بعد تأكد جاهزية Firebase
+         PART 4: MAIN SCRIPT
+         - await window.firebaseReadyPromise في البداية
+         - onAuthStateChanged يُسجّل بعد تأكد جاهزية Firebase
+         - كل الدوال في Global Scope (متاحة للـ HTML onclick)
     ═══════════════════════════════════════════════════════════════ -->
     <script>
         // ── الانتظار على Firebase ──
@@ -1257,376 +1249,375 @@
             try {
                 await window.firebaseReadyPromise;
                 window.firebaseReady = true;
-                console.log("App: Firebase is ready, initializing...");
-                initializeAppLogic();
+                console.log("App: Firebase ready, starting...");
+                onAppReady();
             } catch (err) {
-                console.error("App: Firebase failed to load", err);
+                console.error("App: Firebase failed", err);
                 document.getElementById("saveStatus").innerHTML = "&#10060; خطأ في الاتصال";
-                showToast("&#10060; فشل تحميل Firebase، جاري العمل بدون اتصال", "error", 5000);
             }
         })();
 
-        function initializeAppLogic() {
-            // ═══════════════════════════════════════════════════════════
-            // CONFIG & STATE
-            // ═══════════════════════════════════════════════════════════
-            const CONFIG = {
-                saveDebounceMs: 1200,
-                searchDebounceMs: 350,
-                maxRecords: 500,
-                maxLogEntries: 200,
-                monthsToShow: 6
+        // ═══════════════════════════════════════════════════════════
+        // CONFIG & STATE
+        // ═══════════════════════════════════════════════════════════
+        const CONFIG = {
+            saveDebounceMs: 1200,
+            searchDebounceMs: 350,
+            maxRecords: 500,
+            maxLogEntries: 200,
+            monthsToShow: 6
+        };
+
+        let currentServer = null;
+        let currentStudentId = null;
+        const ratings = {};
+        const attendance = {};
+        let records = [];
+        let saveTimeout = null;
+        let searchTimeout = null;
+        let pendingChange = null;
+        let lastKnownUpdatedAt = null;
+        let isAlreadyAddedToday = false;
+        let isSaving = false;
+        let searchAbortController = null;
+        let activeListeners = [];
+        let isRegisterMode = false;
+
+        const DAYS = ["السبت","الإثنين","الأربعاء"];
+        const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
+        const ACT_ICONS = { "دراسي": "&#128216;", "محفوظات": "&#128221;", "قبطي": "&#9961;&#65039;", "الحان": "&#127925;" };
+        const ACT_CLASSES = { "دراسي": "icon-study", "محفوظات": "icon-mem", "قبطي": "icon-copt", "الحان": "icon-music" };
+        const DAY_HEADERS = { "السبت": "sat", "الإثنين": "mon", "الأربعاء": "wed" };
+        const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
+        const ARABIC_DAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+
+        // ═══════════════════════════════════════════════════════════
+        // DOM REFERENCES
+        // ═══════════════════════════════════════════════════════════
+        const els = {
+            name: document.getElementById("studentName"),
+            year: document.getElementById("studentYear"),
+            studentDocId: document.getElementById("studentDocId"),
+            studentSelect: document.getElementById("studentSelect"),
+            saveStatus: document.getElementById("saveStatus"),
+            serverDisplay: document.getElementById("serverDisplay"),
+            loginOverlay: document.getElementById("loginOverlay"),
+            mainApp: document.getElementById("mainApp"),
+            loginError: document.getElementById("loginError"),
+            loginSuccess: document.getElementById("loginSuccess"),
+            loginBtn: document.getElementById("loginBtn"),
+            logModal: document.getElementById("logModal"),
+            logTableBody: document.getElementById("logTableBody"),
+            reasonModal: document.getElementById("reasonModal"),
+            reasonInput: document.getElementById("changeReasonInput"),
+            presentCount: document.getElementById("presentCount"),
+            absentCount: document.getElementById("absentCount"),
+            ratedActivities: document.getElementById("ratedActivities"),
+            avgRating: document.getElementById("avgRating"),
+            attendanceRate: document.getElementById("attendanceRate"),
+            logCount: document.getElementById("logCount"),
+            conflictBanner: document.getElementById("conflictBanner"),
+            dupNameError: document.getElementById("dupNameError"),
+            addedTodayBanner: document.getElementById("addedTodayBanner"),
+            todayDateBadge: document.getElementById("todayDateBadge"),
+            absentAlertBanner: document.getElementById("absentAlertBanner"),
+            absentAlertText: document.getElementById("absentAlertText"),
+            offlineBanner: document.getElementById("offlineBanner"),
+            cardsGrid: document.getElementById("cardsGrid"),
+            statsModal: document.getElementById("statsModal"),
+            monthlyModal: document.getElementById("monthlyModal"),
+            monthCalendar: document.getElementById("monthCalendar"),
+            monthDetails: document.getElementById("monthDetails"),
+            monthDetailTitle: document.getElementById("monthDetailTitle"),
+            monthDetailContent: document.getElementById("monthDetailContent"),
+            monthSelector: document.getElementById("monthSelector"),
+            searchResults: document.getElementById("searchResults"),
+            logLoadingOverlay: document.getElementById("logLoadingOverlay"),
+            statsLoadingOverlay: document.getElementById("statsLoadingOverlay"),
+            shortcutsHelp: document.getElementById("shortcutsHelp"),
+            saveBtn: document.getElementById("saveBtn"),
+            toastContainer: document.getElementById("toastContainer"),
+            loginForm: document.getElementById("loginForm"),
+            registerForm: document.getElementById("registerForm"),
+            authToggleText: document.getElementById("authToggleText"),
+            authToggleBtn: document.getElementById("authToggleBtn"),
+            authSubtitle: document.getElementById("authSubtitle")
+        };
+
+        // ═══════════════════════════════════════════════════════════
+        // UTILITIES
+        // ═══════════════════════════════════════════════════════════
+        function escapeHtml(text) {
+            if (!text) return "";
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = "info", duration = 3000) {
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            const icons = { success: "&#9989;", error: "&#10060;", info: "&#128161;", warning: "&#9888;&#65039;" };
+            toast.innerHTML = `<span>${icons[type] || "&#128161;"}</span><span>${escapeHtml(message)}</span>`;
+            els.toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add("hiding");
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function setSaveStatus(status) {
+            const el = els.saveStatus;
+            const states = {
+                saving: { html: "&#9203; جاري الحفظ...", className: "save-status saving" },
+                saved: { html: "&#9989; تم الحفظ", className: "save-status saved" },
+                online: { html: "&#127760; متصل", className: "save-status online" },
+                offline: { html: "&#128268; غير متصل", className: "save-status offline" },
+                error: { html: "&#10060; خطأ", className: "save-status offline" }
             };
+            const state = states[status] || states.online;
+            el.innerHTML = state.html;
+            el.className = state.className;
+            if (status === "saved") setTimeout(() => setSaveStatus("online"), 2000);
+        }
 
-            let currentServer = null;
-            let currentStudentId = null;
-            const ratings = {};
-            const attendance = {};
-            let records = [];
-            let saveTimeout = null;
-            let searchTimeout = null;
-            let pendingChange = null;
-            let lastKnownUpdatedAt = null;
-            let isAlreadyAddedToday = false;
-            let isSaving = false;
-            let searchAbortController = null;
-            let activeListeners = [];
-            let isRegisterMode = false;
+        function updateTodayBadge() {
+            const today = new Date();
+            const dateStr = today.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+            els.todayDateBadge.innerHTML = "&#128197; " + dateStr;
+        }
 
-            const DAYS = ["السبت","الإثنين","الأربعاء"];
-            const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
-            const ACT_ICONS = { "دراسي": "&#128216;", "محفوظات": "&#128221;", "قبطي": "&#9961;&#65039;", "الحان": "&#127925;" };
-            const ACT_CLASSES = { "دراسي": "icon-study", "محفوظات": "icon-mem", "قبطي": "icon-copt", "الحان": "icon-music" };
-            const DAY_HEADERS = { "السبت": "sat", "الإثنين": "mon", "الأربعاء": "wed" };
-            const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
-            const ARABIC_DAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
+        function getTodayDate() {
+            return new Date().toISOString().slice(0, 10);
+        }
 
-            // ═══════════════════════════════════════════════════════════
-            // DOM REFERENCES
-            // ═══════════════════════════════════════════════════════════
-            const els = {
-                name: document.getElementById("studentName"),
-                year: document.getElementById("studentYear"),
-                studentDocId: document.getElementById("studentDocId"),
-                studentSelect: document.getElementById("studentSelect"),
-                saveStatus: document.getElementById("saveStatus"),
-                serverDisplay: document.getElementById("serverDisplay"),
-                loginOverlay: document.getElementById("loginOverlay"),
-                mainApp: document.getElementById("mainApp"),
-                loginError: document.getElementById("loginError"),
-                loginSuccess: document.getElementById("loginSuccess"),
-                loginBtn: document.getElementById("loginBtn"),
-                logModal: document.getElementById("logModal"),
-                logTableBody: document.getElementById("logTableBody"),
-                reasonModal: document.getElementById("reasonModal"),
-                reasonInput: document.getElementById("changeReasonInput"),
-                presentCount: document.getElementById("presentCount"),
-                absentCount: document.getElementById("absentCount"),
-                ratedActivities: document.getElementById("ratedActivities"),
-                avgRating: document.getElementById("avgRating"),
-                attendanceRate: document.getElementById("attendanceRate"),
-                logCount: document.getElementById("logCount"),
-                conflictBanner: document.getElementById("conflictBanner"),
-                dupNameError: document.getElementById("dupNameError"),
-                addedTodayBanner: document.getElementById("addedTodayBanner"),
-                todayDateBadge: document.getElementById("todayDateBadge"),
-                absentAlertBanner: document.getElementById("absentAlertBanner"),
-                absentAlertText: document.getElementById("absentAlertText"),
-                offlineBanner: document.getElementById("offlineBanner"),
-                cardsGrid: document.getElementById("cardsGrid"),
-                statsModal: document.getElementById("statsModal"),
-                monthlyModal: document.getElementById("monthlyModal"),
-                monthCalendar: document.getElementById("monthCalendar"),
-                monthDetails: document.getElementById("monthDetails"),
-                monthDetailTitle: document.getElementById("monthDetailTitle"),
-                monthDetailContent: document.getElementById("monthDetailContent"),
-                monthSelector: document.getElementById("monthSelector"),
-                searchResults: document.getElementById("searchResults"),
-                logLoadingOverlay: document.getElementById("logLoadingOverlay"),
-                statsLoadingOverlay: document.getElementById("statsLoadingOverlay"),
-                shortcutsHelp: document.getElementById("shortcutsHelp"),
-                saveBtn: document.getElementById("saveBtn"),
-                toastContainer: document.getElementById("toastContainer"),
-                loginForm: document.getElementById("loginForm"),
-                registerForm: document.getElementById("registerForm"),
-                authToggleText: document.getElementById("authToggleText"),
-                authToggleBtn: document.getElementById("authToggleBtn"),
-                authSubtitle: document.getElementById("authSubtitle")
-            };
+        function getStudentDocId() {
+            const hiddenId = els.studentDocId.value.trim();
+            if (hiddenId) return hiddenId;
+            const name = els.name.value.trim();
+            const year = els.year.value.trim();
+            if (!name || !year) return null;
+            const safeName = name.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
+            const safeYear = year.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
+            return safeName + "_" + safeYear;
+        }
 
-            // ═══════════════════════════════════════════════════════════
-            // UTILITIES
-            // ═══════════════════════════════════════════════════════════
-            function escapeHtml(text) {
-                if (!text) return "";
-                const div = document.createElement("div");
-                div.textContent = text;
-                return div.innerHTML;
-            }
+        function getLocalStorageKey() {
+            const docId = getStudentDocId();
+            return docId ? "khadem_data_" + docId : null;
+        }
 
-            function showToast(message, type = "info", duration = 3000) {
-                const toast = document.createElement("div");
-                toast.className = `toast ${type}`;
-                const icons = { success: "&#9989;", error: "&#10060;", info: "&#128161;", warning: "&#9888;&#65039;" };
-                toast.innerHTML = `<span>${icons[type] || "&#128161;"}</span><span>${escapeHtml(message)}</span>`;
-                els.toastContainer.appendChild(toast);
-                setTimeout(() => {
-                    toast.classList.add("hiding");
-                    setTimeout(() => toast.remove(), 300);
-                }, duration);
-            }
-
-            function setSaveStatus(status) {
-                const el = els.saveStatus;
-                const states = {
-                    saving: { html: "&#9203; جاري الحفظ...", className: "save-status saving" },
-                    saved: { html: "&#9989; تم الحفظ", className: "save-status saved" },
-                    online: { html: "&#127760; متصل", className: "save-status online" },
-                    offline: { html: "&#128268; غير متصل", className: "save-status offline" },
-                    error: { html: "&#10060; خطأ", className: "save-status offline" }
-                };
-                const state = states[status] || states.online;
-                el.innerHTML = state.html;
-                el.className = state.className;
-                if (status === "saved") setTimeout(() => setSaveStatus("online"), 2000);
-            }
-
-            function updateTodayBadge() {
-                const today = new Date();
-                const dateStr = today.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-                els.todayDateBadge.innerHTML = "&#128197; " + dateStr;
-            }
-
-            function getTodayDate() {
-                return new Date().toISOString().slice(0, 10);
-            }
-
-            function getStudentDocId() {
-                const hiddenId = els.studentDocId.value.trim();
-                if (hiddenId) return hiddenId;
-                const name = els.name.value.trim();
-                const year = els.year.value.trim();
-                if (!name || !year) return null;
-                const safeName = name.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
-                const safeYear = year.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
-                return safeName + "_" + safeYear;
-            }
-
-            function getLocalStorageKey() {
-                const docId = getStudentDocId();
-                return docId ? "khadem_data_" + docId : null;
-            }
-
-            // ═══════════════════════════════════════════════════════════
-            // UI GENERATORS
-            // ═══════════════════════════════════════════════════════════
-            function generateCards() {
-                els.cardsGrid.innerHTML = "";
-                DAYS.forEach(day => {
-                    const card = document.createElement("div");
-                    card.className = "track-card";
-                    card.dataset.day = day;
-                    card.innerHTML = `
-                        <div class="status-strip neutral" id="status-${day}"></div>
-                        <div class="card-header ${DAY_HEADERS[day]}">
-                            <span>${day}</span>
-                            <span class="day-icon">${DAY_ICONS[day]}</span>
-                        </div>
-                        <div class="card-body">
-                            ${ACTS.map(act => `
-                                <div class="activity-row" data-day="${day}" data-act="${act}">
-                                    <div class="activity-left">
-                                        <div class="activity-name">
-                                            <div class="activity-icon ${ACT_CLASSES[act]}">${ACT_ICONS[act]}</div>
-                                            <span>${act}</span>
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:12px;">
-                                        <div class="toggle-group">
-                                            <span>حضور</span>
-                                            <label class="toggle-switch" title="تسجيل الحضور">
-                                                <input type="checkbox" onchange="toggleAttendance(this)" aria-label="حضور ${act} يوم ${day}">
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                        <div class="rating disabled" data-day="${day}" data-act="${act}">
-                                            ${[1,2,3,4,5].map(i => `<span class="star" onclick="rate(this,${i})" title="${i} نجمة" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')rate(this,${i})">&#9733;</span>`).join("")}
-                                        </div>
-                                        <span class="absent-label">غائبة &#10060;</span>
+        // ═══════════════════════════════════════════════════════════
+        // UI GENERATORS
+        // ═══════════════════════════════════════════════════════════
+        function generateCards() {
+            els.cardsGrid.innerHTML = "";
+            DAYS.forEach(day => {
+                const card = document.createElement("div");
+                card.className = "track-card";
+                card.dataset.day = day;
+                card.innerHTML = `
+                    <div class="status-strip neutral" id="status-${day}"></div>
+                    <div class="card-header ${DAY_HEADERS[day]}">
+                        <span>${day}</span>
+                        <span class="day-icon">${DAY_ICONS[day]}</span>
+                    </div>
+                    <div class="card-body">
+                        ${ACTS.map(act => `
+                            <div class="activity-row" data-day="${day}" data-act="${act}">
+                                <div class="activity-left">
+                                    <div class="activity-name">
+                                        <div class="activity-icon ${ACT_CLASSES[act]}">${ACT_ICONS[act]}</div>
+                                        <span>${act}</span>
                                     </div>
                                 </div>
-                            `).join("")}
-                            <textarea class="note-input" id="note-${day}" placeholder="ملاحظات يوم ${day}..." oninput="queueSave()" aria-label="ملاحظات ${day}"></textarea>
-                        </div>
-                    `;
-                    els.cardsGrid.appendChild(card);
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <div class="toggle-group">
+                                        <span>حضور</span>
+                                        <label class="toggle-switch" title="تسجيل الحضور">
+                                            <input type="checkbox" onchange="toggleAttendance(this)" aria-label="حضور ${act} يوم ${day}">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="rating disabled" data-day="${day}" data-act="${act}">
+                                        ${[1,2,3,4,5].map(i => `<span class="star" onclick="rate(this,${i})" title="${i} نجمة" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')rate(this,${i})">&#9733;</span>`).join("")}
+                                    </div>
+                                    <span class="absent-label">غائبة &#10060;</span>
+                                </div>
+                            </div>
+                        `).join("")}
+                        <textarea class="note-input" id="note-${day}" placeholder="ملاحظات يوم ${day}..." oninput="queueSave()" aria-label="ملاحظات ${day}"></textarea>
+                    </div>
+                `;
+                els.cardsGrid.appendChild(card);
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // AUTHENTICATION (Global Scope - accessible by HTML onclick)
+        // ═══════════════════════════════════════════════════════════
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            if (isRegisterMode) {
+                els.loginForm.style.display = "none";
+                els.registerForm.style.display = "block";
+                els.authToggleText.textContent = "لديك حساب بالفعل؟";
+                els.authToggleBtn.textContent = "تسجيل الدخول";
+                els.authSubtitle.textContent = "أنشئي حساب جديد كخادم";
+            } else {
+                els.loginForm.style.display = "block";
+                els.registerForm.style.display = "none";
+                els.authToggleText.textContent = "ليس لديك حساب؟";
+                els.authToggleBtn.textContent = "إنشاء حساب جديد";
+                els.authSubtitle.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+            }
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
+        }
+
+        async function handleRegister() {
+            const name = document.getElementById("regName").value.trim();
+            const email = document.getElementById("regEmail").value.trim();
+            const password = document.getElementById("regPassword").value;
+            const passwordConfirm = document.getElementById("regPasswordConfirm").value;
+            const btn = document.getElementById("registerBtn");
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> جاري الإنشاء...';
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
+
+            if (!name || !email || !password) {
+                showAuthError("&#10060; يرجى ملء جميع الحقول");
+                resetRegisterBtn();
+                return;
+            }
+            if (password.length < 6) {
+                showAuthError("&#10060; كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+                resetRegisterBtn();
+                return;
+            }
+            if (password !== passwordConfirm) {
+                showAuthError("&#10060; كلمتا المرور غير متطابقتين");
+                resetRegisterBtn();
+                return;
+            }
+
+            try {
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                await window.updateProfile(user, { displayName: name });
+                await window.setDoc(window.doc(window.db, "users", user.uid), {
+                    name: name, email: email, role: "khadem",
+                    createdAt: new Date().toISOString(), uid: user.uid
                 });
+                els.loginSuccess.innerHTML = "&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...";
+                els.loginSuccess.classList.add("active");
+                setTimeout(() => completeLogin(user), 1000);
+            } catch (error) {
+                let msg = "&#10060; خطأ في إنشاء الحساب";
+                if (error.code === "auth/email-already-in-use") msg = "&#10060; البريد الإلكتروني مستخدم بالفعل";
+                else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
+                else if (error.code === "auth/weak-password") msg = "&#10060; كلمة المرور ضعيفة جداً";
+                showAuthError(msg);
+                resetRegisterBtn();
+            }
+        }
+
+        function resetRegisterBtn() {
+            const btn = document.getElementById("registerBtn");
+            btn.disabled = false;
+            btn.innerHTML = "&#128221; إنشاء حساب";
+        }
+
+        async function handleLogin() {
+            const btn = els.loginBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> جاري الدخول...';
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
+
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+
+            if (!email || !password) {
+                showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور");
+                resetLoginBtn();
+                return;
             }
 
-            // ═══════════════════════════════════════════════════════════
-            // AUTHENTICATION
-            // ═══════════════════════════════════════════════════════════
-            function toggleAuthMode() {
-                isRegisterMode = !isRegisterMode;
-                if (isRegisterMode) {
-                    els.loginForm.style.display = "none";
-                    els.registerForm.style.display = "block";
-                    els.authToggleText.textContent = "لديك حساب بالفعل؟";
-                    els.authToggleBtn.textContent = "تسجيل الدخول";
-                    els.authSubtitle.textContent = "أنشئي حساب جديد كخادم";
-                } else {
-                    els.loginForm.style.display = "block";
-                    els.registerForm.style.display = "none";
-                    els.authToggleText.textContent = "ليس لديك حساب؟";
-                    els.authToggleBtn.textContent = "إنشاء حساب جديد";
-                    els.authSubtitle.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+            try {
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                completeLogin(userCredential.user);
+            } catch (error) {
+                let msg = "&#10060; خطأ في تسجيل الدخول";
+                if (error.code === "auth/user-not-found") msg = "&#10060; لا يوجد حساب بهذا البريد";
+                else if (error.code === "auth/wrong-password") msg = "&#10060; كلمة المرور غير صحيحة";
+                else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
+                else if (error.code === "auth/too-many-requests") msg = "&#10060; تم حظر المحاولات مؤقتاً، حاولي لاحقاً";
+                showAuthError(msg);
+                resetLoginBtn();
+            }
+        }
+
+        function showAuthError(msg) {
+            els.loginError.innerHTML = msg;
+            els.loginError.classList.add("active");
+        }
+
+        function resetLoginBtn() {
+            els.loginBtn.disabled = false;
+            els.loginBtn.innerHTML = "&#10132; دخول";
+        }
+
+        async function completeLogin(user) {
+            let userData = { name: user.displayName || "خادم", email: user.email, uid: user.uid };
+            try {
+                const userDoc = await window.getDoc(window.doc(window.db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    userData.name = data.name || userData.name;
+                    userData.role = data.role || "khadem";
                 }
-                els.loginError.classList.remove("active");
-                els.loginSuccess.classList.remove("active");
+            } catch(e) { console.warn("Could not fetch user data:", e); }
+
+            currentServer = userData;
+            localStorage.setItem("khadem_session", JSON.stringify({
+                uid: userData.uid, name: userData.name, email: userData.email
+            }));
+
+            els.loginOverlay.classList.add("hidden");
+            els.mainApp.style.display = "block";
+            els.serverDisplay.textContent = userData.name + " (" + userData.email + ")";
+
+            setSaveStatus(window.firebaseReady ? "online" : "offline");
+            if (!window.firebaseReady) {
+                els.offlineBanner.classList.add("active");
+                showToast("وضع عدم الاتصال - البيانات هتحفظ محلياً", "warning", 5000);
             }
 
-            async function handleRegister() {
-                const name = document.getElementById("regName").value.trim();
-                const email = document.getElementById("regEmail").value.trim();
-                const password = document.getElementById("regPassword").value;
-                const passwordConfirm = document.getElementById("regPasswordConfirm").value;
-                const btn = document.getElementById("registerBtn");
-                
-                btn.disabled = true;
-                btn.innerHTML = '<div class="spinner"></div> جاري الإنشاء...';
-                els.loginError.classList.remove("active");
-                els.loginSuccess.classList.remove("active");
+            generateCards();
+            loadStudentList();
+            generateMonthSelector();
+            setupKeyboardShortcuts();
+            console.log("Login successful:", userData);
+        }
 
-                if (!name || !email || !password) {
-                    showAuthError("&#10060; يرجى ملء جميع الحقول");
-                    resetRegisterBtn();
-                    return;
-                }
-                if (password.length < 6) {
-                    showAuthError("&#10060; كلمة المرور يجب أن تكون 6 أحرف على الأقل");
-                    resetRegisterBtn();
-                    return;
-                }
-                if (password !== passwordConfirm) {
-                    showAuthError("&#10060; كلمتا المرور غير متطابقتين");
-                    resetRegisterBtn();
-                    return;
-                }
+        function logout() {
+            if (!confirm("تأكيد تسجيل الخروج؟")) return;
+            activeListeners.forEach(unsub => { try { unsub(); } catch(e) {} });
+            activeListeners = [];
+            if (window.auth) window.signOut(window.auth).catch(() => {});
+            currentServer = null;
+            localStorage.removeItem("khadem_session");
+            location.reload();
+        }
 
-                try {
-                    const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
-                    const user = userCredential.user;
-                    await window.updateProfile(user, { displayName: name });
-                    await window.setDoc(window.doc(window.db, "users", user.uid), {
-                        name: name, email: email, role: "khadem",
-                        createdAt: new Date().toISOString(), uid: user.uid
-                    });
-                    els.loginSuccess.innerHTML = "&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...";
-                    els.loginSuccess.classList.add("active");
-                    setTimeout(() => completeLogin(user), 1000);
-                } catch (error) {
-                    let msg = "&#10060; خطأ في إنشاء الحساب";
-                    if (error.code === "auth/email-already-in-use") msg = "&#10060; البريد الإلكتروني مستخدم بالفعل";
-                    else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
-                    else if (error.code === "auth/weak-password") msg = "&#10060; كلمة المرور ضعيفة جداً";
-                    showAuthError(msg);
-                    resetRegisterBtn();
-                }
-            }
-
-            function resetRegisterBtn() {
-                const btn = document.getElementById("registerBtn");
-                btn.disabled = false;
-                btn.innerHTML = "&#128221; إنشاء حساب";
-            }
-
-            async function handleLogin() {
-                const btn = els.loginBtn;
-                btn.disabled = true;
-                btn.innerHTML = '<div class="spinner"></div> جاري الدخول...';
-                els.loginError.classList.remove("active");
-                els.loginSuccess.classList.remove("active");
-
-                const email = document.getElementById("loginEmail").value.trim();
-                const password = document.getElementById("loginPassword").value;
-
-                if (!email || !password) {
-                    showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور");
-                    resetLoginBtn();
-                    return;
-                }
-
-                try {
-                    const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
-                    completeLogin(userCredential.user);
-                } catch (error) {
-                    let msg = "&#10060; خطأ في تسجيل الدخول";
-                    if (error.code === "auth/user-not-found") msg = "&#10060; لا يوجد حساب بهذا البريد";
-                    else if (error.code === "auth/wrong-password") msg = "&#10060; كلمة المرور غير صحيحة";
-                    else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
-                    else if (error.code === "auth/too-many-requests") msg = "&#10060; تم حظر المحاولات مؤقتاً، حاولي لاحقاً";
-                    showAuthError(msg);
-                    resetLoginBtn();
-                }
-            }
-
-            function showAuthError(msg) {
-                els.loginError.innerHTML = msg;
-                els.loginError.classList.add("active");
-            }
-
-            function resetLoginBtn() {
-                els.loginBtn.disabled = false;
-                els.loginBtn.innerHTML = "&#10132; دخول";
-            }
-
-            async function completeLogin(user) {
-                let userData = { name: user.displayName || "خادم", email: user.email, uid: user.uid };
-                try {
-                    const userDoc = await window.getDoc(window.doc(window.db, "users", user.uid));
-                    if (userDoc.exists()) {
-                        const data = userDoc.data();
-                        userData.name = data.name || userData.name;
-                        userData.role = data.role || "khadem";
-                    }
-                } catch(e) { console.warn("Could not fetch user data:", e); }
-
-                currentServer = userData;
-                localStorage.setItem("khadem_session", JSON.stringify({
-                    uid: userData.uid, name: userData.name, email: userData.email
-                }));
-
-                els.loginOverlay.classList.add("hidden");
-                els.mainApp.style.display = "block";
-                els.serverDisplay.textContent = userData.name + " (" + userData.email + ")";
-
-                setSaveStatus(window.firebaseReady ? "online" : "offline");
-                if (!window.firebaseReady) {
-                    els.offlineBanner.classList.add("active");
-                    showToast("وضع عدم الاتصال - البيانات هتحفظ محلياً", "warning", 5000);
-                }
-
-                generateCards();
-                loadStudentList();
-                generateMonthSelector();
-                setupKeyboardShortcuts();
-                console.log("Login successful:", userData);
-            }
-
-            function logout() {
-                if (!confirm("تأكيد تسجيل الخروج؟")) return;
-                activeListeners.forEach(unsub => { try { unsub(); } catch(e) {} });
-                activeListeners = [];
-                if (window.auth) window.signOut(window.auth).catch(() => {});
-                currentServer = null;
-                localStorage.removeItem("khadem_session");
-                location.reload();
-            }
-
-            // ═══════════════════════════════════════════════════════════
-            // AUTH STATE LISTENER (THE FIX)
-            // ═══════════════════════════════════════════════════════════
-            // يتم تسجيل هذا الـ Listener هنا فقط لأننا متأكدين أن Firebase جاهز
+        // ═══════════════════════════════════════════════════════════
+        // AUTH STATE LISTENER - THE REFRESH FIX
+        // ═══════════════════════════════════════════════════════════
+        function onAppReady() {
+            // هذا يُستدعى بعد await window.firebaseReadyPromise
             window.onAuthStateChanged(window.auth, async (user) => {
                 if (user) {
                     const savedSession = localStorage.getItem("khadem_session");
@@ -1640,61 +1631,65 @@
                     }
                 }
             });
+            updateTodayBadge();
+        }
 
-            // ═══════════════════════════════════════════════════════════
-            // STUDENT MANAGEMENT
-            // ═══════════════════════════════════════════════════════════
-            async function loadStudentList() {
-                try {
-                    const snap = await window.getDocs(window.collection(window.db, "students"));
-                    els.studentSelect.innerHTML = '<option value="">-- اختيار طالبة من القائمة --</option>';
-                    const students = [];
-                    snap.forEach(d => {
-                        const data = d.data();
-                        students.push({ name: data.name, year: data.year, id: d.id });
-                    });
-                    students.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
-                    students.forEach(s => {
-                        const opt = document.createElement("option");
-                        opt.value = [s.name, s.year, s.id].join("|");
-                        opt.textContent = (s.name || "بدون اسم") + " - " + (s.year || "بدون سنة");
-                        els.studentSelect.appendChild(opt);
-                    });
-                } catch(e) { console.error("Failed to load student list:", e); }
+        // ═══════════════════════════════════════════════════════════
+        // STUDENT MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+        async function loadStudentList() {
+            if (!window.firebaseReady || !window.db) return;
+            try {
+                const snap = await window.getDocs(window.collection(window.db, "students"));
+                els.studentSelect.innerHTML = '<option value="">-- اختيار طالبة من القائمة --</option>';
+                const students = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    students.push({ name: data.name, year: data.year, id: d.id });
+                });
+                students.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+                students.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = [s.name, s.year, s.id].join("|");
+                    opt.textContent = (s.name || "بدون اسم") + " - " + (s.year || "بدون سنة");
+                    els.studentSelect.appendChild(opt);
+                });
+            } catch(e) { console.error("Failed to load student list:", e); }
+        }
+
+        function onStudentSelectChange() {
+            const val = els.studentSelect.value;
+            if (!val) return;
+            const parts = val.split("|");
+            if (parts.length < 3) return;
+            els.name.value = parts[0];
+            els.year.value = parts[1];
+            els.studentDocId.value = parts[2];
+        }
+
+        function newStudent() {
+            els.studentSelect.value = "";
+            els.name.value = "";
+            els.year.value = "";
+            els.studentDocId.value = "";
+            resetUI(true, true);
+            isAlreadyAddedToday = false;
+            els.name.focus();
+        }
+
+        function manualLoadStudent() {
+            checkDuplicateAndLoad();
+        }
+
+        async function checkDuplicateAndLoad() {
+            const name = els.name.value.trim();
+            const year = els.year.value.trim();
+            els.dupNameError.classList.remove("active");
+            if (!name || !year) {
+                showToast("&#128221; يرجى إدخال اسم الطالبة والسنة الدراسية", "warning");
+                return;
             }
-
-            function onStudentSelectChange() {
-                const val = els.studentSelect.value;
-                if (!val) return;
-                const parts = val.split("|");
-                if (parts.length < 3) return;
-                els.name.value = parts[0];
-                els.year.value = parts[1];
-                els.studentDocId.value = parts[2];
-            }
-
-            function newStudent() {
-                els.studentSelect.value = "";
-                els.name.value = "";
-                els.year.value = "";
-                els.studentDocId.value = "";
-                resetUI(true, true);
-                isAlreadyAddedToday = false;
-                els.name.focus();
-            }
-
-            function manualLoadStudent() {
-                checkDuplicateAndLoad();
-            }
-
-            async function checkDuplicateAndLoad() {
-                const name = els.name.value.trim();
-                const year = els.year.value.trim();
-                els.dupNameError.classList.remove("active");
-                if (!name || !year) {
-                    showToast("&#128221; يرجى إدخال اسم الطالبة والسنة الدراسية", "warning");
-                    return;
-                }
+            if (window.firebaseReady && window.db) {
                 try {
                     const q = window.query(window.collection(window.db, "students"), window.where("name", "==", name));
                     const snap = await window.getDocs(q);
@@ -1711,19 +1706,21 @@
                     }
                     if (matchedDoc && !els.studentDocId.value) els.studentDocId.value = matchedDoc;
                 } catch(e) { console.error("Duplicate check error:", e); }
-                loadStudent();
             }
+            loadStudent();
+        }
 
-            async function loadStudent() {
-                const docId = getStudentDocId();
-                if (!docId) return;
-                currentStudentId = docId;
-                resetUI(false, false);
-                hideAddedToday();
-                const today = getTodayDate();
-                let firebaseRecords = [];
-                let localRecords = [];
+        async function loadStudent() {
+            const docId = getStudentDocId();
+            if (!docId) return;
+            currentStudentId = docId;
+            resetUI(false, false);
+            hideAddedToday();
+            const today = getTodayDate();
+            let firebaseRecords = [];
+            let localRecords = [];
 
+            if (window.firebaseReady && window.db) {
                 try {
                     const baseSnap = await window.getDoc(window.doc(window.db, "students", docId));
                     if (baseSnap.exists()) {
@@ -1751,829 +1748,794 @@
                     console.error("Load error:", e);
                     showToast("&#10060; خطأ في التحميل من السحابة", "error");
                 }
-
-                localRecords = loadLocalDataOnly();
-                records = mergeRecords(firebaseRecords, localRecords);
-                updateSummary();
-                showToast("&#9989; تم تحميل بيانات الطالبة", "success");
             }
 
-            function loadLocalDataOnly() {
-                const key = getLocalStorageKey();
-                if (!key) return [];
-                const raw = localStorage.getItem(key);
-                if (!raw) return [];
-                try {
-                    const data = JSON.parse(raw);
-                    if (data.attendance) Object.keys(data.attendance).forEach(k => { attendance[k] = data.attendance[k]; });
-                    if (data.ratings) Object.keys(data.ratings).forEach(k => { ratings[k] = data.ratings[k]; });
-                    if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
-                    if (data.isAlreadyAddedToday) { isAlreadyAddedToday = true; showAddedToday(); }
-                    if (data.followups) {
-                        Object.keys(data.followups).forEach(day => {
-                            const noteEl = document.getElementById("note-" + day);
-                            if (noteEl && data.followups[day].note) noteEl.value = data.followups[day].note;
-                        });
-                    }
-                    applyUIState();
-                    updateSummary();
-                    checkConsecutiveAbsences();
-                    updateStatusColors();
-                    return data.records || [];
-                } catch(e) {
-                    console.error("Local data parse error:", e);
-                    return [];
-                }
-            }
+            localRecords = loadLocalDataOnly();
+            records = mergeRecords(firebaseRecords, localRecords);
+            updateSummary();
+            showToast("&#9989; تم تحميل بيانات الطالبة", "success");
+        }
 
-            function mergeRecords(firebaseRecs, localRecs) {
-                const map = new Map();
-                firebaseRecs.forEach(r => { if (r.timestamp) map.set(r.timestamp, r); });
-                localRecs.forEach(r => { if (r.timestamp) map.set(r.timestamp, r); });
-                const merged = Array.from(map.values());
-                merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                return merged.slice(0, CONFIG.maxRecords);
-            }
-
-            function applyDailyData(data) {
+        function loadLocalDataOnly() {
+            const key = getLocalStorageKey();
+            if (!key) return [];
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            try {
+                const data = JSON.parse(raw);
+                if (data.attendance) Object.keys(data.attendance).forEach(k => { attendance[k] = data.attendance[k]; });
+                if (data.ratings) Object.keys(data.ratings).forEach(k => { ratings[k] = data.ratings[k]; });
+                if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
+                if (data.isAlreadyAddedToday) { isAlreadyAddedToday = true; showAddedToday(); }
                 if (data.followups) {
                     Object.keys(data.followups).forEach(day => {
-                        const dayData = data.followups[day];
                         const noteEl = document.getElementById("note-" + day);
-                        if (noteEl && dayData.note) noteEl.value = dayData.note;
-                        ACTS.forEach(act => {
-                            const actData = dayData[act];
-                            const key = day + "|" + act;
-                            if (actData) {
-                                if (actData.attendance === true) attendance[key] = true;
-                                else if (actData.attendance === false) attendance[key] = false;
-                                if (actData.rating) ratings[key] = actData.rating;
-                            }
-                        });
+                        if (noteEl && data.followups[day].note) noteEl.value = data.followups[day].note;
                     });
                 }
                 applyUIState();
                 updateSummary();
                 checkConsecutiveAbsences();
                 updateStatusColors();
+                return data.records || [];
+            } catch(e) {
+                console.error("Local data parse error:", e);
+                return [];
             }
+        }
 
-            function applyUIState() {
-                document.querySelectorAll(".activity-row").forEach(row => {
-                    const day = row.dataset.day, act = row.dataset.act, key = day + "|" + act;
-                    const cb = row.querySelector(".toggle-switch input");
-                    const ratingDiv = row.querySelector(".rating");
-                    const absentLabel = row.querySelector(".absent-label");
-                    if (attendance[key] === true) {
-                        cb.checked = true; ratingDiv.classList.remove("disabled"); absentLabel.style.display = "none";
-                    } else if (attendance[key] === false) {
-                        cb.checked = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "inline";
-                    } else {
-                        cb.checked = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "none";
-                    }
-                    ratingDiv.querySelectorAll(".star").forEach((s, i) => {
-                        s.classList.toggle("active", ratings[key] && i < ratings[key]);
-                    });
-                });
-            }
+        function mergeRecords(firebaseRecs, localRecs) {
+            const map = new Map();
+            firebaseRecs.forEach(r => { if (r.timestamp) map.set(r.timestamp, r); });
+            localRecs.forEach(r => { if (r.timestamp) map.set(r.timestamp, r); });
+            const merged = Array.from(map.values());
+            merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            return merged.slice(0, CONFIG.maxRecords);
+        }
 
-            function resetUI(clearNames, clearRecords = false) {
-                if (clearNames) {
-                    els.name.value = ""; els.year.value = ""; els.studentDocId.value = "";
-                    lastKnownUpdatedAt = null; isAlreadyAddedToday = false;
-                }
-                document.querySelectorAll(".toggle-switch input").forEach(t => {
-                    t.checked = false;
-                    const row = t.closest(".activity-row");
-                    row.querySelector(".rating").classList.add("disabled");
-                    row.querySelector(".absent-label").style.display = "none";
-                });
-                document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
-                document.querySelectorAll(".note-input").forEach(n => n.value = "");
-                for (let k in ratings) delete ratings[k];
-                for (let k in attendance) delete attendance[k];
-                if (clearRecords) records = [];
-                els.conflictBanner.classList.remove("active");
-                els.absentAlertBanner.classList.remove("active");
-                hideAddedToday();
-                updateSummary();
-                updateStatusColors();
-            }
-
-            function updateSummary() {
-                let present = 0, absent = 0;
-                Object.values(attendance).forEach(v => {
-                    if (v === true) present++;
-                    else if (v === false) absent++;
-                });
-                const total = Object.keys(attendance).length;
-                const rateValues = Object.values(ratings);
-                const rated = rateValues.length;
-                const sum = rateValues.reduce((a, b) => a + b, 0);
-                const avg = rated > 0 ? (sum / rated).toFixed(1) : "0.0";
-                const attRate = total > 0 ? Math.round((present / total) * 100) : 0;
-                els.presentCount.textContent = present;
-                els.absentCount.textContent = absent;
-                els.ratedActivities.textContent = rated;
-                els.avgRating.textContent = avg;
-                els.attendanceRate.textContent = attRate + "%";
-                els.logCount.textContent = records.length;
-            }
-
-            function showConflict(serverName) {
-                els.conflictBanner.classList.add("active");
-                els.conflictText.textContent = "الخادم " + serverName + " عدل على البيانات وأنتِ شغالة! حدّثي الصفحة.";
-                setSaveStatus("offline");
-                showToast("تعارض في البيانات! حدّثي الصفحة", "error", 6000);
-            }
-
-            function showAddedToday() { els.addedTodayBanner.classList.add("active"); }
-            function hideAddedToday() { els.addedTodayBanner.classList.remove("active"); }
-
-            function checkConsecutiveAbsences() {
-                let totalAbs = 0;
-                Object.values(attendance).forEach(v => { if (v === false) totalAbs++; });
-                if (totalAbs >= 3) {
-                    els.absentAlertBanner.classList.add("active");
-                    els.absentAlertText.innerHTML = "&#9888;&#65039; تحتاج متابعة - " + totalAbs + " غيابات مسجلة";
-                } else {
-                    els.absentAlertBanner.classList.remove("active");
-                }
-            }
-
-            function updateStatusColors() {
-                DAYS.forEach(day => {
-                    let present = 0, absent = 0, rated = 0, sum = 0;
+        function applyDailyData(data) {
+            if (data.followups) {
+                Object.keys(data.followups).forEach(day => {
+                    const dayData = data.followups[day];
+                    const noteEl = document.getElementById("note-" + day);
+                    if (noteEl && dayData.note) noteEl.value = dayData.note;
                     ACTS.forEach(act => {
+                        const actData = dayData[act];
                         const key = day + "|" + act;
-                        if (attendance[key] === true) present++;
-                        else if (attendance[key] === false) absent++;
-                        if (ratings[key]) { rated++; sum += ratings[key]; }
+                        if (actData) {
+                            if (actData.attendance === true) attendance[key] = true;
+                            else if (actData.attendance === false) attendance[key] = false;
+                            if (actData.rating) ratings[key] = actData.rating;
+                        }
                     });
-                    const total = present + absent;
-                    const attRate = total > 0 ? present / total : 0;
-                    const avg = rated > 0 ? sum / rated : 0;
-                    const strip = document.getElementById("status-" + day);
-                    if (!strip) return;
-                    if (total === 0) strip.className = "status-strip neutral";
-                    else if (attRate >= 0.75 && avg >= 3.5) strip.className = "status-strip excellent";
-                    else if (attRate >= 0.5 && avg >= 2.5) strip.className = "status-strip good";
-                    else strip.className = "status-strip bad";
                 });
             }
+            applyUIState();
+            updateSummary();
+            checkConsecutiveAbsences();
+            updateStatusColors();
+        }
 
-            // ═══════════════════════════════════════════════════════════
-            // CHANGE TRACKING & REASONS
-            // ═══════════════════════════════════════════════════════════
-            function requestChangeReason(changeInfo) {
-                if (!currentServer) {
-                    showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
-                    return false;
-                }
-                const studentName = els.name.value.trim();
-                const studentYear = els.year.value.trim();
-                if (!studentName || !studentYear) {
-                    changeInfo.reason = "تسجيل أولي";
-                    changeInfo.execute();
-                    return true;
-                }
-                pendingChange = changeInfo;
-                els.reasonInput.value = "";
-                els.reasonModal.classList.add("active");
-                setTimeout(() => els.reasonInput.focus(), 100);
-                return true;
-            }
-
-            function closeReasonModal(confirm) {
-                if (!confirm) {
-                    if (pendingChange && pendingChange.revert) pendingChange.revert();
-                    pendingChange = null;
-                    els.reasonModal.classList.remove("active");
-                    return;
-                }
-                const reason = els.reasonInput.value.trim() || "تعديل روتيني";
-                if (pendingChange) {
-                    pendingChange.reason = reason;
-                    pendingChange.execute();
-                    pendingChange = null;
-                }
-                els.reasonModal.classList.remove("active");
-            }
-
-            function toggleAttendance(checkbox) {
-                const row = checkbox.closest(".activity-row");
+        function applyUIState() {
+            document.querySelectorAll(".activity-row").forEach(row => {
+                const day = row.dataset.day, act = row.dataset.act, key = day + "|" + act;
+                const cb = row.querySelector(".toggle-switch input");
                 const ratingDiv = row.querySelector(".rating");
                 const absentLabel = row.querySelector(".absent-label");
-                const day = row.dataset.day, act = row.dataset.act, key = day + "|" + act;
-                const oldVal = attendance[key] === true ? "حاضرة" : (attendance[key] === false ? "غائبة" : "غير محدد");
-                const newVal = checkbox.checked ? "حاضرة" : "غائبة";
-                if ((checkbox.checked && attendance[key] === true) || (!checkbox.checked && attendance[key] === false)) return;
-                const revert = () => { checkbox.checked = !checkbox.checked; };
-                requestChangeReason({
-                    type: "attendance", day: day, activity: act, oldVal: oldVal, newVal: newVal, revert: revert,
-                    execute: function() {
-                        if (checkbox.checked) {
-                            attendance[key] = true; ratingDiv.classList.remove("disabled"); absentLabel.style.display = "none";
-                        } else {
-                            attendance[key] = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "inline";
-                            delete ratings[key]; ratingDiv.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
-                        }
-                        addRecord({ type: "attendance", day: day, activity: act, oldValue: oldVal, newValue: newVal, reason: this.reason });
-                        queueSave(); updateSummary(); checkConsecutiveAbsences(); updateStatusColors();
-                    }
-                });
-            }
-
-            function rate(star, value) {
-                const container = star.parentElement;
-                if (container.classList.contains("disabled")) return;
-                const day = container.dataset.day, act = container.dataset.act, key = day + "|" + act;
-                const oldVal = ratings[key] ? (ratings[key] + " نجوم") : "غير مقيم";
-                if (ratings[key] === value) return;
-                const revert = () => { applyUIState(); };
-                requestChangeReason({
-                    type: "rating", day: day, activity: act, oldVal: oldVal, newVal: value + " نجوم", revert: revert,
-                    execute: function() {
-                        ratings[key] = value;
-                        container.querySelectorAll(".star").forEach((s, i) => { s.classList.toggle("active", i < value); });
-                        addRecord({ type: "rating", day: day, activity: act, oldValue: oldVal, newValue: value + " نجوم", reason: this.reason });
-                        queueSave(); updateSummary(); updateStatusColors();
-                    }
-                });
-            }
-
-            function addRecord(rec) {
-                if (!currentServer) return;
-                const student = els.name.value.trim() || "غير_محدد";
-                const fullRec = {
-                    timestamp: new Date().toISOString(),
-                    serverId: currentServer.uid, serverName: currentServer.name, serverEmail: currentServer.email,
-                    studentName: student, studentYear: els.year.value.trim(), followDate: getTodayDate(),
-                    day: rec.day, activity: rec.activity, type: rec.type,
-                    oldValue: rec.oldValue || null, newValue: rec.newValue || rec.value, reason: rec.reason || null
-                };
-                records.unshift(fullRec);
-                if (records.length > CONFIG.maxRecords) records = records.slice(0, CONFIG.maxRecords);
-                updateSummary();
-                saveLocalOnly();
-                try {
-                    window.addDoc(window.collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
-                    const archiveRef = window.collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
-                    window.addDoc(archiveRef, fullRec).catch(() => {});
-                } catch(e) { console.error("Firebase log error:", e); }
-            }
-
-            function queueSave() {
-                if (saveTimeout) clearTimeout(saveTimeout);
-                setSaveStatus("saving");
-                saveTimeout = setTimeout(() => forceSave(), CONFIG.saveDebounceMs);
-            }
-
-            async function forceSave() {
-                if (isSaving) return;
-                isSaving = true;
-                els.saveBtn.disabled = true;
-                if (!window.firebaseReady || !window.db) {
-                    setSaveStatus("offline"); saveLocalOnly();
-                    els.saveBtn.disabled = false; isSaving = false; return;
-                }
-                const docId = getStudentDocId();
-                if (!docId) { isSaving = false; els.saveBtn.disabled = false; return; }
-                const today = getTodayDate();
-                try {
-                    const dailyRef = window.doc(window.db, "students", docId, "daily", today);
-                    const dailySnap = await window.getDoc(dailyRef);
-                    if (dailySnap.exists()) {
-                        const rData = dailySnap.data();
-                        const remoteUpdatedAt = rData.updatedAt || null;
-                        const remoteServer = rData.updatedBy || {};
-                        if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt && remoteServer.uid !== (currentServer && currentServer.uid)) {
-                            showConflict(remoteServer.name || "خادم آخر");
-                            els.saveBtn.disabled = false; isSaving = false; return;
-                        }
-                    }
-                } catch(e) { console.warn("Conflict check failed:", e); }
-
-                const basePayload = { name: els.name.value.trim(), year: els.year.value.trim(), lastUpdated: new Date().toISOString() };
-                try { await window.setDoc(window.doc(window.db, "students", docId), basePayload, { merge: true }); } catch(e) { console.error("Base save error:", e); }
-
-                const dailyPayload = { followups: {}, updatedAt: new Date().toISOString(), updatedBy: currentServer ? { uid: currentServer.uid, name: currentServer.name, email: currentServer.email } : null };
-                DAYS.forEach(day => {
-                    dailyPayload.followups[day] = {};
-                    ACTS.forEach(act => {
-                        const key = day + "|" + act;
-                        dailyPayload.followups[day][act] = {
-                            attendance: attendance[key] === true ? true : (attendance[key] === false ? false : null),
-                            rating: ratings[key] || null
-                        };
-                    });
-                    dailyPayload.followups[day].note = document.getElementById("note-" + day)?.value || "";
-                });
-
-                try {
-                    await window.setDoc(window.doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
-                    lastKnownUpdatedAt = dailyPayload.updatedAt;
-                    isAlreadyAddedToday = true; showAddedToday();
-                    setSaveStatus("saved"); saveLocalOnly();
-                    showToast("&#9989; تم الحفظ في السحابة", "success");
-                } catch(e) {
-                    console.error("Daily save error:", e);
-                    setSaveStatus("error"); saveLocalOnly();
-                    showToast("&#10060; فشل الحفظ - محفوظ محلياً", "error");
-                } finally {
-                    els.saveBtn.disabled = false; isSaving = false;
-                }
-            }
-
-            function saveLocalOnly() {
-                const docId = getStudentDocId();
-                if (!docId) return;
-                const followups = {};
-                DAYS.forEach(day => { followups[day] = { note: document.getElementById("note-" + day)?.value || "" }; });
-                const payload = {
-                    name: els.name.value.trim(), year: els.year.value.trim(),
-                    attendance: {...attendance}, ratings: {...ratings}, followups: followups,
-                    records: records.slice(0, CONFIG.maxRecords),
-                    lastKnownUpdatedAt: lastKnownUpdatedAt, isAlreadyAddedToday: isAlreadyAddedToday,
-                    savedAt: new Date().toISOString()
-                };
-                try {
-                    localStorage.setItem("khadem_data_" + docId, JSON.stringify(payload));
-                } catch(e) {
-                    console.error("Local save error:", e);
-                    if (e.name === "QuotaExceededError") showToast("&#128308; ذاكرة التخزين ممتلئة! صدّري البيانات", "error", 5000);
-                }
-            }
-
-            // ═══════════════════════════════════════════════════════════
-            // SEARCH
-            // ═══════════════════════════════════════════════════════════
-            function debouncedSearch() {
-                if (searchTimeout) clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => doQuickSearch(), CONFIG.searchDebounceMs);
-            }
-
-            async function doQuickSearch() {
-                const queryText = document.getElementById("quickSearch").value.trim();
-                const resultsBox = els.searchResults;
-                resultsBox.innerHTML = "";
-                if (!queryText || queryText.length < 2) { resultsBox.classList.remove("active"); return; }
-                if (searchAbortController) searchAbortController.abort();
-                searchAbortController = new AbortController();
-                let found = [];
-                try {
-                    const q = window.query(
-                        window.collection(window.db, "students"),
-                        window.where("name", ">=", queryText),
-                        window.where("name", "<=", queryText + "\uf8ff"),
-                        window.limit(10)
-                    );
-                    const snap = await window.getDocs(q);
-                    snap.forEach(d => {
-                        const data = d.data();
-                        found.push({ name: data.name, year: data.year, id: d.id });
-                    });
-                } catch(e) { if (e.name !== "AbortError") console.error("Search error:", e); }
-                if (found.length === 0) {
-                    resultsBox.innerHTML = '<div class="search-result-empty">لا توجد نتائج</div>';
+                if (attendance[key] === true) {
+                    cb.checked = true; ratingDiv.classList.remove("disabled"); absentLabel.style.display = "none";
+                } else if (attendance[key] === false) {
+                    cb.checked = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "inline";
                 } else {
-                    found.forEach(s => {
-                        const div = document.createElement("div");
-                        div.className = "search-result-item";
-                        div.innerHTML = `<b>${escapeHtml(s.name)}</b> <span class="result-year">- ${escapeHtml(s.year)}</span>`;
-                        div.onclick = () => {
-                            els.name.value = s.name; els.year.value = s.year; els.studentDocId.value = s.id;
-                            document.getElementById("quickSearch").value = ""; resultsBox.classList.remove("active");
-                        };
-                        resultsBox.appendChild(div);
-                    });
+                    cb.checked = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "none";
                 }
-                resultsBox.classList.add("active");
+                ratingDiv.querySelectorAll(".star").forEach((s, i) => {
+                    s.classList.toggle("active", ratings[key] && i < ratings[key]);
+                });
+            });
+        }
+
+        function resetUI(clearNames, clearRecords = false) {
+            if (clearNames) {
+                els.name.value = ""; els.year.value = ""; els.studentDocId.value = "";
+                lastKnownUpdatedAt = null; isAlreadyAddedToday = false;
             }
+            document.querySelectorAll(".toggle-switch input").forEach(t => {
+                t.checked = false;
+                const row = t.closest(".activity-row");
+                row.querySelector(".rating").classList.add("disabled");
+                row.querySelector(".absent-label").style.display = "none";
+            });
+            document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".note-input").forEach(n => n.value = "");
+            for (let k in ratings) delete ratings[k];
+            for (let k in attendance) delete attendance[k];
+            if (clearRecords) records = [];
+            els.conflictBanner.classList.remove("active");
+            els.absentAlertBanner.classList.remove("active");
+            hideAddedToday();
+            updateSummary();
+            updateStatusColors();
+        }
 
-            // ═══════════════════════════════════════════════════════════
-            // STATISTICS
-            // ═══════════════════════════════════════════════════════════
-            async function showStats() {
-                els.statsModal.classList.add("active");
-                els.statsLoadingOverlay.classList.add("active");
-                await renderStats();
-                els.statsLoadingOverlay.classList.remove("active");
+        function updateSummary() {
+            let present = 0, absent = 0;
+            Object.values(attendance).forEach(v => {
+                if (v === true) present++;
+                else if (v === false) absent++;
+            });
+            const total = Object.keys(attendance).length;
+            const rateValues = Object.values(ratings);
+            const rated = rateValues.length;
+            const sum = rateValues.reduce((a, b) => a + b, 0);
+            const avg = rated > 0 ? (sum / rated).toFixed(1) : "0.0";
+            const attRate = total > 0 ? Math.round((present / total) * 100) : 0;
+            els.presentCount.textContent = present;
+            els.absentCount.textContent = absent;
+            els.ratedActivities.textContent = rated;
+            els.avgRating.textContent = avg;
+            els.attendanceRate.textContent = attRate + "%";
+            els.logCount.textContent = records.length;
+        }
+
+        function showConflict(serverName) {
+            els.conflictBanner.classList.add("active");
+            els.conflictText.textContent = "الخادم " + serverName + " عدل على البيانات وأنتِ شغالة! حدّثي الصفحة.";
+            setSaveStatus("offline");
+            showToast("تعارض في البيانات! حدّثي الصفحة", "error", 6000);
+        }
+
+        function showAddedToday() { els.addedTodayBanner.classList.add("active"); }
+        function hideAddedToday() { els.addedTodayBanner.classList.remove("active"); }
+
+        function checkConsecutiveAbsences() {
+            let totalAbs = 0;
+            Object.values(attendance).forEach(v => { if (v === false) totalAbs++; });
+            if (totalAbs >= 3) {
+                els.absentAlertBanner.classList.add("active");
+                els.absentAlertText.innerHTML = "&#9888;&#65039; تحتاج متابعة - " + totalAbs + " غيابات مسجلة";
+            } else {
+                els.absentAlertBanner.classList.remove("active");
             }
+        }
 
-            async function renderStats() {
-                try {
-                    const studentsSnap = await window.getDocs(window.collection(window.db, "students"));
-                    let total = 0, studentStats = [], monthlyAbsents = 0, needFollow = 0;
-                    const currentMonth = new Date().toISOString().slice(0, 7);
-                    const studentIds = [];
-                    studentsSnap.forEach(d => studentIds.push({ id: d.id, data: d.data() }));
-                    total = studentIds.length;
-                    const dailyPromises = studentIds.map(s => window.getDocs(window.collection(window.db, "students", s.id, "daily")));
-                    const dailySnaps = await Promise.all(dailyPromises);
+        function updateStatusColors() {
+            DAYS.forEach(day => {
+                let present = 0, absent = 0, rated = 0, sum = 0;
+                ACTS.forEach(act => {
+                    const key = day + "|" + act;
+                    if (attendance[key] === true) present++;
+                    else if (attendance[key] === false) absent++;
+                    if (ratings[key]) { rated++; sum += ratings[key]; }
+                });
+                const total = present + absent;
+                const attRate = total > 0 ? present / total : 0;
+                const avg = rated > 0 ? sum / rated : 0;
+                const strip = document.getElementById("status-" + day);
+                if (!strip) return;
+                if (total === 0) strip.className = "status-strip neutral";
+                else if (attRate >= 0.75 && avg >= 3.5) strip.className = "status-strip excellent";
+                else if (attRate >= 0.5 && avg >= 2.5) strip.className = "status-strip good";
+                else strip.className = "status-strip bad";
+            });
+        }
 
-                    studentIds.forEach((s, idx) => {
-                        const sName = s.data.name || "غير معروف";
-                        let presentCount = 0, absentCount = 0, ratingSum = 0, ratingCount = 0, monthAbsentCount = 0;
-                        dailySnaps[idx].forEach(d => {
-                            const dData = d.data(), date = d.id;
-                            if (dData.followups) {
-                                Object.values(dData.followups).forEach(dayData => {
-                                    ACTS.forEach(act => {
-                                        const actData = dayData[act];
-                                        if (actData) {
-                                            if (actData.attendance === true) presentCount++;
-                                            else if (actData.attendance === false) { absentCount++; if (date.startsWith(currentMonth)) monthAbsentCount++; }
-                                            if (actData.rating) { ratingSum += actData.rating; ratingCount++; }
-                                        }
-                                    });
+        // ═══════════════════════════════════════════════════════════
+        // CHANGE TRACKING & REASONS
+        // ═══════════════════════════════════════════════════════════
+        function requestChangeReason(changeInfo) {
+            if (!currentServer) {
+                showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
+                return false;
+            }
+            const studentName = els.name.value.trim();
+            const studentYear = els.year.value.trim();
+            if (!studentName || !studentYear) {
+                changeInfo.reason = "تسجيل أولي";
+                changeInfo.execute();
+                return true;
+            }
+            pendingChange = changeInfo;
+            els.reasonInput.value = "";
+            els.reasonModal.classList.add("active");
+            setTimeout(() => els.reasonInput.focus(), 100);
+            return true;
+        }
+
+        function closeReasonModal(confirm) {
+            if (!confirm) {
+                if (pendingChange && pendingChange.revert) pendingChange.revert();
+                pendingChange = null;
+                els.reasonModal.classList.remove("active");
+                return;
+            }
+            const reason = els.reasonInput.value.trim() || "تعديل روتيني";
+            if (pendingChange) {
+                pendingChange.reason = reason;
+                pendingChange.execute();
+                pendingChange = null;
+            }
+            els.reasonModal.classList.remove("active");
+        }
+
+        function toggleAttendance(checkbox) {
+            const row = checkbox.closest(".activity-row");
+            const ratingDiv = row.querySelector(".rating");
+            const absentLabel = row.querySelector(".absent-label");
+            const day = row.dataset.day, act = row.dataset.act, key = day + "|" + act;
+            const oldVal = attendance[key] === true ? "حاضرة" : (attendance[key] === false ? "غائبة" : "غير محدد");
+            const newVal = checkbox.checked ? "حاضرة" : "غائبة";
+            if ((checkbox.checked && attendance[key] === true) || (!checkbox.checked && attendance[key] === false)) return;
+            const revert = () => { checkbox.checked = !checkbox.checked; };
+            requestChangeReason({
+                type: "attendance", day: day, activity: act, oldVal: oldVal, newVal: newVal, revert: revert,
+                execute: function() {
+                    if (checkbox.checked) {
+                        attendance[key] = true; ratingDiv.classList.remove("disabled"); absentLabel.style.display = "none";
+                    } else {
+                        attendance[key] = false; ratingDiv.classList.add("disabled"); absentLabel.style.display = "inline";
+                        delete ratings[key]; ratingDiv.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
+                    }
+                    addRecord({ type: "attendance", day: day, activity: act, oldValue: oldVal, newValue: newVal, reason: this.reason });
+                    queueSave(); updateSummary(); checkConsecutiveAbsences(); updateStatusColors();
+                }
+            });
+        }
+
+        function rate(star, value) {
+            const container = star.parentElement;
+            if (container.classList.contains("disabled")) return;
+            const day = container.dataset.day, act = container.dataset.act, key = day + "|" + act;
+            const oldVal = ratings[key] ? (ratings[key] + " نجوم") : "غير مقيم";
+            if (ratings[key] === value) return;
+            const revert = () => { applyUIState(); };
+            requestChangeReason({
+                type: "rating", day: day, activity: act, oldVal: oldVal, newVal: value + " نجوم", revert: revert,
+                execute: function() {
+                    ratings[key] = value;
+                    container.querySelectorAll(".star").forEach((s, i) => { s.classList.toggle("active", i < value); });
+                    addRecord({ type: "rating", day: day, activity: act, oldValue: oldVal, newValue: value + " نجوم", reason: this.reason });
+                    queueSave(); updateSummary(); updateStatusColors();
+                }
+            });
+        }
+
+        function addRecord(rec) {
+            if (!currentServer) return;
+            const student = els.name.value.trim() || "غير_محدد";
+            const fullRec = {
+                timestamp: new Date().toISOString(),
+                serverId: currentServer.uid, serverName: currentServer.name, serverEmail: currentServer.email,
+                studentName: student, studentYear: els.year.value.trim(), followDate: getTodayDate(),
+                day: rec.day, activity: rec.activity, type: rec.type,
+                oldValue: rec.oldValue || null, newValue: rec.newValue || rec.value, reason: rec.reason || null
+            };
+            records.unshift(fullRec);
+            if (records.length > CONFIG.maxRecords) records = records.slice(0, CONFIG.maxRecords);
+            updateSummary();
+            saveLocalOnly();
+            try {
+                window.addDoc(window.collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
+                const archiveRef = window.collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
+                window.addDoc(archiveRef, fullRec).catch(() => {});
+            } catch(e) { console.error("Firebase log error:", e); }
+        }
+
+        function queueSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            setSaveStatus("saving");
+            saveTimeout = setTimeout(() => forceSave(), CONFIG.saveDebounceMs);
+        }
+
+        async function forceSave() {
+            if (isSaving) return;
+            isSaving = true;
+            els.saveBtn.disabled = true;
+            if (!window.firebaseReady || !window.db) {
+                setSaveStatus("offline"); saveLocalOnly();
+                els.saveBtn.disabled = false; isSaving = false; return;
+            }
+            const docId = getStudentDocId();
+            if (!docId) { isSaving = false; els.saveBtn.disabled = false; return; }
+            const today = getTodayDate();
+            try {
+                const dailyRef = window.doc(window.db, "students", docId, "daily", today);
+                const dailySnap = await window.getDoc(dailyRef);
+                if (dailySnap.exists()) {
+                    const rData = dailySnap.data();
+                    const remoteUpdatedAt = rData.updatedAt || null;
+                    const remoteServer = rData.updatedBy || {};
+                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt && remoteServer.uid !== (currentServer && currentServer.uid)) {
+                        showConflict(remoteServer.name || "خادم آخر");
+                        els.saveBtn.disabled = false; isSaving = false; return;
+                    }
+                }
+            } catch(e) { console.warn("Conflict check failed:", e); }
+
+            const basePayload = { name: els.name.value.trim(), year: els.year.value.trim(), lastUpdated: new Date().toISOString() };
+            try { await window.setDoc(window.doc(window.db, "students", docId), basePayload, { merge: true }); } catch(e) { console.error("Base save error:", e); }
+
+            const dailyPayload = { followups: {}, updatedAt: new Date().toISOString(), updatedBy: currentServer ? { uid: currentServer.uid, name: currentServer.name, email: currentServer.email } : null };
+            DAYS.forEach(day => {
+                dailyPayload.followups[day] = {};
+                ACTS.forEach(act => {
+                    const key = day + "|" + act;
+                    dailyPayload.followups[day][act] = {
+                        attendance: attendance[key] === true ? true : (attendance[key] === false ? false : null),
+                        rating: ratings[key] || null
+                    };
+                });
+                dailyPayload.followups[day].note = document.getElementById("note-" + day)?.value || "";
+            });
+
+            try {
+                await window.setDoc(window.doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
+                lastKnownUpdatedAt = dailyPayload.updatedAt;
+                isAlreadyAddedToday = true; showAddedToday();
+                setSaveStatus("saved"); saveLocalOnly();
+                showToast("&#9989; تم الحفظ في السحابة", "success");
+            } catch(e) {
+                console.error("Daily save error:", e);
+                setSaveStatus("error"); saveLocalOnly();
+                showToast("&#10060; فشل الحفظ - محفوظ محلياً", "error");
+            } finally {
+                els.saveBtn.disabled = false; isSaving = false;
+            }
+        }
+
+        function saveLocalOnly() {
+            const docId = getStudentDocId();
+            if (!docId) return;
+            const followups = {};
+            DAYS.forEach(day => { followups[day] = { note: document.getElementById("note-" + day)?.value || "" }; });
+            const payload = {
+                name: els.name.value.trim(), year: els.year.value.trim(),
+                attendance: {...attendance}, ratings: {...ratings}, followups: followups,
+                records: records.slice(0, CONFIG.maxRecords),
+                lastKnownUpdatedAt: lastKnownUpdatedAt, isAlreadyAddedToday: isAlreadyAddedToday,
+                savedAt: new Date().toISOString()
+            };
+            try {
+                localStorage.setItem("khadem_data_" + docId, JSON.stringify(payload));
+            } catch(e) {
+                console.error("Local save error:", e);
+                if (e.name === "QuotaExceededError") showToast("&#128308; ذاكرة التخزين ممتلئة! صدّري البيانات", "error", 5000);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // SEARCH
+        // ═══════════════════════════════════════════════════════════
+        function debouncedSearch() {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => doQuickSearch(), CONFIG.searchDebounceMs);
+        }
+
+        async function doQuickSearch() {
+            const queryText = document.getElementById("quickSearch").value.trim();
+            const resultsBox = els.searchResults;
+            resultsBox.innerHTML = "";
+            if (!queryText || queryText.length < 2) { resultsBox.classList.remove("active"); return; }
+            if (searchAbortController) searchAbortController.abort();
+            searchAbortController = new AbortController();
+            let found = [];
+            try {
+                const q = window.query(
+                    window.collection(window.db, "students"),
+                    window.where("name", ">=", queryText),
+                    window.where("name", "<=", queryText + "\uf8ff"),
+                    window.limit(10)
+                );
+                const snap = await window.getDocs(q);
+                snap.forEach(d => {
+                    const data = d.data();
+                    found.push({ name: data.name, year: data.year, id: d.id });
+                });
+            } catch(e) { if (e.name !== "AbortError") console.error("Search error:", e); }
+            if (found.length === 0) {
+                resultsBox.innerHTML = '<div class="search-result-empty">لا توجد نتائج</div>';
+            } else {
+                found.forEach(s => {
+                    const div = document.createElement("div");
+                    div.className = "search-result-item";
+                    div.innerHTML = `<b>${escapeHtml(s.name)}</b> <span class="result-year">- ${escapeHtml(s.year)}</span>`;
+                    div.onclick = () => {
+                        els.name.value = s.name; els.year.value = s.year; els.studentDocId.value = s.id;
+                        document.getElementById("quickSearch").value = ""; resultsBox.classList.remove("active");
+                    };
+                    resultsBox.appendChild(div);
+                });
+            }
+            resultsBox.classList.add("active");
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // STATISTICS
+        // ═══════════════════════════════════════════════════════════
+        async function showStats() {
+            els.statsModal.classList.add("active");
+            els.statsLoadingOverlay.classList.add("active");
+            await renderStats();
+            els.statsLoadingOverlay.classList.remove("active");
+        }
+
+        async function renderStats() {
+            try {
+                const studentsSnap = await window.getDocs(window.collection(window.db, "students"));
+                let total = 0, studentStats = [], monthlyAbsents = 0, needFollow = 0;
+                const currentMonth = new Date().toISOString().slice(0, 7);
+                const studentIds = [];
+                studentsSnap.forEach(d => studentIds.push({ id: d.id, data: d.data() }));
+                total = studentIds.length;
+                const dailyPromises = studentIds.map(s => window.getDocs(window.collection(window.db, "students", s.id, "daily")));
+                const dailySnaps = await Promise.all(dailyPromises);
+
+                studentIds.forEach((s, idx) => {
+                    const sName = s.data.name || "غير معروف";
+                    let presentCount = 0, absentCount = 0, ratingSum = 0, ratingCount = 0, monthAbsentCount = 0;
+                    dailySnaps[idx].forEach(d => {
+                        const dData = d.data(), date = d.id;
+                        if (dData.followups) {
+                            Object.values(dData.followups).forEach(dayData => {
+                                ACTS.forEach(act => {
+                                    const actData = dayData[act];
+                                    if (actData) {
+                                        if (actData.attendance === true) presentCount++;
+                                        else if (actData.attendance === false) { absentCount++; if (date.startsWith(currentMonth)) monthAbsentCount++; }
+                                        if (actData.rating) { ratingSum += actData.rating; ratingCount++; }
+                                    }
                                 });
-                            }
-                        });
-                        const totalActs = presentCount + absentCount;
-                        const attRate = totalActs > 0 ? presentCount / totalActs : 0;
-                        const avgRate = ratingCount > 0 ? ratingSum / ratingCount : 0;
-                        studentStats.push({ name: sName, present: presentCount, absent: absentCount, attRate, avgRate, monthAbsent: monthAbsentCount });
-                        monthlyAbsents += monthAbsentCount;
-                        if (attRate < 0.5 || avgRate < 2.5) needFollow++;
-                    });
-
-                    const sortedByPresent = [...studentStats].sort((a, b) => b.present - a.present);
-                    const topPresent = sortedByPresent[0], leastPresent = sortedByPresent[sortedByPresent.length - 1];
-                    const overallAvg = studentStats.length > 0 ? (studentStats.reduce((s, st) => s + (st.avgRate || 0), 0) / studentStats.length).toFixed(1) : "0.0";
-
-                    document.getElementById("statTotalStudents").textContent = total;
-                    document.getElementById("statTopPresent").textContent = topPresent ? topPresent.name + " (" + topPresent.present + ")" : "-";
-                    document.getElementById("statLeastPresent").textContent = leastPresent ? leastPresent.name + " (" + leastPresent.present + ")" : "-";
-                    document.getElementById("statAvgRating").textContent = overallAvg;
-                    document.getElementById("statMonthlyAbsents").textContent = monthlyAbsents;
-                    document.getElementById("statNeedFollow").textContent = needFollow;
-
-                    let excellent = 0, good = 0, bad = 0;
-                    studentStats.forEach(st => {
-                        if (st.attRate >= 0.75 && st.avgRate >= 3.5) excellent++;
-                        else if (st.attRate >= 0.5 && st.avgRate >= 2.5) good++;
-                        else bad++;
-                    });
-                    const totalSafe = total || 1;
-                    const distDiv = document.getElementById("statusDistribution");
-                    distDiv.innerHTML = `
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:20px;height:20px;border-radius:50%;background:var(--status-excellent);flex-shrink:0;"></div>
-                            <span style="flex:1;font-size:0.9rem;">&#127942; ممتاز (${excellent})</span>
-                            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(excellent/totalSafe*100)}%;background:var(--status-excellent);"></div></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:20px;height:20px;border-radius:50%;background:var(--status-good);flex-shrink:0;"></div>
-                            <span style="flex:1;font-size:0.9rem;">&#127941; جيد (${good})</span>
-                            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(good/totalSafe*100)}%;background:var(--status-good);"></div></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:20px;height:20px;border-radius:50%;background:var(--status-bad);flex-shrink:0;"></div>
-                            <span style="flex:1;font-size:0.9rem;">&#128308; يحتاج متابعة (${bad})</span>
-                            <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(bad/totalSafe*100)}%;background:var(--status-bad);"></div></div>
-                        </div>
-                    `;
-                } catch(e) {
-                    console.error("Stats error:", e);
-                    showToast("&#10060; خطأ في تحميل الإحصائيات", "error");
-                }
-            }
-
-            function closeStats() { els.statsModal.classList.remove("active"); }
-
-            // ═══════════════════════════════════════════════════════════
-            // MONTHLY LOG
-            // ═══════════════════════════════════════════════════════════
-            function generateMonthSelector() {
-                const container = els.monthSelector;
-                container.innerHTML = "";
-                const now = new Date();
-                for (let i = 0; i < CONFIG.monthsToShow; i++) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - 2 + i, 1);
-                    const btn = document.createElement("button");
-                    btn.className = "month-btn" + (i === 2 ? " active" : "");
-                    btn.textContent = d.toLocaleDateString("ar-EG", { year: "numeric", month: "long" });
-                    btn.onclick = () => selectMonth(d.getFullYear(), d.getMonth());
-                    container.appendChild(btn);
-                }
-            }
-
-            function showMonthlyLog() {
-                els.monthlyModal.classList.add("active");
-                const now = new Date();
-                selectMonth(now.getFullYear(), now.getMonth());
-            }
-
-            function closeMonthlyLog() { els.monthlyModal.classList.remove("active"); }
-
-            async function selectMonth(year, month) {
-                const buttons = els.monthSelector.querySelectorAll(".month-btn");
-                const now = new Date();
-                buttons.forEach((btn, idx) => {
-                    const btnMonth = new Date(now.getFullYear(), now.getMonth() - 2 + idx, 1);
-                    btn.classList.toggle("active", btnMonth.getFullYear() === year && btnMonth.getMonth() === month);
-                });
-                const firstDay = new Date(year, month, 1), lastDay = new Date(year, month + 1, 0);
-                const daysInMonth = lastDay.getDate(), startDayOfWeek = firstDay.getDay();
-                const calendar = els.monthCalendar;
-                calendar.innerHTML = "";
-                ARABIC_DAYS.forEach(d => {
-                    const h = document.createElement("div");
-                    h.className = "cal-header"; h.textContent = d; calendar.appendChild(h);
-                });
-                for (let i = 0; i < startDayOfWeek; i++) {
-                    const empty = document.createElement("div"); empty.className = "cal-day empty"; calendar.appendChild(empty);
-                }
-                const monthPrefix = year + "-" + String(month + 1).padStart(2, "0");
-                const todayStr = getTodayDate();
-                for (let d = 1; d <= daysInMonth; d++) {
-                    const dayStr = monthPrefix + "-" + String(d).padStart(2, "0");
-                    const cell = document.createElement("div");
-                    cell.className = "cal-day"; cell.textContent = d;
-                    cell.setAttribute("role", "button"); cell.setAttribute("tabindex", "0");
-                    cell.setAttribute("aria-label", "يوم " + d);
-                    if (dayStr === todayStr) cell.classList.add("today");
-                    if (dayStr === todayStr && isAlreadyAddedToday) { cell.classList.add("has-data"); cell.innerHTML += '<div class="cal-dot"></div>'; }
-                    cell.onclick = () => loadMonthDay(dayStr);
-                    cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") loadMonthDay(dayStr); };
-                    calendar.appendChild(cell);
-                }
-                els.monthDetails.style.display = "none";
-            }
-
-            async function loadMonthDay(dateStr) {
-                els.monthDetailTitle.textContent = "بيانات يوم " + dateStr;
-                const content = els.monthDetailContent;
-                content.innerHTML = "<p style=\"text-align:center;color:var(--text-light);padding:20px;\">&#9203; جاري التحميل...</p>";
-                els.monthDetails.style.display = "block";
-                if (!currentStudentId || !window.firebaseReady || !window.db) {
-                    content.innerHTML = "<p style=\"color:var(--text-light)\">لا يوجد بيانات - اختاري طالبة أولاً</p>";
-                    return;
-                }
-                try {
-                    const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", dateStr));
-                    if (snap.exists()) {
-                        const data = snap.data(); let html = "";
-                        if (data.followups) {
-                            DAYS.forEach(day => {
-                                const dayData = data.followups[day];
-                                if (dayData) {
-                                    html += '<div style="margin-bottom:12px;padding:14px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">';
-                                    html += '<b style="color:var(--primary);display:block;margin-bottom:8px;">' + day + '</b>';
-                                    ACTS.forEach(act => {
-                                        const actData = dayData[act];
-                                        if (actData) {
-                                            const att = actData.attendance === true ? "&#9989; حاضرة" : (actData.attendance === false ? "&#10060; غائبة" : "➖");
-                                            const rat = actData.rating ? "&#11088;".repeat(actData.rating) : "غير مقيم";
-                                            html += '<div style="padding:4px 0;font-size:0.9rem;"><b>' + act + '</b>: ' + att + ' | ' + rat + '</div>';
-                                        }
-                                    });
-                                    if (dayData.note) html += '<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:0.85rem;color:var(--text-light);">&#128172; ' + escapeHtml(dayData.note) + '</div>';
-                                    html += "</div>";
-                                }
                             });
                         }
-                        if (data.updatedBy) html += '<div style="margin-top:12px;font-size:0.8rem;color:var(--text-light);">&#128100; سُجلت بواسطة: ' + escapeHtml(data.updatedBy.name) + ' (' + data.updatedBy.email + ')</div>';
-                        content.innerHTML = html || "<p style=\"color:var(--text-light)\">لا توجد أنشطة مسجلة</p>";
-                    } else {
-                        content.innerHTML = "<p style=\"color:var(--text-light)\">لا توجد بيانات لهذا اليوم</p>";
-                    }
-                } catch(e) { content.innerHTML = "<p style=\"color:var(--danger)\">&#10060; خطأ في التحميل</p>"; }
-            }
-
-            // ═══════════════════════════════════════════════════════════
-            // AUDIT LOG
-            // ═══════════════════════════════════════════════════════════
-            async function showLog() {
-                els.logModal.classList.add("active");
-                els.logLoadingOverlay.classList.add("active");
-                await renderLogTable();
-                els.logLoadingOverlay.classList.remove("active");
-            }
-
-            async function renderLogTable() {
-                const tbody = els.logTableBody;
-                tbody.innerHTML = "";
-                const fDay = document.getElementById("filterDay").value;
-                const fType = document.getElementById("filterType").value;
-
-                if (window.firebaseReady && window.db && els.name.value.trim()) {
-                    try {
-                        const logsQuery = window.query(
-                            window.collection(window.db, "logs"),
-                            window.where("studentName", "==", els.name.value.trim()),
-                            window.orderBy("timestamp", "desc"),
-                            window.limit(CONFIG.maxLogEntries)
-                        );
-                        const logsSnap = await window.getDocs(logsQuery);
-                        const freshRecords = [];
-                        logsSnap.forEach(d => freshRecords.push(d.data()));
-                        records = mergeRecords(freshRecords, records);
-                        updateSummary();
-                    } catch(e) { console.warn("Could not refresh logs:", e); }
-                }
-
-                let displayRecords = records.slice(0, CONFIG.maxLogEntries).filter(r => {
-                    if (fDay && r.day !== fDay) return false;
-                    if (fType && r.type !== fType) return false;
-                    return true;
-                });
-
-                if (displayRecords.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px;">لا يوجد سجلات مطابقة</td></tr>';
-                    return;
-                }
-                const fragment = document.createDocumentFragment();
-                displayRecords.forEach(rec => {
-                    const date = new Date(rec.timestamp);
-                    const timeStr = date.toLocaleString("ar-EG", { hour12: false });
-                    let changeHtml = "";
-                    if (rec.oldValue && rec.newValue) changeHtml = '<span class="old-val">' + escapeHtml(String(rec.oldValue)) + '</span> &#10132; <span class="new-val">' + escapeHtml(String(rec.newValue)) + '</span>';
-                    else changeHtml = '<span class="new-val">' + escapeHtml(String(rec.newValue || rec.value || "-")) + '</span>';
-                    let tagClass = "tag-present";
-                    if (rec.type === "attendance" && rec.newValue === "غائبة") tagClass = "tag-absent";
-                    else if (rec.type === "rating") tagClass = "tag-rating";
-                    else if (rec.type === "note") tagClass = "tag-change";
-                    const reasonHtml = rec.reason ? '<span class="reason-tag">&#128172; ' + escapeHtml(rec.reason) + '</span>' : "";
-                    const typeLabel = rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type);
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = "<td><b>" + timeStr + "</b></td>" +
-                        "<td><b>" + escapeHtml(rec.serverName || "-") + "</b><br><small style=\"color:#999\">" + escapeHtml(rec.serverEmail || "-") + "</small></td>" +
-                        "<td>" + escapeHtml(rec.studentName || "-") + "</td>" +
-                        "<td>" + escapeHtml(rec.day || "-") + "<br><small>" + escapeHtml(rec.activity || "-") + "</small></td>" +
-                        "<td><span class=\"tag " + tagClass + "\">" + typeLabel + "</span><br>" + changeHtml + "</td>" +
-                        "<td>" + reasonHtml + "</td>";
-                    fragment.appendChild(tr);
-                });
-                tbody.appendChild(fragment);
-            }
-
-            function closeLog() { els.logModal.classList.remove("active"); }
-
-            // ═══════════════════════════════════════════════════════════
-            // EXPORT & RESET
-            // ═══════════════════════════════════════════════════════════
-            async function exportData(format) {
-                const student = els.name.value.trim() || "غير_محدد";
-                const payload = {
-                    exportDate: new Date().toISOString(), exportedBy: currentServer,
-                    studentName: student, studentYear: els.year.value.trim(), followDate: getTodayDate(),
-                    attendance: {...attendance}, ratings: {...ratings}, records: records
-                };
-                if (window.firebaseReady && window.db && currentStudentId) {
-                    try {
-                        const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
-                        if (snap.exists()) payload.firebaseData = snap.data();
-                    } catch(e) {}
-                }
-                if (format === "json") {
-                    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url; a.download = "followup_" + student.replace(/\s+/g, "_") + "_" + getTodayDate() + ".json";
-                    document.body.appendChild(a); a.click();
-                    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-                    showToast("&#9989; تم تصدير JSON", "success");
-                } else if (format === "csv") {
-                    let csv = "timestamp,serverId,serverName,serverEmail,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\n";
-                    records.forEach(r => {
-                        csv += (r.timestamp || "") + "," + (r.serverId || "") + "," + (r.serverName || "") + "," + (r.serverEmail || "") + "," +
-                               (r.studentName || "") + "," + (r.studentYear || "") + "," + (r.followDate || "") + "," +
-                               (r.day || "") + "," + (r.activity || "") + "," + (r.type || "") + "," +
-                               "\"" + (r.oldValue || "") + "\"," + "\"" + (r.newValue || r.value || "") + "\"," + "\"" + (r.reason || "") + "\"\n";
                     });
-                    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url; a.download = "followup_audit_" + getTodayDate() + ".csv";
-                    document.body.appendChild(a); a.click();
-                    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
-                    showToast("&#9989; تم تصدير CSV", "success");
+                    const totalActs = presentCount + absentCount;
+                    const attRate = totalActs > 0 ? presentCount / totalActs : 0;
+                    const avgRate = ratingCount > 0 ? ratingSum / ratingCount : 0;
+                    studentStats.push({ name: sName, present: presentCount, absent: absentCount, attRate, avgRate, monthAbsent: monthAbsentCount });
+                    monthlyAbsents += monthAbsentCount;
+                    if (attRate < 0.5 || avgRate < 2.5) needFollow++;
+                });
+
+                const sortedByPresent = [...studentStats].sort((a, b) => b.present - a.present);
+                const topPresent = sortedByPresent[0], leastPresent = sortedByPresent[sortedByPresent.length - 1];
+                const overallAvg = studentStats.length > 0 ? (studentStats.reduce((s, st) => s + (st.avgRate || 0), 0) / studentStats.length).toFixed(1) : "0.0";
+
+                document.getElementById("statTotalStudents").textContent = total;
+                document.getElementById("statTopPresent").textContent = topPresent ? topPresent.name + " (" + topPresent.present + ")" : "-";
+                document.getElementById("statLeastPresent").textContent = leastPresent ? leastPresent.name + " (" + leastPresent.present + ")" : "-";
+                document.getElementById("statAvgRating").textContent = overallAvg;
+                document.getElementById("statMonthlyAbsents").textContent = monthlyAbsents;
+                document.getElementById("statNeedFollow").textContent = needFollow;
+
+                let excellent = 0, good = 0, bad = 0;
+                studentStats.forEach(st => {
+                    if (st.attRate >= 0.75 && st.avgRate >= 3.5) excellent++;
+                    else if (st.attRate >= 0.5 && st.avgRate >= 2.5) good++;
+                    else bad++;
+                });
+                const totalSafe = total || 1;
+                const distDiv = document.getElementById("statusDistribution");
+                distDiv.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-excellent);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#127942; ممتاز (${excellent})</span>
+                        <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(excellent/totalSafe*100)}%;background:var(--status-excellent);"></div></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-good);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#127941; جيد (${good})</span>
+                        <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(good/totalSafe*100)}%;background:var(--status-good);"></div></div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-bad);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#128308; يحتاج متابعة (${bad})</span>
+                        <div class="progress-bar-container"><div class="progress-bar-fill" style="width:${(bad/totalSafe*100)}%;background:var(--status-bad);"></div></div>
+                    </div>
+                `;
+            } catch(e) {
+                console.error("Stats error:", e);
+                showToast("&#10060; خطأ في تحميل الإحصائيات", "error");
+            }
+        }
+
+        function closeStats() { els.statsModal.classList.remove("active"); }
+
+        // ═══════════════════════════════════════════════════════════
+        // MONTHLY LOG
+        // ═══════════════════════════════════════════════════════════
+        function generateMonthSelector() {
+            const container = els.monthSelector;
+            container.innerHTML = "";
+            const now = new Date();
+            for (let i = 0; i < CONFIG.monthsToShow; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - 2 + i, 1);
+                const btn = document.createElement("button");
+                btn.className = "month-btn" + (i === 2 ? " active" : "");
+                btn.textContent = d.toLocaleDateString("ar-EG", { year: "numeric", month: "long" });
+                btn.onclick = () => selectMonth(d.getFullYear(), d.getMonth());
+                container.appendChild(btn);
+            }
+        }
+
+        function showMonthlyLog() {
+            els.monthlyModal.classList.add("active");
+            const now = new Date();
+            selectMonth(now.getFullYear(), now.getMonth());
+        }
+
+        function closeMonthlyLog() { els.monthlyModal.classList.remove("active"); }
+
+        async function selectMonth(year, month) {
+            const buttons = els.monthSelector.querySelectorAll(".month-btn");
+            const now = new Date();
+            buttons.forEach((btn, idx) => {
+                const btnMonth = new Date(now.getFullYear(), now.getMonth() - 2 + idx, 1);
+                btn.classList.toggle("active", btnMonth.getFullYear() === year && btnMonth.getMonth() === month);
+            });
+            const firstDay = new Date(year, month, 1), lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate(), startDayOfWeek = firstDay.getDay();
+            const calendar = els.monthCalendar;
+            calendar.innerHTML = "";
+            ARABIC_DAYS.forEach(d => {
+                const h = document.createElement("div");
+                h.className = "cal-header"; h.textContent = d; calendar.appendChild(h);
+            });
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const empty = document.createElement("div"); empty.className = "cal-day empty"; calendar.appendChild(empty);
+            }
+            const monthPrefix = year + "-" + String(month + 1).padStart(2, "0");
+            const todayStr = getTodayDate();
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayStr = monthPrefix + "-" + String(d).padStart(2, "0");
+                const cell = document.createElement("div");
+                cell.className = "cal-day"; cell.textContent = d;
+                cell.setAttribute("role", "button"); cell.setAttribute("tabindex", "0");
+                cell.setAttribute("aria-label", "يوم " + d);
+                if (dayStr === todayStr) cell.classList.add("today");
+                if (dayStr === todayStr && isAlreadyAddedToday) { cell.classList.add("has-data"); cell.innerHTML += '<div class="cal-dot"></div>'; }
+                cell.onclick = () => loadMonthDay(dayStr);
+                cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") loadMonthDay(dayStr); };
+                calendar.appendChild(cell);
+            }
+            els.monthDetails.style.display = "none";
+        }
+
+        async function loadMonthDay(dateStr) {
+            els.monthDetailTitle.textContent = "بيانات يوم " + dateStr;
+            const content = els.monthDetailContent;
+            content.innerHTML = "<p style=\"text-align:center;color:var(--text-light);padding:20px;\">&#9203; جاري التحميل...</p>";
+            els.monthDetails.style.display = "block";
+            if (!currentStudentId || !window.firebaseReady || !window.db) {
+                content.innerHTML = "<p style=\"color:var(--text-light)\">لا يوجد بيانات - اختاري طالبة أولاً</p>";
+                return;
+            }
+            try {
+                const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", dateStr));
+                if (snap.exists()) {
+                    const data = snap.data(); let html = "";
+                    if (data.followups) {
+                        DAYS.forEach(day => {
+                            const dayData = data.followups[day];
+                            if (dayData) {
+                                html += '<div style="margin-bottom:12px;padding:14px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">';
+                                html += '<b style="color:var(--primary);display:block;margin-bottom:8px;">' + day + '</b>';
+                                ACTS.forEach(act => {
+                                    const actData = dayData[act];
+                                    if (actData) {
+                                        const att = actData.attendance === true ? "&#9989; حاضرة" : (actData.attendance === false ? "&#10060; غائبة" : "➖");
+                                        const rat = actData.rating ? "&#11088;".repeat(actData.rating) : "غير مقيم";
+                                        html += '<div style="padding:4px 0;font-size:0.9rem;"><b>' + act + '</b>: ' + att + ' | ' + rat + '</div>';
+                                    }
+                                });
+                                if (dayData.note) html += '<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:0.85rem;color:var(--text-light);">&#128172; ' + escapeHtml(dayData.note) + '</div>';
+                                html += "</div>";
+                            }
+                        });
+                    }
+                    if (data.updatedBy) html += '<div style="margin-top:12px;font-size:0.8rem;color:var(--text-light);">&#128100; سُجلت بواسطة: ' + escapeHtml(data.updatedBy.name) + ' (' + data.updatedBy.email + ')</div>';
+                    content.innerHTML = html || "<p style=\"color:var(--text-light)\">لا توجد أنشطة مسجلة</p>";
+                } else {
+                    content.innerHTML = "<p style=\"color:var(--text-light)\">لا توجد بيانات لهذا اليوم</p>";
                 }
+            } catch(e) { content.innerHTML = "<p style=\"color:var(--danger)\">&#10060; خطأ في التحميل</p>"; }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // AUDIT LOG
+        // ═══════════════════════════════════════════════════════════
+        async function showLog() {
+            els.logModal.classList.add("active");
+            els.logLoadingOverlay.classList.add("active");
+            await renderLogTable();
+            els.logLoadingOverlay.classList.remove("active");
+        }
+
+        async function renderLogTable() {
+            const tbody = els.logTableBody;
+            tbody.innerHTML = "";
+            const fDay = document.getElementById("filterDay").value;
+            const fType = document.getElementById("filterType").value;
+
+            if (window.firebaseReady && window.db && els.name.value.trim()) {
+                try {
+                    const logsQuery = window.query(
+                        window.collection(window.db, "logs"),
+                        window.where("studentName", "==", els.name.value.trim()),
+                        window.orderBy("timestamp", "desc"),
+                        window.limit(CONFIG.maxLogEntries)
+                    );
+                    const logsSnap = await window.getDocs(logsQuery);
+                    const freshRecords = [];
+                    logsSnap.forEach(d => freshRecords.push(d.data()));
+                    records = mergeRecords(freshRecords, records);
+                    updateSummary();
+                } catch(e) { console.warn("Could not refresh logs:", e); }
             }
 
-            async function resetAll() {
-                if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\n\nالسجل التاريخي في Firebase ميتحذفش.")) return;
-                const docId = getStudentDocId();
-                resetUI(true, true);
-                if (window.firebaseReady && window.db && docId) {
-                    try {
-                        await window.deleteDoc(window.doc(window.db, "students", docId, "daily", getTodayDate()));
-                        showToast("&#9989; تم المسح من السحابة", "success");
-                    } catch(e) {
-                        console.error("Delete error:", e);
-                        showToast("&#10060; خطأ في المسح من السحابة", "error");
-                    }
-                }
-                const key = getLocalStorageKey();
-                if (key) localStorage.removeItem(key);
-            }
+            let displayRecords = records.slice(0, CONFIG.maxLogEntries).filter(r => {
+                if (fDay && r.day !== fDay) return false;
+                if (fType && r.type !== fType) return false;
+                return true;
+            });
 
-            // ═══════════════════════════════════════════════════════════
-            // KEYBOARD & EVENTS
-            // ═══════════════════════════════════════════════════════════
-            function setupKeyboardShortcuts() {
-                document.addEventListener("keydown", (e) => {
-                    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
-                        if (e.key === "Escape") {
-                            els.searchResults.classList.remove("active");
-                            document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
-                        }
-                        return;
-                    }
-                    if (e.ctrlKey || e.metaKey) {
-                        switch(e.key.toLowerCase()) {
-                            case "s": e.preventDefault(); forceSave(); break;
-                            case "p": e.preventDefault(); window.print(); break;
-                            case "f": e.preventDefault(); document.getElementById("quickSearch").focus(); break;
-                            case "n": e.preventDefault(); newStudent(); break;
-                            case "h": e.preventDefault(); showLog(); break;
-                            case "i": e.preventDefault(); showStats(); break;
-                        }
-                    }
+            if (displayRecords.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px;">لا يوجد سجلات مطابقة</td></tr>';
+                return;
+            }
+            const fragment = document.createDocumentFragment();
+            displayRecords.forEach(rec => {
+                const date = new Date(rec.timestamp);
+                const timeStr = date.toLocaleString("ar-EG", { hour12: false });
+                let changeHtml = "";
+                if (rec.oldValue && rec.newValue) changeHtml = '<span class="old-val">' + escapeHtml(String(rec.oldValue)) + '</span> &#10132; <span class="new-val">' + escapeHtml(String(rec.newValue)) + '</span>';
+                else changeHtml = '<span class="new-val">' + escapeHtml(String(rec.newValue || rec.value || "-")) + '</span>';
+                let tagClass = "tag-present";
+                if (rec.type === "attendance" && rec.newValue === "غائبة") tagClass = "tag-absent";
+                else if (rec.type === "rating") tagClass = "tag-rating";
+                else if (rec.type === "note") tagClass = "tag-change";
+                const reasonHtml = rec.reason ? '<span class="reason-tag">&#128172; ' + escapeHtml(rec.reason) + '</span>' : "";
+                const typeLabel = rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type);
+                const tr = document.createElement("tr");
+                tr.innerHTML = "<td><b>" + timeStr + "</b></td>" +
+                    "<td><b>" + escapeHtml(rec.serverName || "-") + "</b><br><small style=\"color:#999\">" + escapeHtml(rec.serverEmail || "-") + "</small></td>" +
+                    "<td>" + escapeHtml(rec.studentName || "-") + "</td>" +
+                    "<td>" + escapeHtml(rec.day || "-") + "<br><small>" + escapeHtml(rec.activity || "-") + "</small></td>" +
+                    "<td><span class=\"tag " + tagClass + "\">" + typeLabel + "</span><br>" + changeHtml + "</td>" +
+                    "<td>" + reasonHtml + "</td>";
+                fragment.appendChild(tr);
+            });
+            tbody.appendChild(fragment);
+        }
+
+        function closeLog() { els.logModal.classList.remove("active"); }
+
+        // ═══════════════════════════════════════════════════════════
+        // EXPORT & RESET
+        // ═══════════════════════════════════════════════════════════
+        async function exportData(format) {
+            const student = els.name.value.trim() || "غير_محدد";
+            const payload = {
+                exportDate: new Date().toISOString(), exportedBy: currentServer,
+                studentName: student, studentYear: els.year.value.trim(), followDate: getTodayDate(),
+                attendance: {...attendance}, ratings: {...ratings}, records: records
+            };
+            if (window.firebaseReady && window.db && currentStudentId) {
+                try {
+                    const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
+                    if (snap.exists()) payload.firebaseData = snap.data();
+                } catch(e) {}
+            }
+            if (format === "json") {
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "followup_" + student.replace(/\s+/g, "_") + "_" + getTodayDate() + ".json";
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+                showToast("&#9989; تم تصدير JSON", "success");
+            } else if (format === "csv") {
+                let csv = "timestamp,serverId,serverName,serverEmail,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\n";
+                records.forEach(r => {
+                    csv += (r.timestamp || "") + "," + (r.serverId || "") + "," + (r.serverName || "") + "," + (r.serverEmail || "") + "," +
+                           (r.studentName || "") + "," + (r.studentYear || "") + "," + (r.followDate || "") + "," +
+                           (r.day || "") + "," + (r.activity || "") + "," + (r.type || "") + "," +
+                           "\"" + (r.oldValue || "") + "\"," + "\"" + (r.newValue || r.value || "") + "\"," + "\"" + (r.reason || "") + "\"\n";
+                });
+                const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = "followup_audit_" + getTodayDate() + ".csv";
+                document.body.appendChild(a); a.click();
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+                showToast("&#9989; تم تصدير CSV", "success");
+            }
+        }
+
+        async function resetAll() {
+            if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\n\nالسجل التاريخي في Firebase ميتحذفش.")) return;
+            const docId = getStudentDocId();
+            resetUI(true, true);
+            if (window.firebaseReady && window.db && docId) {
+                try {
+                    await window.deleteDoc(window.doc(window.db, "students", docId, "daily", getTodayDate()));
+                    showToast("&#9989; تم المسح من السحابة", "success");
+                } catch(e) {
+                    console.error("Delete error:", e);
+                    showToast("&#10060; خطأ في المسح من السحابة", "error");
+                }
+            }
+            const key = getLocalStorageKey();
+            if (key) localStorage.removeItem(key);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // KEYBOARD & EVENTS
+        // ═══════════════════════════════════════════════════════════
+        function setupKeyboardShortcuts() {
+            document.addEventListener("keydown", (e) => {
+                if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
                     if (e.key === "Escape") {
                         els.searchResults.classList.remove("active");
                         document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
                     }
-                });
-                document.getElementById("loginEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginPassword").focus(); });
-                document.getElementById("loginPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") handleLogin(); });
-                document.getElementById("regName").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regEmail").focus(); });
-                document.getElementById("regEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regPassword").focus(); });
-                document.getElementById("regPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regPasswordConfirm").focus(); });
-                document.getElementById("regPasswordConfirm").addEventListener("keydown", (e) => { if (e.key === "Enter") handleRegister(); });
-            }
-
-            function toggleShortcuts() { els.shortcutsHelp.classList.toggle("active"); }
-
-            [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal].forEach(modal => {
-                modal.addEventListener("click", (e) => {
-                    if (e.target === modal) {
-                        if (modal === els.reasonModal) closeReasonModal(false);
-                        else modal.classList.remove("active");
+                    return;
+                }
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key.toLowerCase()) {
+                        case "s": e.preventDefault(); forceSave(); break;
+                        case "p": e.preventDefault(); window.print(); break;
+                        case "f": e.preventDefault(); document.getElementById("quickSearch").focus(); break;
+                        case "n": e.preventDefault(); newStudent(); break;
+                        case "h": e.preventDefault(); showLog(); break;
+                        case "i": e.preventDefault(); showStats(); break;
                     }
-                });
+                }
+                if (e.key === "Escape") {
+                    els.searchResults.classList.remove("active");
+                    document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
+                }
             });
-
-            document.addEventListener("click", (e) => {
-                if (!e.target.closest(".search-wrap")) els.searchResults.classList.remove("active");
-            });
-
-            window.addEventListener("online", () => {
-                setSaveStatus("online");
-                els.offlineBanner.classList.remove("active");
-                showToast("&#127760; تم استعادة الاتصال", "success");
-                if (currentServer) forceSave();
-            });
-
-            window.addEventListener("offline", () => {
-                setSaveStatus("offline");
-                els.offlineBanner.classList.add("active");
-                showToast("&#128268; فُقد الاتصال - الوضع المحلي مفعل", "warning", 5000);
-            });
-
-            document.addEventListener("visibilitychange", () => {
-                if (document.hidden && (saveTimeout || Object.keys(attendance).length > 0)) forceSave();
-            });
-
-            window.addEventListener("beforeunload", (e) => { if (saveTimeout) forceSave(); });
-
-            // ═══════════════════════════════════════════════════════════
-            // INIT
-            // ═══════════════════════════════════════════════════════════
-            updateTodayBadge();
-            // لا نستدعي generateCards هنا لأن onAuthStateChanged سيتولى الأمر
-            // أو إذا كان المستخدم غير مسجل، ستظهر شاشة تسجيل الدخول تلقائياً
+            document.getElementById("loginEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginPassword").focus(); });
+            document.getElementById("loginPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") handleLogin(); });
+            document.getElementById("regName").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regEmail").focus(); });
+            document.getElementById("regEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regPassword").focus(); });
+            document.getElementById("regPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("regPasswordConfirm").focus(); });
+            document.getElementById("regPasswordConfirm").addEventListener("keydown", (e) => { if (e.key === "Enter") handleRegister(); });
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // GLOBAL EXPORTS (for onclick handlers in HTML)
-        // ═══════════════════════════════════════════════════════════════
-        window.toggleAuthMode = function() {
-            // Will be overridden by initializeAppLogic, but defined here for safety
-        };
-        window.handleLogin = function() {};
-        window.handleRegister = function() {};
-        window.logout = function() {};
-        window.onStudentSelectChange = function() {};
-        window.newStudent = function() {};
-        window.manualLoadStudent = function() {};
-        window.toggleAttendance = function() {};
-        window.rate = function() {};
-        window.queueSave = function() {};
-        window.forceSave = function() {};
-        window.debouncedSearch = function() {};
-        window.showStats = function() {};
-        window.closeStats = function() {};
-        window.showLog = function() {};
-        window.closeLog = function() {};
-        window.showMonthlyLog = function() {};
-        window.closeMonthlyLog = function() {};
-        window.closeReasonModal = function() {};
-        window.exportData = function() {};
-        window.resetAll = function() {};
-        window.toggleShortcuts = function() {};
+        function toggleShortcuts() { els.shortcutsHelp.classList.toggle("active"); }
+
+        [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal].forEach(modal => {
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) {
+                    if (modal === els.reasonModal) closeReasonModal(false);
+                    else modal.classList.remove("active");
+                }
+            });
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".search-wrap")) els.searchResults.classList.remove("active");
+        });
+
+        window.addEventListener("online", () => {
+            setSaveStatus("online");
+            els.offlineBanner.classList.remove("active");
+            showToast("&#127760; تم استعادة الاتصال", "success");
+            if (currentServer) forceSave();
+        });
+
+        window.addEventListener("offline", () => {
+            setSaveStatus("offline");
+            els.offlineBanner.classList.add("active");
+            showToast("&#128268; فُقد الاتصال - الوضع المحلي مفعل", "warning", 5000);
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && (saveTimeout || Object.keys(attendance).length > 0)) forceSave();
+        });
+
+        window.addEventListener("beforeunload", (e) => { if (saveTimeout) forceSave(); });
     </script>
 </body>
 </html>
