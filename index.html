@@ -478,11 +478,11 @@
         <div class="info-card">
             <div class="form-group">
                 <label>&#128100; اسم الطالبة</label>
-                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." onchange="loadStudent()">
+                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." onchange="loadStudentDebounced()">
             </div>
             <div class="form-group">
                 <label>&#128218; السنة الدراسية</label>
-                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." onchange="loadStudent()">
+                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." onchange="loadStudentDebounced()">
             </div>
         </div>
 
@@ -705,11 +705,30 @@
         const attendance = {};
         let records = [];
         let saveTimeout = null;
+        let loadTimeout = null;
         const DAYS = ["السبت","الإثنين","الأربعاء"];
         const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
 
+        const els = {
+            name: document.getElementById("studentName"),
+            year: document.getElementById("studentYear"),
+            saveStatus: document.getElementById("saveStatus"),
+            serverDisplay: document.getElementById("serverDisplay"),
+            loginOverlay: document.getElementById("loginOverlay"),
+            mainApp: document.getElementById("mainApp"),
+            loginError: document.getElementById("loginError"),
+            logModal: document.getElementById("logModal"),
+            logTableBody: document.getElementById("logTableBody"),
+            presentCount: document.getElementById("presentCount"),
+            absentCount: document.getElementById("absentCount"),
+            ratedActivities: document.getElementById("ratedActivities"),
+            avgRating: document.getElementById("avgRating"),
+            attendanceRate: document.getElementById("attendanceRate"),
+            logCount: document.getElementById("logCount")
+        };
+
         function setSaveStatus(status) {
-            const el = document.getElementById("saveStatus");
+            const el = els.saveStatus;
             if (status === "saving") {
                 el.innerHTML = "&#9203; جاري الحفظ...";
                 el.className = "save-status saving";
@@ -730,8 +749,8 @@
         }
 
         function getStudentDocId() {
-            const name = document.getElementById("studentName").value.trim();
-            const year = document.getElementById("studentYear").value.trim();
+            const name = els.name.value.trim();
+            const year = els.year.value.trim();
             if (!name) return null;
             return (name + "_" + year).replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
         }
@@ -739,7 +758,7 @@
         function doLogin() {
             const name = document.getElementById("loginName").value.trim();
             const id = document.getElementById("loginId").value.trim();
-            const err = document.getElementById("loginError");
+            const err = els.loginError;
 
             if (!SERVERS[id]) {
                 err.textContent = "ID غير موجود في قائمة الخدام";
@@ -755,11 +774,11 @@
             currentServer = { id: id, name: name };
             localStorage.setItem("khadem_session", JSON.stringify(currentServer));
 
-            document.getElementById("loginOverlay").classList.add("hidden");
-            document.getElementById("mainApp").style.display = "block";
-            document.getElementById("serverDisplay").textContent = name + " (#" + id + ")";
+            els.loginOverlay.classList.add("hidden");
+            els.mainApp.style.display = "block";
+            els.serverDisplay.textContent = name + " (#" + id + ")";
             err.style.display = "none";
-            loadStudent();
+            loadStudentDebounced();
         }
 
         function logout() {
@@ -775,14 +794,24 @@
                 const s = JSON.parse(savedSession);
                 if (SERVERS[s.id] && SERVERS[s.id] === s.name) {
                     currentServer = s;
-                    document.getElementById("loginOverlay").classList.add("hidden");
-                    document.getElementById("mainApp").style.display = "block";
-                    document.getElementById("serverDisplay").textContent = s.name + " (#" + s.id + ")";
+                    els.loginOverlay.classList.add("hidden");
+                    els.mainApp.style.display = "block";
+                    els.serverDisplay.textContent = s.name + " (#" + s.id + ")";
                 }
             } catch(e) {}
         }
 
+        function loadStudentDebounced() {
+            clearTimeout(loadTimeout);
+            loadTimeout = setTimeout(loadStudent, 500);
+        }
+
         function toggleAttendance(checkbox) {
+            if (!currentServer) {
+                alert("لازم تسجيل دخول الخادم أولاً");
+                checkbox.checked = !checkbox.checked;
+                return;
+            }
             const row = checkbox.closest(".activity-row");
             const ratingDiv = row.querySelector(".rating");
             const absentLabel = row.querySelector(".absent-label");
@@ -808,6 +837,10 @@
         }
 
         function rate(star, value) {
+            if (!currentServer) {
+                alert("لازم تسجيل دخول الخادم أولاً");
+                return;
+            }
             const container = star.parentElement;
             if (container.classList.contains("disabled")) return;
             const day = container.dataset.day;
@@ -825,20 +858,20 @@
 
         function addRecord(rec) {
             if (!currentServer) return;
-            const student = document.getElementById("studentName").value.trim() || "غير محدد";
+            const student = els.name.value.trim() || "غير محدد";
             const fullRec = {
                 timestamp: new Date().toISOString(),
                 serverId: currentServer.id,
                 serverName: currentServer.name,
                 studentName: student,
-                studentYear: document.getElementById("studentYear").value.trim(),
+                studentYear: els.year.value.trim(),
                 day: rec.day,
                 activity: rec.activity,
                 type: rec.type,
                 value: rec.value
             };
             records.unshift(fullRec);
-            if (records.length > 200) records.pop();
+            if (records.length > 500) records = records.slice(0, 500);
             updateSummary();
 
             if (window.firebaseReady && window.db) {
@@ -865,8 +898,9 @@
 
             setSaveStatus("saving");
             const payload = {
-                name: document.getElementById("studentName").value.trim(),
-                year: document.getElementById("studentYear").value.trim(),
+                name: els.name.value.trim(),
+                year: els.year.value.trim(),
+                serverId: currentServer ? currentServer.id : null,
                 followups: {},
                 updatedAt: new Date().toISOString(),
                 updatedBy: currentServer ? { id: currentServer.id, name: currentServer.name } : null
@@ -897,8 +931,8 @@
 
         function saveLocalOnly() {
             const payload = {
-                studentName: document.getElementById("studentName").value,
-                studentYear: document.getElementById("studentYear").value,
+                studentName: els.name.value,
+                studentYear: els.year.value,
                 attendance: attendance,
                 ratings: ratings,
                 records: records
@@ -930,8 +964,8 @@
         }
 
         function applyFirebaseData(data) {
-            if (data.name) document.getElementById("studentName").value = data.name;
-            if (data.year) document.getElementById("studentYear").value = data.year;
+            if (data.name) els.name.value = data.name;
+            if (data.year) els.year.value = data.year;
 
             if (data.followups) {
                 Object.keys(data.followups).forEach(function(day) {
@@ -959,8 +993,8 @@
             if (!raw) return;
             try {
                 const data = JSON.parse(raw);
-                if (data.studentName) document.getElementById("studentName").value = data.studentName;
-                if (data.studentYear) document.getElementById("studentYear").value = data.studentYear;
+                if (data.studentName) els.name.value = data.studentName;
+                if (data.studentYear) els.year.value = data.studentYear;
                 if (data.attendance) {
                     Object.keys(data.attendance).forEach(function(k) { attendance[k] = data.attendance[k]; });
                 }
@@ -1004,8 +1038,8 @@
 
         function resetUI(clearNames) {
             if (clearNames) {
-                document.getElementById("studentName").value = "";
-                document.getElementById("studentYear").value = "";
+                els.name.value = "";
+                els.year.value = "";
             }
             document.querySelectorAll(".toggle-switch input").forEach(function(t) {
                 t.checked = false;
@@ -1027,29 +1061,30 @@
                 if (v === true) present++;
                 else if (v === false) absent++;
             });
+            const total = Object.keys(attendance).length;
             const rateValues = Object.values(ratings);
             const rated = rateValues.length;
             const sum = rateValues.reduce(function(a, b) { return a + b; }, 0);
             const avg = rated > 0 ? (sum / rated).toFixed(1) : "0.0";
-            const attRate = (present + absent) > 0 ? Math.round((present / 12) * 100) : 0;
+            const attRate = total > 0 ? Math.round((present / total) * 100) : 0;
 
-            document.getElementById("presentCount").textContent = present;
-            document.getElementById("absentCount").textContent = absent;
-            document.getElementById("ratedActivities").textContent = rated;
-            document.getElementById("avgRating").textContent = avg;
-            document.getElementById("attendanceRate").textContent = attRate + "%";
-            document.getElementById("logCount").textContent = records.length;
+            els.presentCount.textContent = present;
+            els.absentCount.textContent = absent;
+            els.ratedActivities.textContent = rated;
+            els.avgRating.textContent = avg;
+            els.attendanceRate.textContent = attRate + "%";
+            els.logCount.textContent = records.length;
         }
 
         async function showLog() {
-            const tbody = document.getElementById("logTableBody");
+            const tbody = els.logTableBody;
             tbody.innerHTML = "";
 
             let displayRecords = records.slice(0, 100);
 
             if (window.firebaseReady && window.db) {
                 try {
-                    const student = document.getElementById("studentName").value.trim();
+                    const student = els.name.value.trim();
                     let q;
                     if (student) {
                         q = query(collection(window.db, "logs"), where("studentName", "==", student), orderBy("timestamp", "desc"), limit(100));
@@ -1084,20 +1119,20 @@
                     tbody.appendChild(tr);
                 });
             }
-            document.getElementById("logModal").classList.add("active");
+            els.logModal.classList.add("active");
         }
 
         function closeLog() {
-            document.getElementById("logModal").classList.remove("active");
+            els.logModal.classList.remove("active");
         }
 
         async function exportData(format) {
-            const student = document.getElementById("studentName").value.trim() || "غير_محدد";
+            const student = els.name.value.trim() || "غير_محدد";
             let payload = {
                 exportDate: new Date().toISOString(),
                 exportedBy: currentServer,
                 studentName: student,
-                studentYear: document.getElementById("studentYear").value.trim(),
+                studentYear: els.year.value.trim(),
                 attendance: attendance,
                 ratings: ratings,
                 records: records
@@ -1149,9 +1184,9 @@
             localStorage.removeItem("khadem_data");
         }
 
-        document.getElementById("logModal").addEventListener("click", function(e) {
+        els.logModal.addEventListener("click", function(e) {
             if (e.target === this) closeLog();
         });
     </script>
 </body>
-</html>
+    </html>
