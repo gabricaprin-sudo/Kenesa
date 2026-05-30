@@ -1240,26 +1240,6 @@
         </div>
     </div>
 
-    <!-- MODAL: سبب التعديل -->
-    <div class="modal-overlay" id="reasonModal">
-        <div class="modal-box" style="max-width: 450px;">
-            <div class="modal-header">
-                <h3>&#9998; سبب التعديل</h3>
-                <button class="modal-close" onclick="closeReasonModal(false)" aria-label="إغلاق">&#215;</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 14px; color: var(--text-light); font-size: 0.9rem;">
-                    أي تعديل في البيانات لازم يكون له سبب واضح عشان السجل التاريخي.
-                </p>
-                <textarea id="changeReasonInput" class="note-input" style="min-height: 90px;" placeholder="اكتبي سبب التعديل (مثال: تصحيح خطأ في الحضور، تحديث بعد مراجعة المشرفة...)" aria-label="سبب التعديل"></textarea>
-                <div style="margin-top: 18px; display: flex; gap: 12px; justify-content: center;">
-                    <button class="btn btn-success" onclick="closeReasonModal(true)">&#9989; تأكيد</button>
-                    <button class="btn btn-secondary" onclick="closeReasonModal(false)">&#10060; إلغاء</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL: السجل التاريخي المجمّع -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box" style="max-width: 900px;">
@@ -1480,7 +1460,7 @@
         let records = [];
         let saveTimeout = null;
         let searchTimeout = null;
-        let pendingChange = null;
+
         let lastKnownUpdatedAt = null;
         let isAlreadyAddedToday = false;
         let isSaving = false;
@@ -1512,8 +1492,7 @@
             logTableBody: document.getElementById("logTableBody"),
             logAggregatedView: document.getElementById("logAggregatedView"),
             logDetailedTable: document.getElementById("logDetailedTable"),
-            reasonModal: document.getElementById("reasonModal"),
-            reasonInput: document.getElementById("changeReasonInput"),
+
             presentCount: document.getElementById("presentCount"),
             absentCount: document.getElementById("absentCount"),
             ratedActivities: document.getElementById("ratedActivities"),
@@ -2140,30 +2119,15 @@
             const studentYear = els.year.value.trim();
             if (!studentName || !studentYear) {
                 changeInfo.reason = "تسجيل أولي";
-                changeInfo.execute();
-                return true;
+            } else {
+                changeInfo.reason = "";
             }
-            pendingChange = changeInfo;
-            els.reasonInput.value = "";
-            els.reasonModal.classList.add("active");
-            setTimeout(() => els.reasonInput.focus(), 100);
+            changeInfo.execute();
             return true;
         }
 
         function closeReasonModal(confirm) {
-            if (!confirm) {
-                if (pendingChange && pendingChange.revert) pendingChange.revert();
-                pendingChange = null;
-                els.reasonModal.classList.remove("active");
-                return;
-            }
-            const reason = els.reasonInput.value.trim() || "تعديل روتيني";
-            if (pendingChange) {
-                pendingChange.reason = reason;
-                pendingChange.execute();
-                pendingChange = null;
-            }
-            els.reasonModal.classList.remove("active");
+            // no-op: reason modal removed, changes execute immediately
         }
 
         function toggleAttendance(checkbox) {
@@ -3184,13 +3148,10 @@
 
         function toggleShortcuts() { els.shortcutsHelp.classList.toggle("active"); }
 
-        [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal, els.todayAttendanceModal, els.profileModal].forEach(modal => {
+        [els.logModal, els.statsModal, els.monthlyModal, els.todayAttendanceModal, els.profileModal].forEach(modal => {
             if (!modal) return;
             modal.addEventListener("click", (e) => {
-                if (e.target === modal) {
-                    if (modal === els.reasonModal) closeReasonModal(false);
-                    else modal.classList.remove("active");
-                }
+                if (e.target === modal) modal.classList.remove("active");
             });
         });
 
