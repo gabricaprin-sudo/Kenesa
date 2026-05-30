@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v5.0</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v5.1</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -702,7 +702,6 @@
         .log-table tr:hover td { background: #f8f9fc; }
         .log-table tr { transition: background 0.2s; }
 
-        /* Aggregated log styles */
         .agg-day-header {
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
             color: white;
@@ -875,7 +874,6 @@
         .cal-day.empty { background: transparent; cursor: default; }
         .cal-day.empty:hover { background: transparent; color: inherit; }
 
-        /* Full Profile Modal */
         .profile-timeline {
             display: flex;
             flex-direction: column;
@@ -1031,7 +1029,6 @@
         .toast.hiding { animation: fadeOut 0.3s ease forwards; }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
 
-        /* Today Attendance specific styles */
         .attendance-row {
             display: flex;
             align-items: center;
@@ -1125,7 +1122,7 @@
             </div>
             
             <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
-                النسخة المحسّنة v5.0 &bull; Firebase Auth &bull; 3 أيام
+                النسخة المحسّنة v5.1 &bull; تسجيل دخول تلقائي &bull; حفظ فوري
             </div>
         </div>
     </div>
@@ -1240,7 +1237,6 @@
         </div>
     </div>
 
-    <!-- MODAL: السجل التاريخي المجمّع -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box" style="max-width: 900px;">
             <div class="modal-header">
@@ -1295,7 +1291,6 @@
         </div>
     </div>
 
-    <!-- MODAL: الإحصائيات -->
     <div class="modal-overlay" id="statsModal">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
@@ -1322,7 +1317,6 @@
         </div>
     </div>
 
-    <!-- MODAL: السجل الشهري (3 أيام فقط) -->
     <div class="modal-overlay" id="monthlyModal">
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-header">
@@ -1340,7 +1334,6 @@
         </div>
     </div>
 
-    <!-- MODAL: حضور اليوم -->
     <div class="modal-overlay" id="todayAttendanceModal">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
@@ -1388,7 +1381,6 @@
         </div>
     </div>
 
-    <!-- MODAL: ملف الطالبة الشامل -->
     <div class="modal-overlay" id="profileModal">
         <div class="modal-box" style="max-width: 800px;">
             <div class="modal-header">
@@ -1446,7 +1438,7 @@
         })();
 
         const CONFIG = {
-            saveDebounceMs: 1200,
+            saveDebounceMs: 600,
             searchDebounceMs: 350,
             maxRecords: 500,
             maxLogEntries: 200,
@@ -1467,6 +1459,7 @@
         let searchAbortController = null;
         let activeListeners = [];
         let isRegisterMode = false;
+        let isAutoSaveEnabled = true;
 
         const DAYS = ["السبت","الإثنين","الأربعاء"];
         const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
@@ -1800,17 +1793,31 @@
         }
 
         function onAppReady() {
+            // Check for saved session immediately to avoid login flicker
+            const savedSession = localStorage.getItem("khadem_session");
+            if (savedSession) {
+                try {
+                    const s = JSON.parse(savedSession);
+                    if (s.uid && s.name) {
+                        // Pre-fill server display to reduce flicker
+                        els.serverDisplay.textContent = s.name;
+                    }
+                } catch(e) { localStorage.removeItem("khadem_session"); }
+            }
+
             window.onAuthStateChanged(window.auth, async (user) => {
                 if (user) {
                     const savedSession = localStorage.getItem("khadem_session");
                     if (savedSession) {
                         try {
                             const s = JSON.parse(savedSession);
-                            if (s.uid === user.uid) completeLogin(user);
+                            if (s.uid === user.uid) {
+                                completeLogin(user);
+                                return;
+                            }
                         } catch(e) { localStorage.removeItem("khadem_session"); }
-                    } else {
-                        completeLogin(user);
                     }
+                    completeLogin(user);
                 }
             });
             updateTodayBadge();
@@ -1871,7 +1878,6 @@
             }
             if (window.firebaseReady && window.db) {
                 try {
-                    // Check if student with same name + year already exists
                     const q = window.query(window.collection(window.db, "students"), window.where("name", "==", name));
                     const snap = await window.getDocs(q);
                     let foundDifferent = false, matchedDoc = null;
@@ -1881,7 +1887,6 @@
                         else foundDifferent = true;
                     });
                     if (matchedDoc) {
-                        // Student already exists - show banner and load her data
                         els.duplicateBanner.classList.add("active");
                         els.duplicateText.textContent = `الطالبة "${name}" مسجلة بالفعل في ${year}! تم تحميل بياناتها.`;
                         els.studentDocId.value = matchedDoc;
@@ -2126,10 +2131,6 @@
             return true;
         }
 
-        function closeReasonModal(confirm) {
-            // no-op: reason modal removed, changes execute immediately
-        }
-
         function toggleAttendance(checkbox) {
             const row = checkbox.closest(".activity-row");
             const ratingDiv = row.querySelector(".rating");
@@ -2194,6 +2195,7 @@
         }
 
         function queueSave() {
+            if (!isAutoSaveEnabled) return;
             if (saveTimeout) clearTimeout(saveTimeout);
             setSaveStatus("saving");
             saveTimeout = setTimeout(() => forceSave(), CONFIG.saveDebounceMs);
@@ -2211,7 +2213,6 @@
             if (!docId) { isSaving = false; els.saveBtn.disabled = false; return; }
             const today = getTodayDate();
             
-            // Check for duplicate before saving
             try {
                 const name = els.name.value.trim();
                 const year = els.year.value.trim();
@@ -2339,10 +2340,6 @@
             }
             resultsBox.classList.add("active");
         }
-
-        // ═══════════════════════════════════════════════════════════
-        // TODAY ATTENDANCE DASHBOARD
-        // ═══════════════════════════════════════════════════════════
 
         function showTodayAttendance() {
             els.todayAttendanceModal.classList.add("active");
@@ -2495,9 +2492,6 @@
             showToast("&#128221; جاري فتح بطاقة: " + name, "info");
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // STUDENT FULL PROFILE
-        // ═══════════════════════════════════════════════════════════
         async function showStudentProfile() {
             els.profileModal.classList.add("active");
             els.profileLoadingOverlay.classList.add("active");
@@ -2529,14 +2523,13 @@
             els.profileTimeline.innerHTML = '<div class="profile-empty">&#9203; جاري تحميل البيانات...</div>';
 
             try {
-                // Get all daily records for this student
                 const dailySnap = await window.getDocs(window.collection(window.db, "students", docId, "daily"));
                 const allRecords = [];
                 let totalPresent = 0, totalAbsent = 0, totalRatingSum = 0, totalRatingCount = 0;
                 
                 dailySnap.forEach(d => {
                     const data = d.data();
-                    const dateStr = d.id; // YYYY-MM-DD
+                    const dateStr = d.id;
                     if (data.followups) {
                         Object.keys(data.followups).forEach(day => {
                             const dayData = data.followups[day];
@@ -2573,7 +2566,6 @@
                     }
                 });
 
-                // Sort by date descending
                 allRecords.sort((a, b) => b.date.localeCompare(a.date));
 
                 els.profileTotalPresent.textContent = "حاضر: " + totalPresent;
@@ -2581,10 +2573,9 @@
                 const avgRating = totalRatingCount > 0 ? (totalRatingSum / totalRatingCount).toFixed(1) : "0.0";
                 els.profileAvgRating.textContent = "متوسط: " + avgRating;
 
-                // Group by month
                 const groupedByMonth = {};
                 allRecords.forEach(rec => {
-                    const monthKey = rec.date.slice(0, 7); // YYYY-MM
+                    const monthKey = rec.date.slice(0, 7);
                     if (!groupedByMonth[monthKey]) groupedByMonth[monthKey] = [];
                     groupedByMonth[monthKey].push(rec);
                 });
@@ -2597,7 +2588,6 @@
                     return;
                 }
 
-                // Sort months descending
                 const sortedMonths = Object.keys(groupedByMonth).sort((a, b) => b.localeCompare(a));
                 
                 sortedMonths.forEach(monthKey => {
@@ -2613,7 +2603,6 @@
                     
                     monthRecords.forEach(rec => {
                         const dateObj = new Date(rec.date + "T12:00:00");
-                        const dayLabel = dateObj.toLocaleDateString("ar-EG", { weekday: "long", day: "numeric" });
                         
                         let actsHtml = "";
                         rec.activities.forEach(act => {
@@ -2652,9 +2641,6 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // STATISTICS
-        // ═══════════════════════════════════════════════════════════
         async function showStats() {
             els.statsModal.classList.add("active");
             els.statsLoadingOverlay.classList.add("active");
@@ -2743,9 +2729,6 @@
 
         function closeStats() { els.statsModal.classList.remove("active"); }
 
-        // ═══════════════════════════════════════════════════════════
-        // MONTHLY LOG (3 DAYS ONLY)
-        // ═══════════════════════════════════════════════════════════
         function generateMonthSelector() {
             const container = els.monthSelector;
             container.innerHTML = "";
@@ -2885,9 +2868,6 @@
             } catch(e) { content.innerHTML = "<p style=\"color:var(--danger)\">&#10060; خطأ في التحميل</p>"; }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // AUDIT LOG (AGGREGATED + DETAILED)
-        // ═══════════════════════════════════════════════════════════
         async function showLog() {
             els.logModal.classList.add("active");
             els.logLoadingOverlay.classList.add("active");
@@ -2900,7 +2880,6 @@
             const fDay = document.getElementById("filterDay").value;
             const fType = document.getElementById("filterType").value;
 
-            // Toggle view
             if (viewMode === "aggregated") {
                 els.logAggregatedView.style.display = "block";
                 els.logDetailedTable.style.display = "none";
@@ -2931,7 +2910,6 @@
                 return true;
             });
 
-            // AGGREGATED VIEW
             if (viewMode === "aggregated") {
                 const aggContainer = els.logAggregatedView;
                 aggContainer.innerHTML = "";
@@ -2941,7 +2919,6 @@
                     return;
                 }
 
-                // Group by followDate (day)
                 const groupedByDate = {};
                 displayRecords.forEach(rec => {
                     const dateKey = rec.followDate || rec.timestamp?.slice(0, 10) || "unknown";
@@ -2956,11 +2933,9 @@
                     const dateObj = new Date(dateKey + "T12:00:00");
                     const dateLabel = dateObj.toLocaleDateString("ar-EG", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
                     
-                    // Get unique server info
                     const servers = [...new Set(dateRecords.map(r => r.serverName).filter(Boolean))];
                     const serverStr = servers.join(", ");
 
-                    // Group activities within this date
                     const actsByDayAct = {};
                     dateRecords.forEach(rec => {
                         const key = (rec.day || "عام") + "|" + (rec.activity || "عام");
@@ -2972,7 +2947,7 @@
                     Object.keys(actsByDayAct).forEach(key => {
                         const [day, act] = key.split("|");
                         const recs = actsByDayAct[key];
-                        const lastRec = recs[0]; // most recent
+                        const lastRec = recs[0];
                         
                         let attHtml = "";
                         const attRec = recs.find(r => r.type === "attendance");
@@ -3016,7 +2991,6 @@
                 return;
             }
 
-            // DETAILED VIEW (original table)
             const tbody = els.logTableBody;
             tbody.innerHTML = "";
 
@@ -3051,9 +3025,6 @@
 
         function closeLog() { els.logModal.classList.remove("active"); }
 
-        // ═══════════════════════════════════════════════════════════
-        // EXPORT & RESET
-        // ═══════════════════════════════════════════════════════════
         async function exportData(format) {
             const student = els.name.value.trim() || "غير_محدد";
             const payload = {
@@ -3110,9 +3081,6 @@
             if (key) localStorage.removeItem(key);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // KEYBOARD & EVENTS
-        // ═══════════════════════════════════════════════════════════
         function setupKeyboardShortcuts() {
             document.addEventListener("keydown", (e) => {
                 if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
