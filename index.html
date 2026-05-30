@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v3</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v4 (Auth)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -26,8 +27,10 @@
         try {
             const app = initializeApp(firebaseConfig);
             window.db = getFirestore(app);
+            window.auth = getAuth(app);
             window.firebaseReady = true;
-            // Expose Firestore functions globally for the non-module script
+            
+            // Expose globally
             window.doc = doc;
             window.setDoc = setDoc;
             window.getDoc = getDoc;
@@ -42,7 +45,13 @@
             window.Timestamp = Timestamp;
             window.serverTimestamp = serverTimestamp;
             window.onSnapshot = onSnapshot;
-            console.log("Firebase connected successfully!");
+            window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+            window.onAuthStateChanged = onAuthStateChanged;
+            window.signOut = signOut;
+            window.updateProfile = updateProfile;
+            
+            console.log("Firebase initialized successfully!");
         } catch (err) {
             console.error("Firebase initialization failed:", err);
             window.firebaseReady = false;
@@ -179,6 +188,32 @@
             border-radius: 8px;
         }
         .login-error.active { display: block; animation: slideUp 0.3s ease; }
+        .login-success {
+            color: var(--accent1);
+            font-size: 0.9rem;
+            margin-top: 12px;
+            display: none;
+            font-weight: 700;
+            padding: 8px;
+            background: #e8f5e9;
+            border-radius: 8px;
+        }
+        .login-success.active { display: block; animation: slideUp 0.3s ease; }
+        .auth-toggle {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+        .auth-toggle button {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-family: "Tajawal", sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 0.85rem;
+        }
 
         /* ===== Server Bar ===== */
         .server-bar {
@@ -959,13 +994,34 @@
     <div class="login-overlay" id="loginOverlay">
         <div class="login-box">
             <h2>&#128272; تسجيل دخول الخادم</h2>
-            <p>أدخل بياناتك للوصول إلى نظام المتابعة</p>
-            <input type="text" id="loginName" placeholder="اسم الخادم" autocomplete="off" aria-label="اسم الخادم">
-            <input type="password" id="loginId" placeholder="الرقم السري (ID)" autocomplete="off" aria-label="الرقم السري">
-            <button class="login-btn" id="loginBtn" onclick="handleLogin()">&#10132; دخول</button>
+            <p id="authSubtitle">أدخل بياناتك للوصول إلى نظام المتابعة</p>
+            
+            <!-- Login Form -->
+            <div id="loginForm">
+                <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
+                <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" aria-label="كلمة المرور">
+                <button class="login-btn" id="loginBtn" onclick="handleLogin()">&#10132; دخول</button>
+            </div>
+            
+            <!-- Register Form (Hidden by default) -->
+            <div id="registerForm" style="display:none;">
+                <input type="text" id="regName" placeholder="اسم الخادم الكامل" autocomplete="name" aria-label="اسم الخادم">
+                <input type="email" id="regEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
+                <input type="password" id="regPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password" aria-label="كلمة المرور">
+                <input type="password" id="regPasswordConfirm" placeholder="تأكيد كلمة المرور" autocomplete="new-password" aria-label="تأكيد كلمة المرور">
+                <button class="login-btn" id="registerBtn" onclick="handleRegister()">&#128221; إنشاء حساب</button>
+            </div>
+            
             <div class="login-error" id="loginError"></div>
+            <div class="login-success" id="loginSuccess"></div>
+            
+            <div class="auth-toggle">
+                <span id="authToggleText">ليس لديك حساب؟</span>
+                <button onclick="toggleAuthMode()" id="authToggleBtn">إنشاء حساب جديد</button>
+            </div>
+            
             <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
-                النسخة المحسّنة v3 &bull; مع تحسينات الأداء والأمان
+                النسخة المحسّنة v4 &bull; Firebase Auth &bull; Firestore Rules
             </div>
         </div>
     </div>
@@ -1055,8 +1111,8 @@
         <div class="actions">
             <button class="btn btn-primary" onclick="window.print()">&#128424;&#65039; طباعة</button>
             <button class="btn btn-success" id="saveBtn" onclick="forceSave()">&#128190; حفظ سحابي</button>
-            <button class="btn btn-secondary" onclick="exportData(\'json\')">&#128229; تصدير JSON</button>
-            <button class="btn btn-secondary" onclick="exportData(\'csv\')">&#128229; تصدير CSV</button>
+            <button class="btn btn-secondary" onclick="exportData('json')">&#128229; تصدير JSON</button>
+            <button class="btn btn-secondary" onclick="exportData('csv')">&#128229; تصدير CSV</button>
             <button class="btn btn-danger" onclick="resetAll()">&#128260; مسح الكل</button>
         </div>
 
@@ -1102,7 +1158,7 @@
                 </div>
                 <div class="security-note">
                     <span>&#128272;</span>
-                    <span>السجل محمي ومينفعش يتمسح إلا من Firebase Console</span>
+                    <span>السجل محمي بـ Firebase Auth &bull; مينفعش يتمسح إلا من Firebase Console</span>
                 </div>
                 <div class="filter-bar">
                     <select id="filterDay" onchange="renderLogTable()" aria-label="تصفية باليوم">
@@ -1197,7 +1253,6 @@
 
     <script>
         // ===== Configuration =====
-        const SERVERS_ENCODED = "eyIxMDEiOiJtYXJ5IiwiMTAyIjoidWhvYW5hIiwiMTAzIjoibWluYSIsIjEwNCI6ImRhbXlhYW5hIiwiMDEyNzExIjoidG9tYXMgYWF0ZWYiLCIwMTI3MTIiOiJiYXJiYXJhIGFhdGVmIn0=";
         const CONFIG = {
             saveDebounceMs: 1200,
             searchDebounceMs: 350,
@@ -1207,8 +1262,7 @@
         };
 
         // ===== State =====
-        let SERVERS = {};
-        let currentServer = null;
+        let currentServer = null; // { uid, name, email }
         let currentStudentId = null;
         const ratings = {};
         const attendance = {};
@@ -1221,6 +1275,7 @@
         let isSaving = false;
         let searchAbortController = null;
         let activeListeners = [];
+        let isRegisterMode = false;
 
         const DAYS = ["السبت","الإثنين","الأربعاء"];
         const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
@@ -1241,6 +1296,7 @@
             loginOverlay: document.getElementById("loginOverlay"),
             mainApp: document.getElementById("mainApp"),
             loginError: document.getElementById("loginError"),
+            loginSuccess: document.getElementById("loginSuccess"),
             loginBtn: document.getElementById("loginBtn"),
             logModal: document.getElementById("logModal"),
             logTableBody: document.getElementById("logTableBody"),
@@ -1272,7 +1328,12 @@
             statsLoadingOverlay: document.getElementById("statsLoadingOverlay"),
             shortcutsHelp: document.getElementById("shortcutsHelp"),
             saveBtn: document.getElementById("saveBtn"),
-            toastContainer: document.getElementById("toastContainer")
+            toastContainer: document.getElementById("toastContainer"),
+            loginForm: document.getElementById("loginForm"),
+            registerForm: document.getElementById("registerForm"),
+            authToggleText: document.getElementById("authToggleText"),
+            authToggleBtn: document.getElementById("authToggleBtn"),
+            authSubtitle: document.getElementById("authSubtitle")
         };
 
         // ===== Utility Functions =====
@@ -1328,33 +1389,12 @@
             const name = els.name.value.trim();
             const year = els.year.value.trim();
             if (!name || !year) return null;
-            const safeName = name.replace(/\\s+/g, "_").replace(/[^\\u0621-\\u064Aa-zA-Z0-9_]/g, "");
-            const safeYear = year.replace(/\\s+/g, "_").replace(/[^\\u0621-\\u064Aa-zA-Z0-9_]/g, "");
+            const safeName = name.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
+            const safeYear = year.replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
             return safeName + "_" + safeYear;
         }
 
         // ===== Initialization =====
-        async function initServers() {
-            if (window.firebaseReady && window.db) {
-                try {
-                    const snap = await getDocs(collection(window.db, "servers"));
-                    if (!snap.empty) {
-                        SERVERS = {};
-                        snap.forEach(d => { SERVERS[d.id] = d.data().name; });
-                        return;
-                    }
-                } catch(e) {
-                    console.error("Failed to load servers from Firestore:", e);
-                }
-            }
-            try {
-                SERVERS = JSON.parse(atob(SERVERS_ENCODED));
-            } catch(e) {
-                SERVERS = {};
-                console.error("Failed to decode fallback servers:", e);
-            }
-        }
-
         function generateCards() {
             els.cardsGrid.innerHTML = "";
             DAYS.forEach(day => {
@@ -1400,39 +1440,177 @@
 
         updateTodayBadge();
 
+        // ===== Auth Mode Toggle =====
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            if (isRegisterMode) {
+                els.loginForm.style.display = "none";
+                els.registerForm.style.display = "block";
+                els.authToggleText.textContent = "لديك حساب بالفعل؟";
+                els.authToggleBtn.textContent = "تسجيل الدخول";
+                els.authSubtitle.textContent = "أنشئي حساب جديد كخادم";
+            } else {
+                els.loginForm.style.display = "block";
+                els.registerForm.style.display = "none";
+                els.authToggleText.textContent = "ليس لديك حساب؟";
+                els.authToggleBtn.textContent = "إنشاء حساب جديد";
+                els.authSubtitle.textContent = "أدخل بياناتك للوصول إلى نظام المتابعة";
+            }
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
+        }
+
+        // ===== Register =====
+        async function handleRegister() {
+            const name = document.getElementById("regName").value.trim();
+            const email = document.getElementById("regEmail").value.trim();
+            const password = document.getElementById("regPassword").value;
+            const passwordConfirm = document.getElementById("regPasswordConfirm").value;
+            const btn = document.getElementById("registerBtn");
+            
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> جاري الإنشاء...';
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
+
+            if (!name || !email || !password) {
+                showAuthError("&#10060; يرجى ملء جميع الحقول");
+                resetRegisterBtn();
+                return;
+            }
+            if (password.length < 6) {
+                showAuthError("&#10060; كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+                resetRegisterBtn();
+                return;
+            }
+            if (password !== passwordConfirm) {
+                showAuthError("&#10060; كلمتا المرور غير متطابقتين");
+                resetRegisterBtn();
+                return;
+            }
+
+            if (!window.firebaseReady || !window.auth) {
+                showAuthError("&#10060; Firebase غير متصل");
+                resetRegisterBtn();
+                return;
+            }
+
+            try {
+                const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                
+                // Update profile
+                await window.updateProfile(user, { displayName: name });
+                
+                // Save to Firestore users collection
+                await window.setDoc(window.doc(window.db, "users", user.uid), {
+                    name: name,
+                    email: email,
+                    role: "khadem",
+                    createdAt: new Date().toISOString(),
+                    uid: user.uid
+                });
+
+                els.loginSuccess.innerHTML = "&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...";
+                els.loginSuccess.classList.add("active");
+                
+                // Auto login after register
+                setTimeout(() => {
+                    completeLogin(user);
+                }, 1000);
+            } catch (error) {
+                console.error("Register error:", error);
+                let msg = "&#10060; خطأ في إنشاء الحساب";
+                if (error.code === "auth/email-already-in-use") msg = "&#10060; البريد الإلكتروني مستخدم بالفعل";
+                else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
+                else if (error.code === "auth/weak-password") msg = "&#10060; كلمة المرور ضعيفة جداً";
+                showAuthError(msg);
+                resetRegisterBtn();
+            }
+        }
+
+        function resetRegisterBtn() {
+            const btn = document.getElementById("registerBtn");
+            btn.disabled = false;
+            btn.innerHTML = "&#128221; إنشاء حساب";
+        }
+
         // ===== Login =====
         async function handleLogin() {
-            els.loginBtn.disabled = true;
-            els.loginBtn.innerHTML = \'<div class="spinner"></div> جاري الدخول...\';
+            const btn = els.loginBtn;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> جاري الدخول...';
+            els.loginError.classList.remove("active");
+            els.loginSuccess.classList.remove("active");
 
-            const nameInput = document.getElementById("loginName");
-            const idInput = document.getElementById("loginId");
-            const name = nameInput.value.trim();
-            const id = idInput.value.trim();
-            const err = els.loginError;
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
 
-            await initServers();
-
-            if (!SERVERS[id]) {
-                err.textContent = "&#10060; ID غير موجود في قائمة الخدام";
-                err.classList.add("active");
-                resetLoginBtn();
-                return;
-            }
-            if (SERVERS[id] !== name) {
-                err.textContent = "&#10060; الاسم لا يطابق (المسجل: " + SERVERS[id] + ")";
-                err.classList.add("active");
+            if (!email || !password) {
+                showAuthError("&#10060; يرجى إدخال البريد الإلكتروني وكلمة المرور");
                 resetLoginBtn();
                 return;
             }
 
-            currentServer = { id: id, name: name };
-            localStorage.setItem("khadem_session", JSON.stringify(currentServer));
+            if (!window.firebaseReady || !window.auth) {
+                showAuthError("&#10060; Firebase غير متصل");
+                resetLoginBtn();
+                return;
+            }
+
+            try {
+                const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+                const user = userCredential.user;
+                completeLogin(user);
+            } catch (error) {
+                console.error("Login error:", error);
+                let msg = "&#10060; خطأ في تسجيل الدخول";
+                if (error.code === "auth/user-not-found") msg = "&#10060; لا يوجد حساب بهذا البريد";
+                else if (error.code === "auth/wrong-password") msg = "&#10060; كلمة المرور غير صحيحة";
+                else if (error.code === "auth/invalid-email") msg = "&#10060; بريد إلكتروني غير صالح";
+                else if (error.code === "auth/too-many-requests") msg = "&#10060; تم حظر المحاولات مؤقتاً، حاولي لاحقاً";
+                showAuthError(msg);
+                resetLoginBtn();
+            }
+        }
+
+        function showAuthError(msg) {
+            els.loginError.innerHTML = msg;
+            els.loginError.classList.add("active");
+        }
+
+        function resetLoginBtn() {
+            els.loginBtn.disabled = false;
+            els.loginBtn.innerHTML = "&#10132; دخول";
+        }
+
+        async function completeLogin(user) {
+            // Fetch user data from Firestore
+            let userData = { name: user.displayName || "خادم", email: user.email, uid: user.uid };
+            
+            if (window.firebaseReady && window.db) {
+                try {
+                    const userDoc = await window.getDoc(window.doc(window.db, "users", user.uid));
+                    if (userDoc.exists()) {
+                        const data = userDoc.data();
+                        userData.name = data.name || userData.name;
+                        userData.role = data.role || "khadem";
+                    }
+                } catch(e) {
+                    console.warn("Could not fetch user data:", e);
+                }
+            }
+
+            currentServer = userData;
+            localStorage.setItem("khadem_session", JSON.stringify({
+                uid: userData.uid,
+                name: userData.name,
+                email: userData.email
+            }));
 
             els.loginOverlay.classList.add("hidden");
             els.mainApp.style.display = "block";
-            els.serverDisplay.textContent = name + " (#" + id + ")";
-            err.classList.remove("active");
+            els.serverDisplay.textContent = userData.name + " (" + userData.email + ")";
 
             setSaveStatus(window.firebaseReady ? "online" : "offline");
             if (!window.firebaseReady) {
@@ -1444,54 +1622,53 @@
             loadStudentList();
             generateMonthSelector();
             setupKeyboardShortcuts();
-            console.log("Login successful:", name, id);
-        }
-
-        function resetLoginBtn() {
-            els.loginBtn.disabled = false;
-            els.loginBtn.innerHTML = "&#10132; دخول";
+            console.log("Login successful:", userData);
         }
 
         function logout() {
             if (!confirm("تأكيد تسجيل الخروج؟")) return;
+            
             // Cleanup listeners
             activeListeners.forEach(unsub => { try { unsub(); } catch(e) {} });
             activeListeners = [];
+            
+            if (window.auth) {
+                window.signOut(window.auth).catch(() => {});
+            }
+            
             currentServer = null;
             localStorage.removeItem("khadem_session");
             location.reload();
         }
 
-        // Auto-login
-        const savedSession = localStorage.getItem("khadem_session");
-        if (savedSession) {
-            try {
-                const s = JSON.parse(savedSession);
-                initServers().then(() => {
-                    if (SERVERS[s.id] && SERVERS[s.id] === s.name) {
-                        currentServer = s;
-                        els.loginOverlay.classList.add("hidden");
-                        els.mainApp.style.display = "block";
-                        els.serverDisplay.textContent = s.name + " (#" + s.id + ")";
-                        setSaveStatus(window.firebaseReady ? "online" : "offline");
-                        if (!window.firebaseReady) els.offlineBanner.classList.add("active");
-                        generateCards();
-                        loadStudentList();
-                        generateMonthSelector();
-                        setupKeyboardShortcuts();
+        // Auto-login via Firebase Auth state
+        if (window.firebaseReady && window.auth) {
+            window.onAuthStateChanged(window.auth, async (user) => {
+                if (user) {
+                    // User is signed in
+                    const savedSession = localStorage.getItem("khadem_session");
+                    if (savedSession) {
+                        try {
+                            const s = JSON.parse(savedSession);
+                            if (s.uid === user.uid) {
+                                completeLogin(user);
+                            }
+                        } catch(e) {
+                            localStorage.removeItem("khadem_session");
+                        }
+                    } else {
+                        completeLogin(user);
                     }
-                });
-            } catch(e) {
-                localStorage.removeItem("khadem_session");
-            }
+                }
+            });
         }
 
         // ===== Student Dropdown =====
         async function loadStudentList() {
             if (!window.firebaseReady || !window.db) return;
             try {
-                const snap = await getDocs(collection(window.db, "students"));
-                els.studentSelect.innerHTML = \'<option value="">-- اختيار طالبة من القائمة --</option>\';
+                const snap = await window.getDocs(window.collection(window.db, "students"));
+                els.studentSelect.innerHTML = '<option value="">-- اختيار طالبة من القائمة --</option>';
                 const students = [];
                 snap.forEach(d => {
                     const data = d.data();
@@ -1517,7 +1694,6 @@
             els.name.value = parts[0];
             els.year.value = parts[1];
             els.studentDocId.value = parts[2];
-            // Do NOT auto-load. User must click "تحميل / بحث"
         }
 
         function newStudent() {
@@ -1547,8 +1723,8 @@
 
             if (window.firebaseReady && window.db) {
                 try {
-                    const q = query(collection(window.db, "students"), where("name", "==", name));
-                    const snap = await getDocs(q);
+                    const q = window.query(window.collection(window.db, "students"), window.where("name", "==", name));
+                    const snap = await window.getDocs(q);
                     let foundDifferent = false;
                     let matchedDoc = null;
                     snap.forEach(d => {
@@ -1588,14 +1764,14 @@
 
             if (window.firebaseReady && window.db) {
                 try {
-                    const baseSnap = await getDoc(doc(window.db, "students", docId));
+                    const baseSnap = await window.getDoc(window.doc(window.db, "students", docId));
                     if (baseSnap.exists()) {
                         const baseData = baseSnap.data();
                         if (baseData.name) els.name.value = baseData.name;
                         if (baseData.year) els.year.value = baseData.year;
                     }
 
-                    const dailySnap = await getDoc(doc(window.db, "students", docId, "daily", today));
+                    const dailySnap = await window.getDoc(window.doc(window.db, "students", docId, "daily", today));
                     if (dailySnap.exists()) {
                         const data = dailySnap.data();
                         lastKnownUpdatedAt = data.updatedAt || null;
@@ -1605,13 +1781,13 @@
                     }
 
                     // Load logs for this student
-                    const logsQuery = query(
-                        collection(window.db, "logs"),
-                        where("studentName", "==", els.name.value.trim()),
-                        orderBy("timestamp", "desc"),
-                        limit(CONFIG.maxLogEntries)
+                    const logsQuery = window.query(
+                        window.collection(window.db, "logs"),
+                        window.where("studentName", "==", els.name.value.trim()),
+                        window.orderBy("timestamp", "desc"),
+                        window.limit(CONFIG.maxLogEntries)
                     );
-                    const logsSnap = await getDocs(logsQuery);
+                    const logsSnap = await window.getDocs(logsQuery);
                     records = [];
                     logsSnap.forEach(d => records.push(d.data()));
                     updateSummary();
@@ -1801,7 +1977,7 @@
         // ===== Change Reason Modal =====
         function requestChangeReason(changeInfo) {
             if (!currentServer) {
-                showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
+                showToast("&#128272; لازم تسجيل دخول أولاُ", "warning");
                 return false;
             }
             const studentName = els.name.value.trim();
@@ -1930,8 +2106,9 @@
             const student = els.name.value.trim() || "غير محدد";
             const fullRec = {
                 timestamp: new Date().toISOString(),
-                serverId: currentServer.id,
+                serverId: currentServer.uid,
                 serverName: currentServer.name,
+                serverEmail: currentServer.email,
                 studentName: student,
                 studentYear: els.year.value.trim(),
                 followDate: getTodayDate(),
@@ -1947,9 +2124,9 @@
             updateSummary();
 
             if (window.firebaseReady && window.db) {
-                addDoc(collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
-                const archiveRef = collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
-                addDoc(archiveRef, fullRec).catch(() => {});
+                window.addDoc(window.collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
+                const archiveRef = window.collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
+                window.addDoc(archiveRef, fullRec).catch(() => {});
             }
         }
 
@@ -1983,13 +2160,13 @@
 
             // Conflict detection
             try {
-                const dailyRef = doc(window.db, "students", docId, "daily", today);
-                const dailySnap = await getDoc(dailyRef);
+                const dailyRef = window.doc(window.db, "students", docId, "daily", today);
+                const dailySnap = await window.getDoc(dailyRef);
                 if (dailySnap.exists()) {
                     const rData = dailySnap.data();
                     const remoteUpdatedAt = rData.updatedAt || null;
                     const remoteServer = rData.updatedBy || {};
-                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt && remoteServer.id !== (currentServer && currentServer.id)) {
+                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt && remoteServer.uid !== (currentServer && currentServer.uid)) {
                         showConflict(remoteServer.name || "خادم آخر");
                         els.saveBtn.disabled = false;
                         isSaving = false;
@@ -2006,7 +2183,7 @@
                 lastUpdated: new Date().toISOString()
             };
             try {
-                await setDoc(doc(window.db, "students", docId), basePayload, { merge: true });
+                await window.setDoc(window.doc(window.db, "students", docId), basePayload, { merge: true });
             } catch(e) {
                 console.error("Base save error:", e);
             }
@@ -2014,7 +2191,7 @@
             const dailyPayload = {
                 followups: {},
                 updatedAt: new Date().toISOString(),
-                updatedBy: currentServer ? { id: currentServer.id, name: currentServer.name } : null
+                updatedBy: currentServer ? { uid: currentServer.uid, name: currentServer.name, email: currentServer.email } : null
             };
             DAYS.forEach(day => {
                 dailyPayload.followups[day] = {};
@@ -2029,7 +2206,7 @@
             });
 
             try {
-                await setDoc(doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
+                await window.setDoc(window.doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
                 lastKnownUpdatedAt = dailyPayload.updatedAt;
                 isAlreadyAddedToday = true;
                 showAddedToday();
@@ -2086,20 +2263,19 @@
                 return;
             }
 
-            // Cancel previous search
             if (searchAbortController) searchAbortController.abort();
             searchAbortController = new AbortController();
 
             let found = [];
             if (window.firebaseReady && window.db) {
                 try {
-                    const q = query(
-                        collection(window.db, "students"),
-                        where("name", ">=", queryText),
-                        where("name", "<=", queryText + "\\uf8ff"),
-                        limit(10)
+                    const q = window.query(
+                        window.collection(window.db, "students"),
+                        window.where("name", ">=", queryText),
+                        window.where("name", "<=", queryText + "\uf8ff"),
+                        window.limit(10)
                     );
-                    const snap = await getDocs(q);
+                    const snap = await window.getDocs(q);
                     snap.forEach(d => {
                         const data = d.data();
                         found.push({ name: data.name, year: data.year, id: d.id });
@@ -2110,7 +2286,7 @@
             }
 
             if (found.length === 0) {
-                resultsBox.innerHTML = \'<div class="search-result-empty">لا توجد نتائج</div>\';
+                resultsBox.innerHTML = '<div class="search-result-empty">لا توجد نتائج</div>';
             } else {
                 found.forEach(s => {
                     const div = document.createElement("div");
@@ -2144,7 +2320,7 @@
             }
 
             try {
-                const studentsSnap = await getDocs(collection(window.db, "students"));
+                const studentsSnap = await window.getDocs(window.collection(window.db, "students"));
                 let total = 0;
                 let studentStats = [];
                 let monthlyAbsents = 0;
@@ -2157,7 +2333,7 @@
                 total = studentIds.length;
 
                 const dailyPromises = studentIds.map(s =>
-                    getDocs(collection(window.db, "students", s.id, "daily"))
+                    window.getDocs(window.collection(window.db, "students", s.id, "daily"))
                 );
                 const dailySnaps = await Promise.all(dailyPromises);
 
@@ -2272,7 +2448,6 @@
         function closeMonthlyLog() { els.monthlyModal.classList.remove("active"); }
 
         async function selectMonth(year, month) {
-            // Update active button
             const buttons = els.monthSelector.querySelectorAll(".month-btn");
             const now = new Date();
             buttons.forEach((btn, idx) => {
@@ -2316,7 +2491,7 @@
 
                 if (dayStr === todayStr && isAlreadyAddedToday) {
                     cell.classList.add("has-data");
-                    cell.innerHTML += \'<div class="cal-dot"></div>\';
+                    cell.innerHTML += '<div class="cal-dot"></div>';
                 }
 
                 cell.onclick = () => loadMonthDay(dayStr);
@@ -2330,16 +2505,16 @@
         async function loadMonthDay(dateStr) {
             els.monthDetailTitle.textContent = "بيانات يوم " + dateStr;
             const content = els.monthDetailContent;
-            content.innerHTML = "<p style=\\"text-align:center;color:var(--text-light);padding:20px;\\">&#9203; جاري التحميل...</p>";
+            content.innerHTML = "<p style=\"text-align:center;color:var(--text-light);padding:20px;\">&#9203; جاري التحميل...</p>";
             els.monthDetails.style.display = "block";
 
             if (!currentStudentId || !window.firebaseReady || !window.db) {
-                content.innerHTML = "<p style=\\"color:var(--text-light)\\">لا يوجد بيانات - اختاري طالبة أولاً</p>";
+                content.innerHTML = "<p style=\"color:var(--text-light)\">لا يوجد بيانات - اختاري طالبة أولاً</p>";
                 return;
             }
 
             try {
-                const snap = await getDoc(doc(window.db, "students", currentStudentId, "daily", dateStr));
+                const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", dateStr));
                 if (snap.exists()) {
                     const data = snap.data();
                     let html = "";
@@ -2347,30 +2522,30 @@
                         DAYS.forEach(day => {
                             const dayData = data.followups[day];
                             if (dayData) {
-                                html += \'<div style="margin-bottom:12px;padding:14px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">\';
-                                html += \'<b style="color:var(--primary);display:block;margin-bottom:8px;">\' + day + \'</b>\';
+                                html += '<div style="margin-bottom:12px;padding:14px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">';
+                                html += '<b style="color:var(--primary);display:block;margin-bottom:8px;">' + day + '</b>';
                                 ACTS.forEach(act => {
                                     const actData = dayData[act];
                                     if (actData) {
                                         const att = actData.attendance === true ? "&#9989; حاضرة" : (actData.attendance === false ? "&#10060; غائبة" : "➖");
                                         const rat = actData.rating ? "&#11088;".repeat(actData.rating) : "غير مقيم";
-                                        html += \'<div style="padding:4px 0;font-size:0.9rem;"><b>\' + act + \'</b>: \' + att + \' | \' + rat + \'</div>\';
+                                        html += '<div style="padding:4px 0;font-size:0.9rem;"><b>' + act + '</b>: ' + att + ' | ' + rat + '</div>';
                                     }
                                 });
-                                if (dayData.note) html += \'<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:0.85rem;color:var(--text-light);">&#128172; \' + escapeHtml(dayData.note) + \'</div>\';
+                                if (dayData.note) html += '<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:0.85rem;color:var(--text-light);">&#128172; ' + escapeHtml(dayData.note) + '</div>';
                                 html += "</div>";
                             }
                         });
                     }
                     if (data.updatedBy) {
-                        html += \'<div style="margin-top:12px;font-size:0.8rem;color:var(--text-light);">&#128100; سُجلت بواسطة: \' + escapeHtml(data.updatedBy.name) + \' (#\' + data.updatedBy.id + \')</div>\';
+                        html += '<div style="margin-top:12px;font-size:0.8rem;color:var(--text-light);">&#128100; سُجلت بواسطة: ' + escapeHtml(data.updatedBy.name) + ' (' + data.updatedBy.email + ')</div>';
                     }
-                    content.innerHTML = html || "<p style=\\"color:var(--text-light)\\">لا توجد أنشطة مسجلة</p>";
+                    content.innerHTML = html || "<p style=\"color:var(--text-light)\">لا توجد أنشطة مسجلة</p>";
                 } else {
-                    content.innerHTML = "<p style=\\"color:var(--text-light)\\">لا توجد بيانات لهذا اليوم</p>";
+                    content.innerHTML = "<p style=\"color:var(--text-light)\">لا توجد بيانات لهذا اليوم</p>";
                 }
             } catch(e) {
-                content.innerHTML = "<p style=\\"color:var(--danger)\\">&#10060; خطأ في التحميل</p>";
+                content.innerHTML = "<p style=\"color:var(--danger)\">&#10060; خطأ في التحميل</p>";
             }
         }
 
@@ -2389,16 +2564,15 @@
             const fDay = document.getElementById("filterDay").value;
             const fType = document.getElementById("filterType").value;
 
-            // Load fresh logs from Firestore if connected
             if (window.firebaseReady && window.db && els.name.value.trim()) {
                 try {
-                    const logsQuery = query(
-                        collection(window.db, "logs"),
-                        where("studentName", "==", els.name.value.trim()),
-                        orderBy("timestamp", "desc"),
-                        limit(CONFIG.maxLogEntries)
+                    const logsQuery = window.query(
+                        window.collection(window.db, "logs"),
+                        window.where("studentName", "==", els.name.value.trim()),
+                        window.orderBy("timestamp", "desc"),
+                        window.limit(CONFIG.maxLogEntries)
                     );
-                    const logsSnap = await getDocs(logsQuery);
+                    const logsSnap = await window.getDocs(logsQuery);
                     records = [];
                     logsSnap.forEach(d => records.push(d.data()));
                     updateSummary();
@@ -2415,7 +2589,7 @@
             });
 
             if (displayRecords.length === 0) {
-                tbody.innerHTML = \'<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px;">لا يوجد سجلات مطابقة</td></tr>\';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px;">لا يوجد سجلات مطابقة</td></tr>';
                 return;
             }
 
@@ -2426,9 +2600,9 @@
 
                 let changeHtml = "";
                 if (rec.oldValue && rec.newValue) {
-                    changeHtml = \'<span class="old-val">\' + escapeHtml(String(rec.oldValue)) + \'</span> &#10132; <span class="new-val">\' + escapeHtml(String(rec.newValue)) + \'</span>\';
+                    changeHtml = '<span class="old-val">' + escapeHtml(String(rec.oldValue)) + '</span> &#10132; <span class="new-val">' + escapeHtml(String(rec.newValue)) + '</span>';
                 } else {
-                    changeHtml = \'<span class="new-val">\' + escapeHtml(String(rec.newValue || rec.value || "-")) + \'</span>\';
+                    changeHtml = '<span class="new-val">' + escapeHtml(String(rec.newValue || rec.value || "-")) + '</span>';
                 }
 
                 let tagClass = "tag-present";
@@ -2436,16 +2610,16 @@
                 else if (rec.type === "rating") tagClass = "tag-rating";
                 else if (rec.type === "note") tagClass = "tag-change";
 
-                const reasonHtml = rec.reason ? \'<span class="reason-tag">&#128172; \' + escapeHtml(rec.reason) + \'</span>\' : "";
+                const reasonHtml = rec.reason ? '<span class="reason-tag">&#128172; ' + escapeHtml(rec.reason) + '</span>' : "";
                 const typeLabel = rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type);
 
                 const tr = document.createElement("tr");
                 tr.innerHTML =
                     "<td><b>" + timeStr + "</b></td>" +
-                    "<td><b>" + escapeHtml(rec.serverName || "-") + "</b><br><small style=\\"color:#999\\">#" + escapeHtml(rec.serverId || "-") + "</small></td>" +
+                    "<td><b>" + escapeHtml(rec.serverName || "-") + "</b><br><small style=\"color:#999\">" + escapeHtml(rec.serverEmail || "-") + "</small></td>" +
                     "<td>" + escapeHtml(rec.studentName || "-") + "</td>" +
                     "<td>" + escapeHtml(rec.day || "-") + "<br><small>" + escapeHtml(rec.activity || "-") + "</small></td>" +
-                    "<td><span class=\\"tag " + tagClass + "\\">" + typeLabel + "</span><br>" + changeHtml + "</td>" +
+                    "<td><span class=\"tag " + tagClass + "\">" + typeLabel + "</span><br>" + changeHtml + "</td>" +
                     "<td>" + reasonHtml + "</td>";
                 fragment.appendChild(tr);
             });
@@ -2470,7 +2644,7 @@
 
             if (window.firebaseReady && window.db && currentStudentId) {
                 try {
-                    const snap = await getDoc(doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
+                    const snap = await window.getDoc(window.doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
                     if (snap.exists()) payload.firebaseData = snap.data();
                 } catch(e) {}
             }
@@ -2480,28 +2654,29 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "followup_" + student.replace(/\\s+/g, "_") + "_" + getTodayDate() + ".json";
+                a.download = "followup_" + student.replace(/\s+/g, "_") + "_" + getTodayDate() + ".json";
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
                 showToast("&#9989; تم تصدير JSON", "success");
             } else if (format === "csv") {
-                let csv = "timestamp,serverId,serverName,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\\n";
+                let csv = "timestamp,serverId,serverName,serverEmail,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\n";
                 records.forEach(r => {
                     csv += (r.timestamp || "") + "," +
                            (r.serverId || "") + "," +
                            (r.serverName || "") + "," +
+                           (r.serverEmail || "") + "," +
                            (r.studentName || "") + "," +
                            (r.studentYear || "") + "," +
                            (r.followDate || "") + "," +
                            (r.day || "") + "," +
                            (r.activity || "") + "," +
                            (r.type || "") + "," +
-                           "\\"" + (r.oldValue || "") + "\\"," +
-                           "\\"" + (r.newValue || r.value || "") + "\\"," +
-                           "\\"" + (r.reason || "") + "\\"\\n";
+                           "\"" + (r.oldValue || "") + "\"," +
+                           "\"" + (r.newValue || r.value || "") + "\"," +
+                           "\"" + (r.reason || "") + "\"\n";
                 });
-                const blob = new Blob(["\\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+                const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -2515,12 +2690,12 @@
 
         // ===== Reset =====
         async function resetAll() {
-            if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\\n\\nالسجل التاريخي في Firebase ميتحذفش.")) return;
+            if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\n\nالسجل التاريخي في Firebase ميتحذفش.")) return;
             const docId = getStudentDocId();
             resetUI(true, true);
             if (window.firebaseReady && window.db && docId) {
                 try {
-                    await deleteDoc(doc(window.db, "students", docId, "daily", getTodayDate()));
+                    await window.deleteDoc(window.doc(window.db, "students", docId, "daily", getTodayDate()));
                     showToast("&#9989; تم المسح من السحابة", "success");
                 } catch(e) {
                     console.error("Delete error:", e);
@@ -2534,7 +2709,6 @@
         // ===== Keyboard Shortcuts =====
         function setupKeyboardShortcuts() {
             document.addEventListener("keydown", (e) => {
-                // Ignore if in input/textarea
                 if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
                     if (e.key === "Escape") {
                         els.searchResults.classList.remove("active");
@@ -2577,12 +2751,23 @@
                 }
             });
 
-            // Enter key on login inputs
-            document.getElementById("loginName").addEventListener("keydown", (e) => {
-                if (e.key === "Enter") document.getElementById("loginId").focus();
+            document.getElementById("loginEmail").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") document.getElementById("loginPassword").focus();
             });
-            document.getElementById("loginId").addEventListener("keydown", (e) => {
+            document.getElementById("loginPassword").addEventListener("keydown", (e) => {
                 if (e.key === "Enter") handleLogin();
+            });
+            document.getElementById("regName").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") document.getElementById("regEmail").focus();
+            });
+            document.getElementById("regEmail").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") document.getElementById("regPassword").focus();
+            });
+            document.getElementById("regPassword").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") document.getElementById("regPasswordConfirm").focus();
+            });
+            document.getElementById("regPasswordConfirm").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") handleRegister();
             });
         }
 
@@ -2611,7 +2796,6 @@
             setSaveStatus("online");
             els.offlineBanner.classList.remove("active");
             showToast("&#127760; تم استعادة الاتصال", "success");
-            // Retry sync
             if (currentServer) forceSave();
         });
 
