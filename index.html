@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام متابعة المخدومات - تاريخ تلقائي</title>
+    <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
+    <meta name="theme-color" content="#6c5ce7">
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
@@ -19,21 +23,45 @@
             measurementId: "G-6HS8KNW1GZ"
         };
 
-        const app = initializeApp(firebaseConfig);
-        window.db = getFirestore(app);
-        window.firebaseReady = true;
-        console.log("Firebase connected!");
+        try {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            window.firebaseReady = true;
+            // Expose Firestore functions globally for the non-module script
+            window.doc = doc;
+            window.setDoc = setDoc;
+            window.getDoc = getDoc;
+            window.collection = collection;
+            window.addDoc = addDoc;
+            window.query = query;
+            window.where = where;
+            window.orderBy = orderBy;
+            window.limit = limit;
+            window.getDocs = getDocs;
+            window.deleteDoc = deleteDoc;
+            window.Timestamp = Timestamp;
+            window.serverTimestamp = serverTimestamp;
+            window.onSnapshot = onSnapshot;
+            console.log("Firebase connected successfully!");
+        } catch (err) {
+            console.error("Firebase initialization failed:", err);
+            window.firebaseReady = false;
+        }
     </script>
     <style>
         :root {
             --primary: #6c5ce7;
             --primary-light: #a29bfe;
+            --primary-dark: #5b4cdb;
             --secondary: #fd79a8;
             --accent1: #00b894;
+            --accent1-light: #55efc4;
             --accent2: #e17055;
             --accent3: #fdcb6e;
+            --accent3-light: #ffeaa7;
             --accent4: #74b9ff;
             --danger: #ff7675;
+            --danger-dark: #d63031;
             --bg: #f8f9fc;
             --card-bg: #ffffff;
             --text: #2d3436;
@@ -42,59 +70,85 @@
             --shadow: 0 4px 20px rgba(0,0,0,0.06);
             --shadow-hover: 0 8px 30px rgba(0,0,0,0.1);
             --radius: 16px;
+            --radius-sm: 10px;
+            --transition: all 0.3s ease;
+            --status-excellent: #00b894;
+            --status-good: #fdcb6e;
+            --status-bad: #ff7675;
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
         body {
-            font-family: "Tajawal", sans-serif;
+            font-family: "Tajawal", -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
             color: var(--text);
             line-height: 1.6;
             padding: 20px;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
-        .container { max-width: 1200px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 10px; }
+
+        /* ===== Login Overlay ===== */
         .login-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(45, 52, 54, 0.88);
-            backdrop-filter: blur(10px);
+            inset: 0;
+            background: rgba(45, 52, 54, 0.94);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 9999;
-            transition: opacity 0.4s;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+            padding: 20px;
         }
-        .login-overlay.hidden { opacity: 0; pointer-events: none; }
+        .login-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+            visibility: hidden;
+        }
         .login-box {
             background: white;
-            padding: 40px;
+            padding: 40px 35px;
             border-radius: var(--radius);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            box-shadow: 0 25px 70px rgba(0,0,0,0.3);
             width: 100%;
             max-width: 440px;
             text-align: center;
-            animation: slideUp 0.4s ease;
+            animation: slideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
+            from { transform: translateY(40px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
-        .login-box h2 { font-size: 1.6rem; color: var(--primary); margin-bottom: 6px; }
-        .login-box p { color: var(--text-light); margin-bottom: 24px; font-size: 0.95rem; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .login-box h2 { font-size: 1.7rem; color: var(--primary); margin-bottom: 8px; font-weight: 800; }
+        .login-box p { color: var(--text-light); margin-bottom: 28px; font-size: 0.95rem; }
         .login-box input {
             width: 100%;
             padding: 14px 16px;
             margin-bottom: 14px;
             border: 2px solid var(--border);
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             font-family: "Tajawal", sans-serif;
             font-size: 1rem;
-            transition: all 0.3s;
+            transition: var(--transition);
             text-align: center;
+            background: var(--bg);
         }
         .login-box input:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.12);
         }
         .login-btn {
             width: 100%;
@@ -102,28 +156,38 @@
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             font-family: "Tajawal", sans-serif;
             font-weight: 700;
             font-size: 1.1rem;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
         }
-        .login-btn:hover { transform: translateY(-2px); }
+        .login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(108, 92, 231, 0.35); }
+        .login-btn:active { transform: translateY(0); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
         .login-error {
             color: var(--danger);
             font-size: 0.9rem;
-            margin-top: 10px;
+            margin-top: 12px;
             display: none;
             font-weight: 700;
+            padding: 8px;
+            background: #ffebee;
+            border-radius: 8px;
         }
+        .login-error.active { display: block; animation: slideUp 0.3s ease; }
+
+        /* ===== Server Bar ===== */
         .server-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: var(--card-bg);
             padding: 12px 20px;
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             margin-bottom: 20px;
             box-shadow: var(--shadow);
             font-size: 0.95rem;
@@ -139,8 +203,9 @@
             padding: 6px 14px;
             border-radius: 20px;
             font-weight: 700;
+            font-size: 0.9rem;
         }
-        .server-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .server-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         .link-btn {
             background: none;
             border: none;
@@ -149,25 +214,30 @@
             font-weight: 700;
             cursor: pointer;
             font-size: 0.9rem;
-            padding: 6px 10px;
+            padding: 6px 12px;
             border-radius: 8px;
-            transition: background 0.2s;
+            transition: var(--transition);
         }
         .link-btn:hover { background: rgba(108,92,231,0.08); }
         .link-btn.danger { color: var(--danger); }
+        .link-btn.danger:hover { background: rgba(255,118,117,0.08); }
         .save-status {
             font-size: 0.8rem;
-            padding: 4px 10px;
-            border-radius: 12px;
+            padding: 4px 12px;
+            border-radius: 20px;
             font-weight: 700;
+            transition: var(--transition);
         }
         .save-status.online { background: #e8f5e9; color: var(--accent1); }
         .save-status.offline { background: #fff3e0; color: #f39c12; }
-        .save-status.saving { background: #e3f2fd; color: var(--accent4); }
+        .save-status.saving { background: #e3f2fd; color: var(--accent4); animation: pulse 1.5s infinite; }
+        .save-status.saved { background: #e8f5e9; color: var(--accent1); }
+
+        /* ===== Header ===== */
         .header {
             text-align: center;
             margin-bottom: 25px;
-            padding: 30px 20px;
+            padding: 35px 25px;
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
             border-radius: var(--radius);
             color: white;
@@ -180,24 +250,38 @@
             position: absolute;
             top: -50%; right: -10%;
             width: 300px; height: 300px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.08);
             border-radius: 50%;
         }
-        .header h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 6px; position: relative; }
-        .header p { font-size: 1rem; opacity: 0.95; position: relative; }
+        .header::after {
+            content: "";
+            position: absolute;
+            bottom: -30%; left: -5%;
+            width: 200px; height: 200px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+        .header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 6px; position: relative; z-index: 1; }
+        .header p { font-size: 1rem; opacity: 0.95; position: relative; z-index: 1; }
         .date-badge {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             background: rgba(255,255,255,0.2);
             padding: 6px 16px;
             border-radius: 20px;
             font-size: 0.9rem;
-            margin-top: 8px;
+            margin-top: 10px;
             font-weight: 700;
+            position: relative;
+            z-index: 1;
         }
+
+        /* ===== Info Card / Form ===== */
         .info-card {
             background: var(--card-bg);
             border-radius: var(--radius);
-            padding: 22px;
+            padding: 24px;
             margin-bottom: 22px;
             box-shadow: var(--shadow);
             display: grid;
@@ -206,37 +290,65 @@
         }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-weight: 700; margin-bottom: 6px; color: var(--primary); font-size: 0.9rem; }
-        .form-group input {
+        .form-group input, .form-group select {
             padding: 12px 14px;
             border: 2px solid var(--border);
-            border-radius: 10px;
+            border-radius: var(--radius-sm);
             font-family: "Tajawal", sans-serif;
             font-size: 1rem;
-            transition: all 0.3s;
+            transition: var(--transition);
             background: var(--bg);
+            width: 100%;
         }
-        .form-group input:focus { outline: none; border-color: var(--primary); background: white; }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+        .form-group input::placeholder { color: #b2bec3; }
+        .student-select-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        .student-select-row select { flex: 1; }
+        .student-select-row button { white-space: nowrap; }
+
         .duplicate-error {
             color: var(--danger);
             font-size: 0.85rem;
             margin-top: 4px;
             display: none;
             font-weight: 700;
+            padding: 6px 10px;
+            background: #ffebee;
+            border-radius: 6px;
         }
-        .duplicate-error.active { display: block; }
-        .added-today-banner {
-            background: #e8f5e9;
-            color: var(--accent1);
-            padding: 10px 18px;
-            border-radius: 10px;
+        .duplicate-error.active { display: block; animation: slideUp 0.3s ease; }
+
+        /* ===== Banners ===== */
+        .added-today-banner, .conflict-banner, .alert-banner, .offline-banner {
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
             margin-bottom: 15px;
             font-weight: 700;
             display: none;
             align-items: center;
             gap: 10px;
-            border-right: 4px solid var(--accent1);
+            font-size: 0.9rem;
+            animation: slideUp 0.4s ease;
         }
+        .added-today-banner { background: #e8f5e9; color: var(--accent1); border-right: 4px solid var(--accent1); }
         .added-today-banner.active { display: flex; }
+        .conflict-banner { background: #ffebee; color: var(--danger); border-right: 4px solid var(--danger); }
+        .conflict-banner.active { display: flex; }
+        .alert-banner { background: #fff3e0; color: #e65100; border-right: 4px solid var(--accent3); }
+        .alert-banner.active { display: flex; }
+        .offline-banner { background: #e3f2fd; color: #1565c0; border-right: 4px solid var(--accent4); }
+        .offline-banner.active { display: flex; }
+
+        /* ===== Cards Grid ===== */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -248,9 +360,24 @@
             border-radius: var(--radius);
             overflow: hidden;
             box-shadow: var(--shadow);
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: var(--transition);
+            position: relative;
         }
-        .track-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+        .track-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-hover); }
+        .track-card.updating { opacity: 0.7; pointer-events: none; }
+
+        .status-strip {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 5px;
+            border-radius: var(--radius) var(--radius) 0 0;
+            transition: var(--transition);
+        }
+        .status-strip.excellent { background: linear-gradient(90deg, var(--status-excellent), var(--accent1-light)); }
+        .status-strip.good { background: linear-gradient(90deg, var(--status-good), var(--accent3-light)); }
+        .status-strip.bad { background: linear-gradient(90deg, var(--status-bad), #fab1a0); }
+        .status-strip.neutral { background: var(--border); }
+
         .card-header {
             padding: 16px 18px;
             color: white;
@@ -260,145 +387,241 @@
             align-items: center;
             justify-content: space-between;
         }
-        .card-header.sat { background: linear-gradient(135deg, var(--accent2), #fab1a0); }
-        .card-header.mon { background: linear-gradient(135deg, var(--accent1), #55efc4); }
-        .card-header.wed { background: linear-gradient(135deg, var(--accent4), #a29bfe); }
+        .card-header.sat { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+        .card-header.mon { background: linear-gradient(135deg, #00b894, #55efc4); }
+        .card-header.wed { background: linear-gradient(135deg, #e17055, #fab1a0); }
         .day-icon { font-size: 1.3rem; }
-        .card-body { padding: 18px; }
+
+        .card-body { padding: 16px; }
         .activity-row {
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            padding: 12px 0;
-            border-bottom: 1px dashed var(--border);
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
             gap: 10px;
         }
         .activity-row:last-child { border-bottom: none; }
-        .activity-left { display: flex; align-items: center; gap: 10px; flex: 1; }
-        .activity-name { font-weight: 700; display: flex; align-items: center; gap: 10px; }
-        .activity-icon {
-            width: 30px; height: 30px;
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem;
+        .activity-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
         }
-        .icon-study { background: #e8f5e9; color: var(--accent1); }
-        .icon-mem { background: #fff3e0; color: #f39c12; }
-        .icon-copt { background: #fce4ec; color: var(--secondary); }
-        .icon-music { background: #e3f2fd; color: var(--accent4); }
-        .toggle-group { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-light); }
-        .toggle-switch { position: relative; width: 42px; height: 22px; }
+        .activity-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .icon-study { background: #e8f5e9; }
+        .icon-mem { background: #e3f2fd; }
+        .icon-copt { background: #fce4ec; }
+        .icon-music { background: #fff8e1; }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+        .toggle-switch {
+            position: relative;
+            width: 44px; height: 24px;
+        }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .toggle-slider {
-            position: absolute; cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: #dfe6e9;
-            transition: .3s;
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: #dfe6e9;
             border-radius: 24px;
+            transition: var(--transition);
         }
-        .toggle-slider:before {
-            position: absolute; content: "";
-            height: 16px; width: 16px;
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            height: 18px; width: 18px;
             right: 3px; bottom: 3px;
-            background-color: white;
-            transition: .3s;
+            background: white;
             border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .toggle-switch input:checked + .toggle-slider { background-color: var(--accent1); }
-        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(-20px); }
-        .rating { display: flex; gap: 3px; direction: ltr; transition: opacity 0.3s; }
-        .rating.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
-        .star { cursor: pointer; font-size: 1.15rem; color: var(--border); transition: color 0.2s, transform 0.2s; user-select: none; }
-        .star:hover { transform: scale(1.2); }
-        .star.active { color: var(--accent3); text-shadow: 0 0 8px rgba(253, 203, 110, 0.4); }
-        .absent-label { font-size: 0.75rem; color: var(--accent2); font-weight: 700; display: none; }
+        .toggle-switch input:checked + .toggle-slider { background: var(--accent1); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(-20px); }
+        .toggle-switch input:focus + .toggle-slider { box-shadow: 0 0 0 3px rgba(0,184,148,0.2); }
+
+        .rating {
+            display: flex;
+            gap: 3px;
+        }
+        .rating.disabled { opacity: 0.3; pointer-events: none; filter: grayscale(0.6); }
+        .star {
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: #dfe6e9;
+            transition: var(--transition);
+            user-select: none;
+        }
+        .star:hover, .star.active { color: var(--accent3); transform: scale(1.15); }
+        .star:active { transform: scale(0.95); }
+
+        .absent-label {
+            font-size: 0.8rem;
+            color: var(--danger);
+            font-weight: 700;
+            display: none;
+            white-space: nowrap;
+        }
+
         .note-input {
-            width: 100%; margin-top: 10px;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
+            width: 100%;
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
             font-family: "Tajawal", sans-serif;
             font-size: 0.9rem;
             resize: vertical;
-            min-height: 55px;
+            min-height: 60px;
+            margin-top: 10px;
+            transition: var(--transition);
             background: var(--bg);
         }
-        .note-input:focus { outline: none; border-color: var(--primary-light); }
-        .summary-bar {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 22px;
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-wrap: wrap;
-            gap: 18px;
-            justify-content: space-around;
-            text-align: center;
-        }
-        .stat-item h3 { font-size: 1.6rem; font-weight: 800; color: var(--primary); }
-        .stat-item p { color: var(--text-light); font-size: 0.85rem; margin-top: 4px; }
+        .note-input:focus { outline: none; border-color: var(--primary); background: white; }
+
+        /* ===== Action Buttons ===== */
         .actions {
             display: flex;
             gap: 10px;
-            justify-content: center;
-            margin-top: 22px;
             flex-wrap: wrap;
+            margin-bottom: 20px;
         }
         .btn {
-            padding: 12px 26px;
+            padding: 12px 22px;
             border: none;
-            border-radius: 12px;
+            border-radius: var(--radius-sm);
             font-family: "Tajawal", sans-serif;
             font-weight: 700;
             font-size: 0.95rem;
             cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
+            transition: var(--transition);
+            display: inline-flex;
             align-items: center;
             gap: 8px;
         }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-light));
-            color: white;
-            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: translateY(0); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; box-shadow: 0 4px 15px rgba(108,92,231,0.25); }
+        .btn-primary:hover { box-shadow: 0 6px 20px rgba(108,92,231,0.35); }
+        .btn-success { background: linear-gradient(135deg, var(--accent1), var(--accent1-light)); color: white; box-shadow: 0 4px 15px rgba(0,184,148,0.25); }
+        .btn-success:hover { box-shadow: 0 6px 20px rgba(0,184,148,0.35); }
+        .btn-secondary { background: var(--bg); color: var(--text); border: 2px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); background: rgba(108,92,231,0.04); }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #fab1a0); color: white; }
+        .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+
+        /* ===== Summary Bar ===== */
+        .summary-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
         }
-        .btn-primary:hover { transform: translateY(-2px); }
-        .btn-secondary {
-            background: white;
-            color: var(--text);
+        .stat-item {
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: var(--transition);
+        }
+        .stat-item:hover { transform: translateY(-2px); }
+        .stat-item h3 { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+        .stat-item p { font-size: 0.8rem; color: var(--text-light); font-weight: 700; }
+
+        /* ===== Search ===== */
+        .search-wrap { position: relative; flex: 1; min-width: 200px; }
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg);
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
             border: 2px solid var(--border);
+            transition: var(--transition);
         }
-        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
-        .btn-success {
-            background: linear-gradient(135deg, var(--accent1), #55efc4);
-            color: white;
-            box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
+        .search-box:focus-within { border-color: var(--primary); background: white; }
+        .search-box input {
+            border: none;
+            background: transparent;
+            font-family: "Tajawal", sans-serif;
+            font-size: 0.9rem;
+            flex: 1;
+            outline: none;
         }
-        .btn-success:hover { transform: translateY(-2px); }
+        .search-results {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            left: 0;
+            background: white;
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-hover);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+        .search-results.active { display: block; animation: slideUp 0.2s ease; }
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        .search-result-item:hover { background: var(--bg); }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item .result-year { color: var(--text-light); font-size: 0.8rem; }
+        .search-result-empty { padding: 16px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
+
+        /* ===== Modal ===== */
         .modal-overlay {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 8888;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
-        .modal-overlay.active { display: flex; }
+        .modal-overlay.active { display: flex; opacity: 1; }
         .modal-box {
             background: white;
             width: 95%;
             max-width: 900px;
-            max-height: 85vh;
+            max-height: 88vh;
             border-radius: var(--radius);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.2);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            animation: slideUp 0.3s ease;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
         }
+        .modal-overlay.active .modal-box { transform: scale(1); }
         .modal-header {
             padding: 18px 24px;
             background: linear-gradient(135deg, var(--primary), var(--primary-light));
@@ -406,46 +629,46 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
         .modal-header h3 { font-size: 1.2rem; }
         .modal-close {
             background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            width: 32px; height: 32px;
+            width: 34px; height: 34px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: var(--transition);
         }
+        .modal-close:hover { background: rgba(255,255,255,0.35); }
         .modal-body {
             padding: 20px;
             overflow-y: auto;
             flex: 1;
         }
-        .log-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.85rem;
-        }
+
+        /* ===== Log Table ===== */
+        .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .log-table th {
             background: var(--bg);
-            padding: 10px;
+            padding: 12px 10px;
             text-align: right;
             font-weight: 700;
             color: var(--primary);
             border-bottom: 2px solid var(--border);
             position: sticky;
             top: 0;
+            z-index: 2;
         }
-        .log-table td {
-            padding: 10px;
-            border-bottom: 1px solid var(--border);
-            color: var(--text);
-        }
+        .log-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; color: var(--text); }
         .log-table tr:hover td { background: #f8f9fc; }
+        .log-table tr { transition: background 0.2s; }
+
         .tag {
             display: inline-block;
             padding: 3px 10px;
@@ -465,90 +688,316 @@
             font-size: 0.75rem;
             color: var(--text-light);
             background: #fff3e0;
-            padding: 2px 8px;
+            padding: 3px 10px;
             border-radius: 6px;
             border-right: 3px solid var(--accent3);
         }
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-        }
+
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
         .filter-bar select {
-            padding: 8px 12px;
+            padding: 8px 14px;
             border: 1px solid var(--border);
             border-radius: 8px;
             font-family: "Tajawal", sans-serif;
             font-size: 0.85rem;
+            background: white;
+            cursor: pointer;
         }
         .audit-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             background: #fce4ec;
             color: var(--secondary);
-            padding: 4px 12px;
+            padding: 6px 14px;
             border-radius: 20px;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 700;
             margin-bottom: 15px;
         }
-        .conflict-banner {
-            background: #ffebee;
-            color: var(--danger);
-            padding: 12px 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+        .security-note {
+            margin-bottom: 14px;
+            color: var(--text-light);
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== Statistics ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stats-card {
+            background: var(--bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+        .stats-card:hover { border-color: var(--primary-light); transform: translateY(-3px); }
+        .stats-card h4 { font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+        .stats-card p { color: var(--text-light); font-size: 0.85rem; font-weight: 700; }
+        .stats-card.danger h4 { color: var(--danger); }
+        .stats-card.warning h4 { color: #f39c12; }
+        .stats-card.success h4 { color: var(--accent1); }
+
+        .progress-bar-container {
+            height: 10px;
+            background: var(--bg);
+            border-radius: 5px;
+            flex: 2;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* ===== Month Selector ===== */
+        .month-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
+        .month-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            background: white;
+            border-radius: 20px;
+            font-family: "Tajawal", sans-serif;
             font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+        .month-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .month-btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border-color: var(--primary);
+        }
+        .month-calendar {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-top: 15px;
+        }
+        .cal-header {
+            text-align: center;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.82rem;
+            padding: 8px 4px;
+        }
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: var(--bg);
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+        .cal-day:hover { background: var(--primary-light); color: white; }
+        .cal-day.has-data { background: #e8f5e9; color: var(--accent1); }
+        .cal-day.today { border: 2px solid var(--primary); }
+        .cal-day .cal-dot {
+            position: absolute;
+            bottom: 4px;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--accent1);
+        }
+        .cal-day.empty { background: transparent; cursor: default; }
+        .cal-day.empty:hover { background: transparent; color: inherit; }
+
+        /* ===== Keyboard Shortcuts Help ===== */
+        .shortcuts-help {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: var(--card-bg);
+            padding: 16px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hover);
+            font-size: 0.8rem;
+            z-index: 100;
+            max-width: 280px;
+            display: none;
+        }
+        .shortcuts-help.active { display: block; animation: slideUp 0.3s ease; }
+        .shortcuts-help h4 { color: var(--primary); margin-bottom: 8px; font-size: 0.85rem; }
+        .shortcut-item { display: flex; justify-content: space-between; padding: 3px 0; }
+        .shortcut-key {
+            background: var(--bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+        }
+        .shortcut-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-hover);
+            transition: var(--transition);
+            z-index: 99;
+        }
+        .shortcut-toggle:hover { transform: scale(1.1); background: var(--primary-dark); }
+
+        /* ===== Loading Spinner ===== */
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.8);
             display: none;
             align-items: center;
-            gap: 10px;
-            border-right: 4px solid var(--danger);
+            justify-content: center;
+            z-index: 50;
+            border-radius: var(--radius);
         }
-        .conflict-banner.active { display: flex; }
+        .loading-overlay.active { display: flex; }
+
+        /* ===== Toast Notifications ===== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 14px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            max-width: 320px;
+        }
+        .toast.success { background: linear-gradient(135deg, var(--accent1), var(--accent1-light)); }
+        .toast.error { background: linear-gradient(135deg, var(--danger), #fab1a0); }
+        .toast.info { background: linear-gradient(135deg, var(--accent4), #a29bfe); }
+        .toast.warning { background: linear-gradient(135deg, var(--accent3), var(--accent3-light)); color: var(--text); }
+        .toast.hiding { animation: fadeOut 0.3s ease forwards; }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
+
+        /* ===== Responsive ===== */
         @media print {
             body { background: white; padding: 0; }
-            .login-overlay, .server-bar, .actions, .modal-overlay, .conflict-banner, .added-today-banner { display: none !important; }
-            .track-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
-            .card-header, .header { -webkit-print-color-adjust: exact; }
+            .login-overlay, .server-bar, .actions, .modal-overlay,
+            .conflict-banner, .added-today-banner, .alert-banner,
+            .offline-banner, .shortcut-toggle, .shortcuts-help,
+            .toast-container { display: none !important; }
+            .track-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; margin-bottom: 15px; }
+            .card-header, .header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .header { border-radius: 0; }
         }
         @media (max-width: 768px) {
+            body { padding: 12px; }
             .info-card { grid-template-columns: 1fr; }
             .cards-grid { grid-template-columns: 1fr; }
-            .header h1 { font-size: 1.4rem; }
-            .server-bar { flex-direction: column; gap: 10px; }
+            .header h1 { font-size: 1.5rem; }
+            .server-bar { flex-direction: column; align-items: stretch; }
+            .server-actions { justify-content: center; }
+            .summary-bar { grid-template-columns: repeat(2, 1fr); }
+            .actions { justify-content: center; }
+            .login-box { padding: 30px 20px; }
+            .modal-box { width: 98%; max-height: 95vh; }
+        }
+
+        /* ===== Scrollbar Styling ===== */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
+
+        /* ===== Reduced Motion ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="login-overlay" id="loginOverlay">
         <div class="login-box">
-            <div style="font-size: 3rem; margin-bottom: 10px;">&#128274;</div>
-            <h2>تسجيل دخول الخادم</h2>
+            <h2>&#128272; تسجيل دخول الخادم</h2>
             <p>أدخل بياناتك للوصول إلى نظام المتابعة</p>
-            <input type="text" id="loginName" placeholder="اسم الخادم (مثال: توماس عاطف)">
-            <input type="text" id="loginId" placeholder="رقم الخادم / ID (مثال: 012711)">
-            <button class="login-btn" onclick="doLogin()">&#128640; دخول</button>
-            <div class="login-error" id="loginError">&#10060; ID أو الاسم غير صحيح</div>
+            <input type="text" id="loginName" placeholder="اسم الخادم" autocomplete="off" aria-label="اسم الخادم">
+            <input type="password" id="loginId" placeholder="الرقم السري (ID)" autocomplete="off" aria-label="الرقم السري">
+            <button class="login-btn" id="loginBtn" onclick="handleLogin()">&#10132; دخول</button>
+            <div class="login-error" id="loginError"></div>
+            <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
+                النسخة المحسّنة v3 &bull; مع تحسينات الأداء والأمان
+            </div>
         </div>
     </div>
 
     <div class="container" id="mainApp" style="display:none;">
         <div class="server-bar">
-            <div style="display:flex;align-items:center;gap:12px;">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <div class="server-badge">
                     <span>&#128100;</span>
                     <span id="serverDisplay">غير مسجل</span>
                 </div>
-                <span class="save-status online" id="saveStatus">&#127760; متصل</span>
+                <div class="save-status offline" id="saveStatus">&#128268; غير متصل</div>
             </div>
             <div class="server-actions">
-                <button class="link-btn" onclick="showLog()">&#128203; السجل التاريخي</button>
-                <button class="link-btn" onclick="exportData('json')">&#128229; JSON</button>
-                <button class="link-btn" onclick="exportData('csv')">&#128202; CSV</button>
+                <div class="search-wrap">
+                    <div class="search-box">
+                        <span>&#128269;</span>
+                        <input type="text" id="quickSearch" placeholder="بحث سريع عن طالبة..." oninput="debouncedSearch()" aria-label="بحث عن طالبة">
+                    </div>
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <button class="link-btn" onclick="showStats()">&#128202; إحصائيات</button>
+                <button class="link-btn" onclick="showLog()">&#128203; السجل</button>
+                <button class="link-btn" onclick="showMonthlyLog()">&#128197; الشهري</button>
                 <button class="link-btn danger" onclick="logout()">&#128682; خروج</button>
             </div>
+        </div>
+
+        <div class="header">
+            <h1>&#127891; نظام متابعة المخدومات</h1>
+            <p>تسجيل الحضور والتقييم اليومي للأنشطة</p>
+            <div class="date-badge" id="todayDateBadge">&#128197; جاري التحميل...</div>
         </div>
 
         <div class="conflict-banner" id="conflictBanner">
@@ -558,234 +1007,119 @@
 
         <div class="added-today-banner" id="addedTodayBanner">
             <span>&#9989;</span>
-            <span>الطالبة دي اتضافت اليوم بالفعل. تقدري تعدّلي البيانات (بس لازم تكتبي سبب).</span>
+            <span>تم تسجيل بيانات لهذه الطالبة اليوم. هتتحدث لو غيرتي حاجة.</span>
         </div>
 
-        <div class="header">
-            <h1>&#127919; كارت متابعة المهرجان</h1>
-            <p>أسرة إعدادية بنات - متابعة الحضور والتقييم الأسبوعي</p>
-            <div class="date-badge" id="todayDateBadge">&#128197; اليوم: --</div>
+        <div class="alert-banner" id="absentAlertBanner">
+            <span>&#128308;</span>
+            <span id="absentAlertText"></span>
+        </div>
+
+        <div class="offline-banner" id="offlineBanner">
+            <span>&#9888;&#65039;</span>
+            <span>وضع عدم الاتصال &bull; البيانات هتتحفظ محلياً وهتتزامن لما يكون فيه نت</span>
         </div>
 
         <div class="info-card">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label for="studentSelect">&#128317; اختيار الطالبة</label>
+                <div class="student-select-row">
+                    <select id="studentSelect" onchange="onStudentSelectChange()" aria-label="اختيار الطالبة">
+                        <option value="">-- اختيار طالبة من القائمة --</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="newStudent()">&#128221; جديدة</button>
+                    <button class="btn btn-primary btn-sm" onclick="manualLoadStudent()">&#128269; تحميل / بحث</button>
+                </div>
+            </div>
             <div class="form-group">
-                <label>&#128100; اسم الطالبة</label>
-                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." onchange="checkDuplicateAndLoad()">
-                <div class="duplicate-error" id="dupNameError">&#10060; اسم الطالبة مستخدم بالفعل مع سنة دراسية مختلفة!</div>
+                <label for="studentName">&#128105; اسم الطالبة</label>
+                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." aria-label="اسم الطالبة">
+                <input type="hidden" id="studentDocId">
+                <div class="duplicate-error" id="dupNameError"></div>
             </div>
             <div class="form-group">
-                <label>&#128218; السنة الدراسية</label>
-                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." onchange="checkDuplicateAndLoad()">
-            </div>
-        </div>
-
-        <div class="cards-grid">
-            <div class="track-card">
-                <div class="card-header sat"><span>السبت</span><span class="day-icon">&#128214;</span></div>
-                <div class="card-body">
-                    <div class="activity-row" data-day="السبت" data-act="دراسي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-study">&#128216;</div><span>دراسي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="السبت" data-act="دراسي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="السبت" data-act="محفوظات">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-mem">&#128221;</div><span>محفوظات</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="السبت" data-act="محفوظات"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="السبت" data-act="قبطي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-copt">&#9961;&#65039;</div><span>قبطي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="السبت" data-act="قبطي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="السبت" data-act="الحان">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-music">&#127925;</div><span>الحان</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="السبت" data-act="الحان"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <textarea class="note-input" id="note-السبت" placeholder="ملاحظات يوم السبت..." oninput="queueSave()"></textarea>
-                </div>
-            </div>
-
-            <div class="track-card">
-                <div class="card-header mon"><span>الإثنين</span><span class="day-icon">&#127775;</span></div>
-                <div class="card-body">
-                    <div class="activity-row" data-day="الإثنين" data-act="دراسي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-study">&#128216;</div><span>دراسي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الإثنين" data-act="دراسي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الإثنين" data-act="محفوظات">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-mem">&#128221;</div><span>محفوظات</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الإثنين" data-act="محفوظات"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الإثنين" data-act="قبطي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-copt">&#9961;&#65039;</div><span>قبطي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الإثنين" data-act="قبطي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الإثنين" data-act="الحان">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-music">&#127925;</div><span>الحان</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الإثنين" data-act="الحان"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <textarea class="note-input" id="note-الإثنين" placeholder="ملاحظات يوم الإثنين..." oninput="queueSave()"></textarea>
-                </div>
-            </div>
-
-            <div class="track-card">
-                <div class="card-header wed"><span>الأربعاء</span><span class="day-icon">&#127919;</span></div>
-                <div class="card-body">
-                    <div class="activity-row" data-day="الأربعاء" data-act="دراسي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-study">&#128216;</div><span>دراسي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الأربعاء" data-act="دراسي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الأربعاء" data-act="محفوظات">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-mem">&#128221;</div><span>محفوظات</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الأربعاء" data-act="محفوظات"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الأربعاء" data-act="قبطي">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-copt">&#9961;&#65039;</div><span>قبطي</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الأربعاء" data-act="قبطي"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <div class="activity-row" data-day="الأربعاء" data-act="الحان">
-                        <div class="activity-left">
-                            <div class="activity-name"><div class="activity-icon icon-music">&#127925;</div><span>الحان</span></div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="toggle-group"><span>حضور</span><label class="toggle-switch"><input type="checkbox" onchange="toggleAttendance(this)"><span class="toggle-slider"></span></label></div>
-                            <div class="rating disabled" data-day="الأربعاء" data-act="الحان"><span class="star" onclick="rate(this,1)">&#9733;</span><span class="star" onclick="rate(this,2)">&#9733;</span><span class="star" onclick="rate(this,3)">&#9733;</span><span class="star" onclick="rate(this,4)">&#9733;</span><span class="star" onclick="rate(this,5)">&#9733;</span></div>
-                            <span class="absent-label">غائبة &#10060;</span>
-                        </div>
-                    </div>
-                    <textarea class="note-input" id="note-الأربعاء" placeholder="ملاحظات يوم الأربعاء..." oninput="queueSave()"></textarea>
-                </div>
+                <label for="studentYear">&#127891; السنة الدراسية</label>
+                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." aria-label="السنة الدراسية">
             </div>
         </div>
 
         <div class="summary-bar">
-            <div class="stat-item"><h3 id="presentCount">0</h3><p>الحضور</p></div>
-            <div class="stat-item"><h3 id="absentCount">0</h3><p>الغياب</p></div>
-            <div class="stat-item"><h3 id="ratedActivities">0</h3><p>تم تقييمها</p></div>
-            <div class="stat-item"><h3 id="avgRating">0.0</h3><p>متوسط التقييم</p></div>
-            <div class="stat-item"><h3 id="attendanceRate">0%</h3><p>نسبة الحضور</p></div>
-            <div class="stat-item"><h3 id="logCount">0</h3><p>عمليات التسجيل</p></div>
+            <div class="stat-item"><h3 id="presentCount">0</h3><p>&#9989; حاضرة</p></div>
+            <div class="stat-item"><h3 id="absentCount">0</h3><p>&#10060; غائبة</p></div>
+            <div class="stat-item"><h3 id="ratedActivities">0</h3><p>&#11088; مقيمة</p></div>
+            <div class="stat-item"><h3 id="avgRating">0.0</h3><p>&#128200; متوسط</p></div>
+            <div class="stat-item"><h3 id="attendanceRate">0%</h3><p>&#128202; نسبة</p></div>
+            <div class="stat-item"><h3 id="logCount">0</h3><p>&#128203; عمليات</p></div>
         </div>
 
         <div class="actions">
-            <button class="btn btn-primary" onclick="window.print()">&#128424;&#65039; طباعة الكارت</button>
-            <button class="btn btn-success" onclick="forceSave()">&#128190; حفظ في السحابة</button>
-            <button class="btn btn-secondary" onclick="resetAll()">&#128260; إعادة تعيين</button>
+            <button class="btn btn-primary" onclick="window.print()">&#128424;&#65039; طباعة</button>
+            <button class="btn btn-success" id="saveBtn" onclick="forceSave()">&#128190; حفظ سحابي</button>
+            <button class="btn btn-secondary" onclick="exportData(\'json\')">&#128229; تصدير JSON</button>
+            <button class="btn btn-secondary" onclick="exportData(\'csv\')">&#128229; تصدير CSV</button>
+            <button class="btn btn-danger" onclick="resetAll()">&#128260; مسح الكل</button>
+        </div>
+
+        <div class="cards-grid" id="cardsGrid">
+            <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-light);">
+                <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:40px;height:40px;"></div>
+                <p style="margin-top:15px;">جاري تحميل البطاقات...</p>
+            </div>
         </div>
     </div>
 
-    <!-- Modal: Change Reason -->
+    <!-- Reason Modal -->
     <div class="modal-overlay" id="reasonModal">
         <div class="modal-box" style="max-width: 450px;">
             <div class="modal-header">
                 <h3>&#9998; سبب التعديل</h3>
-                <button class="modal-close" onclick="closeReasonModal(false)">&#215;</button>
+                <button class="modal-close" onclick="closeReasonModal(false)" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 12px; color: var(--text-light); font-size: 0.9rem;">
+                <p style="margin-bottom: 14px; color: var(--text-light); font-size: 0.9rem;">
                     أي تعديل في البيانات لازم يكون له سبب واضح عشان السجل التاريخي.
                 </p>
-                <textarea id="changeReasonInput" class="note-input" style="min-height: 80px;" placeholder="اكتبي سبب التعديل (مثال: تصحيح خطأ في الحضور، تحديث بعد مراجعة المشرفة...)"></textarea>
-                <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
-                    <button class="btn btn-success" onclick="closeReasonModal(true)">&#9989; تأكيد التعديل</button>
+                <textarea id="changeReasonInput" class="note-input" style="min-height: 90px;" placeholder="اكتبي سبب التعديل (مثال: تصحيح خطأ في الحضور، تحديث بعد مراجعة المشرفة...)" aria-label="سبب التعديل"></textarea>
+                <div style="margin-top: 18px; display: flex; gap: 12px; justify-content: center;">
+                    <button class="btn btn-success" onclick="closeReasonModal(true)">&#9989; تأكيد</button>
                     <button class="btn btn-secondary" onclick="closeReasonModal(false)">&#10060; إلغاء</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Audit Log -->
+    <!-- Audit Log Modal -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3>&#128203; السجل التاريخي الدائم (Audit Trail)</h3>
-                <button class="modal-close" onclick="closeLog()">&#215;</button>
+                <h3>&#128203; السجل التاريخي (Audit Trail)</h3>
+                <button class="modal-close" onclick="closeLog()" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
                 <div class="audit-badge">
                     <span>&#128227;</span>
-                    <span>سجل دائم في Firebase. كل تعديل مسجل: مين عمله، إمتى، القيمة القديمة والجديدة، والسبب.</span>
+                    <span>سجل دائم في Firebase &bull; كل تعديل مسجل مع مين عمله وإمتى والسبب</span>
+                </div>
+                <div class="security-note">
+                    <span>&#128272;</span>
+                    <span>السجل محمي ومينفعش يتمسح إلا من Firebase Console</span>
                 </div>
                 <div class="filter-bar">
-                    <select id="filterDay" onchange="renderLogTable()">
+                    <select id="filterDay" onchange="renderLogTable()" aria-label="تصفية باليوم">
                         <option value="">كل الأيام</option>
                         <option value="السبت">السبت</option>
                         <option value="الإثنين">الإثنين</option>
                         <option value="الأربعاء">الأربعاء</option>
                     </select>
-                    <select id="filterType" onchange="renderLogTable()">
+                    <select id="filterType" onchange="renderLogTable()" aria-label="تصفية بالنوع">
                         <option value="">كل الأنواع</option>
                         <option value="attendance">حضور/غياب</option>
                         <option value="rating">تقييم</option>
                         <option value="note">ملاحظة</option>
                     </select>
                 </div>
-                <div style="margin-bottom:12px; color:var(--text-light); font-size:0.85rem;">
-                    &#128272; السجل محمي في Firebase ومينفعش يتمسح إلا من Console.
+                <div class="loading-overlay" id="logLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
                 </div>
                 <table class="log-table">
                     <thead>
@@ -804,55 +1138,110 @@
         </div>
     </div>
 
-    <script type="module">
-        import { doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <!-- Statistics Modal -->
+    <div class="modal-overlay" id="statsModal">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>&#128202; لوحة الإحصائيات</h3>
+                <button class="modal-close" onclick="closeStats()" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" id="statsLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+                <div class="stats-grid" id="statsGrid">
+                    <div class="stats-card"><h4 id="statTotalStudents">0</h4><p>إجمالي المخدومات</p></div>
+                    <div class="stats-card success"><h4 id="statTopPresent">-</h4><p>أكثر الحضور</p></div>
+                    <div class="stats-card danger"><h4 id="statLeastPresent">-</h4><p>أقل الحضور</p></div>
+                    <div class="stats-card warning"><h4 id="statAvgRating">0.0</h4><p>متوسط التقييم</p></div>
+                    <div class="stats-card danger"><h4 id="statMonthlyAbsents">0</h4><p>غيابات الشهر</p></div>
+                    <div class="stats-card"><h4 id="statNeedFollow">0</h4><p>يحتاجون متابعة</p></div>
+                </div>
+                <div style="margin-top:24px;">
+                    <h4 style="color:var(--primary);margin-bottom:14px;font-size:1.1rem;">&#127919; توزيع الحالة</h4>
+                    <div id="statusDistribution" style="display:flex;flex-direction:column;gap:12px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        window.doc = doc;
-        window.setDoc = setDoc;
-        window.getDoc = getDoc;
-        window.collection = collection;
-        window.addDoc = addDoc;
-        window.query = query;
-        window.where = where;
-        window.orderBy = orderBy;
-        window.limit = limit;
-        window.getDocs = getDocs;
-        window.deleteDoc = deleteDoc;
-        window.Timestamp = Timestamp;
-        window.serverTimestamp = serverTimestamp;
-    </script>
+    <!-- Monthly Log Modal -->
+    <div class="modal-overlay" id="monthlyModal">
+        <div class="modal-box" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>&#128197; السجل الشهري</h3>
+                <button class="modal-close" onclick="closeMonthlyLog()" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="month-selector" id="monthSelector"></div>
+                <div id="monthCalendar" class="month-calendar"></div>
+                <div id="monthDetails" style="margin-top:15px;padding:18px;background:var(--bg);border-radius:var(--radius-sm);display:none;">
+                    <h4 style="color:var(--primary);margin-bottom:10px;font-size:1rem;" id="monthDetailTitle"></h4>
+                    <div id="monthDetailContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="shortcut-toggle" onclick="toggleShortcuts()" title="اختصارات الكيبورد" aria-label="اختصارات الكيبورد">&#9000;</button>
+    <div class="shortcuts-help" id="shortcutsHelp">
+        <h4>&#9000; اختصارات الكيبورد</h4>
+        <div class="shortcut-item"><span>طباعة</span><span class="shortcut-key">Ctrl+P</span></div>
+        <div class="shortcut-item"><span>حفظ</span><span class="shortcut-key">Ctrl+S</span></div>
+        <div class="shortcut-item"><span>بحث</span><span class="shortcut-key">Ctrl+F</span></div>
+        <div class="shortcut-item"><span>سجل جديد</span><span class="shortcut-key">Ctrl+N</span></div>
+        <div class="shortcut-item"><span>السجل التاريخي</span><span class="shortcut-key">Ctrl+H</span></div>
+        <div class="shortcut-item"><span>إحصائيات</span><span class="shortcut-key">Ctrl+I</span></div>
+        <div class="shortcut-item"><span>مسح البحث</span><span class="shortcut-key">Escape</span></div>
+    </div>
 
     <script>
-        const SERVERS = {
-            "101": "ماري",
-            "102": "يوحنا",
-            "103": "مينا",
-            "104": "دميانة",
-            "012711": "توماس عاطف",
-            "012712": "برباره عاطف"
+        // ===== Configuration =====
+        const SERVERS_ENCODED = "eyIxMDEiOiJtYXJ5IiwiMTAyIjoidWhvYW5hIiwiMTAzIjoibWluYSIsIjEwNCI6ImRhbXlhYW5hIiwiMDEyNzExIjoidG9tYXMgYWF0ZWYiLCIwMTI3MTIiOiJiYXJiYXJhIGFhdGVmIn0=";
+        const CONFIG = {
+            saveDebounceMs: 1200,
+            searchDebounceMs: 350,
+            maxRecords: 500,
+            maxLogEntries: 200,
+            monthsToShow: 6
         };
 
+        // ===== State =====
+        let SERVERS = {};
         let currentServer = null;
         let currentStudentId = null;
         const ratings = {};
         const attendance = {};
         let records = [];
         let saveTimeout = null;
-        let loadTimeout = null;
+        let searchTimeout = null;
         let pendingChange = null;
         let lastKnownUpdatedAt = null;
         let isAlreadyAddedToday = false;
+        let isSaving = false;
+        let searchAbortController = null;
+        let activeListeners = [];
+
         const DAYS = ["السبت","الإثنين","الأربعاء"];
         const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
+        const ACT_ICONS = { "دراسي": "&#128216;", "محفوظات": "&#128221;", "قبطي": "&#9961;&#65039;", "الحان": "&#127925;" };
+        const ACT_CLASSES = { "دراسي": "icon-study", "محفوظات": "icon-mem", "قبطي": "icon-copt", "الحان": "icon-music" };
+        const DAY_HEADERS = { "السبت": "sat", "الإثنين": "mon", "الأربعاء": "wed" };
+        const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
+        const ARABIC_DAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 
+        // ===== DOM References =====
         const els = {
             name: document.getElementById("studentName"),
             year: document.getElementById("studentYear"),
+            studentDocId: document.getElementById("studentDocId"),
+            studentSelect: document.getElementById("studentSelect"),
             saveStatus: document.getElementById("saveStatus"),
             serverDisplay: document.getElementById("serverDisplay"),
             loginOverlay: document.getElementById("loginOverlay"),
             mainApp: document.getElementById("mainApp"),
             loginError: document.getElementById("loginError"),
+            loginBtn: document.getElementById("loginBtn"),
             logModal: document.getElementById("logModal"),
             logTableBody: document.getElementById("logTableBody"),
             reasonModal: document.getElementById("reasonModal"),
@@ -866,62 +1255,174 @@
             conflictBanner: document.getElementById("conflictBanner"),
             dupNameError: document.getElementById("dupNameError"),
             addedTodayBanner: document.getElementById("addedTodayBanner"),
-            todayDateBadge: document.getElementById("todayDateBadge")
+            todayDateBadge: document.getElementById("todayDateBadge"),
+            absentAlertBanner: document.getElementById("absentAlertBanner"),
+            absentAlertText: document.getElementById("absentAlertText"),
+            offlineBanner: document.getElementById("offlineBanner"),
+            cardsGrid: document.getElementById("cardsGrid"),
+            statsModal: document.getElementById("statsModal"),
+            monthlyModal: document.getElementById("monthlyModal"),
+            monthCalendar: document.getElementById("monthCalendar"),
+            monthDetails: document.getElementById("monthDetails"),
+            monthDetailTitle: document.getElementById("monthDetailTitle"),
+            monthDetailContent: document.getElementById("monthDetailContent"),
+            monthSelector: document.getElementById("monthSelector"),
+            searchResults: document.getElementById("searchResults"),
+            logLoadingOverlay: document.getElementById("logLoadingOverlay"),
+            statsLoadingOverlay: document.getElementById("statsLoadingOverlay"),
+            shortcutsHelp: document.getElementById("shortcutsHelp"),
+            saveBtn: document.getElementById("saveBtn"),
+            toastContainer: document.getElementById("toastContainer")
         };
 
-        // Show today's date automatically
-        function updateTodayBadge() {
-            const today = new Date();
-            const dateStr = today.toLocaleDateString("ar-EG", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
-            els.todayDateBadge.innerHTML = "&#128197; اليوم: " + dateStr;
+        // ===== Utility Functions =====
+        function escapeHtml(text) {
+            if (!text) return "";
+            const div = document.createElement("div");
+            div.textContent = text;
+            return div.innerHTML;
         }
-        updateTodayBadge();
 
-        function getTodayDate() {
-            return new Date().toISOString().slice(0,10);
+        function showToast(message, type = "info", duration = 3000) {
+            const toast = document.createElement("div");
+            toast.className = `toast ${type}`;
+            const icons = { success: "&#9989;", error: "&#10060;", info: "&#128161;", warning: "&#9888;&#65039;" };
+            toast.innerHTML = `<span>${icons[type] || "&#128161;"}</span><span>${escapeHtml(message)}</span>`;
+            els.toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add("hiding");
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
         }
 
         function setSaveStatus(status) {
             const el = els.saveStatus;
-            if (status === "saving") {
-                el.innerHTML = "&#9203; جاري الحفظ...";
-                el.className = "save-status saving";
-            } else if (status === "saved") {
-                el.innerHTML = "&#9989; تم الحفظ";
-                el.className = "save-status online";
-                setTimeout(function() {
-                    el.innerHTML = "&#127760; متصل";
-                    el.className = "save-status online";
-                }, 2000);
-            } else if (status === "offline") {
-                el.innerHTML = "&#128268; غير متصل";
-                el.className = "save-status offline";
-            } else {
-                el.innerHTML = "&#127760; متصل";
-                el.className = "save-status online";
+            const states = {
+                saving: { html: "&#9203; جاري الحفظ...", className: "save-status saving" },
+                saved: { html: "&#9989; تم الحفظ", className: "save-status saved" },
+                online: { html: "&#127760; متصل", className: "save-status online" },
+                offline: { html: "&#128268; غير متصل", className: "save-status offline" },
+                error: { html: "&#10060; خطأ", className: "save-status offline" }
+            };
+            const state = states[status] || states.online;
+            el.innerHTML = state.html;
+            el.className = state.className;
+            if (status === "saved") {
+                setTimeout(() => setSaveStatus("online"), 2000);
             }
+        }
+
+        function updateTodayBadge() {
+            const today = new Date();
+            const dateStr = today.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+            els.todayDateBadge.innerHTML = "&#128197; " + dateStr;
+        }
+
+        function getTodayDate() {
+            return new Date().toISOString().slice(0, 10);
         }
 
         function getStudentDocId() {
+            const hiddenId = els.studentDocId.value.trim();
+            if (hiddenId) return hiddenId;
             const name = els.name.value.trim();
             const year = els.year.value.trim();
-            if (!name) return null;
-            return (name + "_" + year).replace(/\s+/g, "_").replace(/[^\u0621-\u064Aa-zA-Z0-9_]/g, "");
+            if (!name || !year) return null;
+            const safeName = name.replace(/\\s+/g, "_").replace(/[^\\u0621-\\u064Aa-zA-Z0-9_]/g, "");
+            const safeYear = year.replace(/\\s+/g, "_").replace(/[^\\u0621-\\u064Aa-zA-Z0-9_]/g, "");
+            return safeName + "_" + safeYear;
         }
 
-        function doLogin() {
-            const name = document.getElementById("loginName").value.trim();
-            const id = document.getElementById("loginId").value.trim();
+        // ===== Initialization =====
+        async function initServers() {
+            if (window.firebaseReady && window.db) {
+                try {
+                    const snap = await getDocs(collection(window.db, "servers"));
+                    if (!snap.empty) {
+                        SERVERS = {};
+                        snap.forEach(d => { SERVERS[d.id] = d.data().name; });
+                        return;
+                    }
+                } catch(e) {
+                    console.error("Failed to load servers from Firestore:", e);
+                }
+            }
+            try {
+                SERVERS = JSON.parse(atob(SERVERS_ENCODED));
+            } catch(e) {
+                SERVERS = {};
+                console.error("Failed to decode fallback servers:", e);
+            }
+        }
+
+        function generateCards() {
+            els.cardsGrid.innerHTML = "";
+            DAYS.forEach(day => {
+                const card = document.createElement("div");
+                card.className = "track-card";
+                card.dataset.day = day;
+                card.innerHTML = `
+                    <div class="status-strip neutral" id="status-${day}"></div>
+                    <div class="card-header ${DAY_HEADERS[day]}">
+                        <span>${day}</span>
+                        <span class="day-icon">${DAY_ICONS[day]}</span>
+                    </div>
+                    <div class="card-body">
+                        ${ACTS.map(act => `
+                            <div class="activity-row" data-day="${day}" data-act="${act}">
+                                <div class="activity-left">
+                                    <div class="activity-name">
+                                        <div class="activity-icon ${ACT_CLASSES[act]}">${ACT_ICONS[act]}</div>
+                                        <span>${act}</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:12px;">
+                                    <div class="toggle-group">
+                                        <span>حضور</span>
+                                        <label class="toggle-switch" title="تسجيل الحضور">
+                                            <input type="checkbox" onchange="toggleAttendance(this)" aria-label="حضور ${act} يوم ${day}">
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="rating disabled" data-day="${day}" data-act="${act}">
+                                        ${[1,2,3,4,5].map(i => `<span class="star" onclick="rate(this,${i})" title="${i} نجمة" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')rate(this,${i})">&#9733;</span>`).join("")}
+                                    </div>
+                                    <span class="absent-label">غائبة &#10060;</span>
+                                </div>
+                            </div>
+                        `).join("")}
+                        <textarea class="note-input" id="note-${day}" placeholder="ملاحظات يوم ${day}..." oninput="queueSave()" aria-label="ملاحظات ${day}"></textarea>
+                    </div>
+                `;
+                els.cardsGrid.appendChild(card);
+            });
+        }
+
+        updateTodayBadge();
+
+        // ===== Login =====
+        async function handleLogin() {
+            els.loginBtn.disabled = true;
+            els.loginBtn.innerHTML = \'<div class="spinner"></div> جاري الدخول...\';
+
+            const nameInput = document.getElementById("loginName");
+            const idInput = document.getElementById("loginId");
+            const name = nameInput.value.trim();
+            const id = idInput.value.trim();
             const err = els.loginError;
 
+            await initServers();
+
             if (!SERVERS[id]) {
-                err.textContent = "ID غير موجود في قائمة الخدام";
-                err.style.display = "block";
+                err.textContent = "&#10060; ID غير موجود في قائمة الخدام";
+                err.classList.add("active");
+                resetLoginBtn();
                 return;
             }
             if (SERVERS[id] !== name) {
-                err.textContent = "الاسم لا يطابق الـ ID المسجل";
-                err.style.display = "block";
+                err.textContent = "&#10060; الاسم لا يطابق (المسجل: " + SERVERS[id] + ")";
+                err.classList.add("active");
+                resetLoginBtn();
                 return;
             }
 
@@ -931,330 +1432,162 @@
             els.loginOverlay.classList.add("hidden");
             els.mainApp.style.display = "block";
             els.serverDisplay.textContent = name + " (#" + id + ")";
-            err.style.display = "none";
-            checkDuplicateAndLoad();
+            err.classList.remove("active");
+
+            setSaveStatus(window.firebaseReady ? "online" : "offline");
+            if (!window.firebaseReady) {
+                els.offlineBanner.classList.add("active");
+                showToast("وضع عدم الاتصال - البيانات هتحفظ محلياً", "warning", 5000);
+            }
+
+            generateCards();
+            loadStudentList();
+            generateMonthSelector();
+            setupKeyboardShortcuts();
+            console.log("Login successful:", name, id);
+        }
+
+        function resetLoginBtn() {
+            els.loginBtn.disabled = false;
+            els.loginBtn.innerHTML = "&#10132; دخول";
         }
 
         function logout() {
             if (!confirm("تأكيد تسجيل الخروج؟")) return;
+            // Cleanup listeners
+            activeListeners.forEach(unsub => { try { unsub(); } catch(e) {} });
+            activeListeners = [];
             currentServer = null;
             localStorage.removeItem("khadem_session");
             location.reload();
         }
 
+        // Auto-login
         const savedSession = localStorage.getItem("khadem_session");
         if (savedSession) {
             try {
                 const s = JSON.parse(savedSession);
-                if (SERVERS[s.id] && SERVERS[s.id] === s.name) {
-                    currentServer = s;
-                    els.loginOverlay.classList.add("hidden");
-                    els.mainApp.style.display = "block";
-                    els.serverDisplay.textContent = s.name + " (#" + s.id + ")";
-                }
-            } catch(e) {}
+                initServers().then(() => {
+                    if (SERVERS[s.id] && SERVERS[s.id] === s.name) {
+                        currentServer = s;
+                        els.loginOverlay.classList.add("hidden");
+                        els.mainApp.style.display = "block";
+                        els.serverDisplay.textContent = s.name + " (#" + s.id + ")";
+                        setSaveStatus(window.firebaseReady ? "online" : "offline");
+                        if (!window.firebaseReady) els.offlineBanner.classList.add("active");
+                        generateCards();
+                        loadStudentList();
+                        generateMonthSelector();
+                        setupKeyboardShortcuts();
+                    }
+                });
+            } catch(e) {
+                localStorage.removeItem("khadem_session");
+            }
         }
 
+        // ===== Student Dropdown =====
+        async function loadStudentList() {
+            if (!window.firebaseReady || !window.db) return;
+            try {
+                const snap = await getDocs(collection(window.db, "students"));
+                els.studentSelect.innerHTML = \'<option value="">-- اختيار طالبة من القائمة --</option>\';
+                const students = [];
+                snap.forEach(d => {
+                    const data = d.data();
+                    students.push({ name: data.name, year: data.year, id: d.id });
+                });
+                students.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+                students.forEach(s => {
+                    const opt = document.createElement("option");
+                    opt.value = [s.name, s.year, s.id].join("|");
+                    opt.textContent = (s.name || "بدون اسم") + " - " + (s.year || "بدون سنة");
+                    els.studentSelect.appendChild(opt);
+                });
+            } catch(e) {
+                console.error("Failed to load student list:", e);
+            }
+        }
+
+        function onStudentSelectChange() {
+            const val = els.studentSelect.value;
+            if (!val) return;
+            const parts = val.split("|");
+            if (parts.length < 3) return;
+            els.name.value = parts[0];
+            els.year.value = parts[1];
+            els.studentDocId.value = parts[2];
+            // Do NOT auto-load. User must click "تحميل / بحث"
+        }
+
+        function newStudent() {
+            els.studentSelect.value = "";
+            els.name.value = "";
+            els.year.value = "";
+            els.studentDocId.value = "";
+            resetUI(true, true);
+            isAlreadyAddedToday = false;
+            els.name.focus();
+        }
+
+        function manualLoadStudent() {
+            checkDuplicateAndLoad();
+        }
+
+        // ===== Duplicate Check & Load =====
         async function checkDuplicateAndLoad() {
             const name = els.name.value.trim();
             const year = els.year.value.trim();
-            const dupError = els.dupNameError;
-            dupError.classList.remove("active");
+            els.dupNameError.classList.remove("active");
 
-            if (!name || !year) return;
+            if (!name || !year) {
+                showToast("&#128221; يرجى إدخال اسم الطالبة والسنة الدراسية", "warning");
+                return;
+            }
 
             if (window.firebaseReady && window.db) {
                 try {
                     const q = query(collection(window.db, "students"), where("name", "==", name));
                     const snap = await getDocs(q);
                     let foundDifferent = false;
-                    snap.forEach(function(d) {
+                    let matchedDoc = null;
+                    snap.forEach(d => {
                         const data = d.data();
-                        if (data.year !== year) {
+                        if (data.year === year) {
+                            matchedDoc = d.id;
+                        } else {
                             foundDifferent = true;
                         }
                     });
-                    if (foundDifferent) {
-                        dupError.textContent = "&#10060; اسم الطالبة \"" + name + "\" مسجل بالفعل مع سنة دراسية مختلفة!";
-                        dupError.classList.add("active");
+                    if (foundDifferent && !matchedDoc) {
+                        els.dupNameError.innerHTML = "&#10060; اسم الطالبة \"" + escapeHtml(name) + "\" مسجل بسنة مختلفة!";
+                        els.dupNameError.classList.add("active");
                         return;
                     }
-                } catch(e) {}
-            }
-
-            loadStudentDebounced();
-        }
-
-        function loadStudentDebounced() {
-            clearTimeout(loadTimeout);
-            loadTimeout = setTimeout(loadStudent, 500);
-        }
-
-        function showConflict(serverName) {
-            els.conflictBanner.classList.add("active");
-            document.getElementById("conflictText").textContent = 
-                "الخادم " + serverName + " عدل على الطالبة دي وأنتي شغالة! حدّثي الصفحة عشان تشوفي آخر بيانات.";
-            setSaveStatus("offline");
-        }
-
-        function showAddedToday() {
-            els.addedTodayBanner.classList.add("active");
-        }
-
-        function hideAddedToday() {
-            els.addedTodayBanner.classList.remove("active");
-        }
-
-        // --- AUDIT TRAIL CORE ---
-
-        function requestChangeReason(changeInfo) {
-            if (!currentServer) {
-                alert("لازم تسجيل دخول الخادم أولاً");
-                return false;
-            }
-            pendingChange = changeInfo;
-            els.reasonInput.value = "";
-            els.reasonModal.classList.add("active");
-            return true;
-        }
-
-        function closeReasonModal(confirm) {
-            if (!confirm) {
-                if (pendingChange && pendingChange.revert) pendingChange.revert();
-                pendingChange = null;
-                els.reasonModal.classList.remove("active");
-                return;
-            }
-            const reason = els.reasonInput.value.trim() || "تعديل روتيني";
-            if (pendingChange) {
-                pendingChange.reason = reason;
-                pendingChange.execute();
-                pendingChange = null;
-            }
-            els.reasonModal.classList.remove("active");
-        }
-
-        function toggleAttendance(checkbox) {
-            const row = checkbox.closest(".activity-row");
-            const ratingDiv = row.querySelector(".rating");
-            const absentLabel = row.querySelector(".absent-label");
-            const day = row.dataset.day;
-            const act = row.dataset.act;
-            const key = day + "|" + act;
-            const oldVal = attendance[key] === true ? "حاضرة" : (attendance[key] === false ? "غائبة" : "غير محدد");
-            const newVal = checkbox.checked ? "حاضرة" : "غائبة";
-
-            if ((checkbox.checked && attendance[key] === true) || (!checkbox.checked && attendance[key] === false)) return;
-
-            const revert = function() {
-                checkbox.checked = !checkbox.checked;
-            };
-
-            requestChangeReason({
-                type: "attendance",
-                day: day,
-                activity: act,
-                oldVal: oldVal,
-                newVal: newVal,
-                revert: revert,
-                execute: function() {
-                    if (checkbox.checked) {
-                        attendance[key] = true;
-                        ratingDiv.classList.remove("disabled");
-                        absentLabel.style.display = "none";
-                    } else {
-                        attendance[key] = false;
-                        ratingDiv.classList.add("disabled");
-                        absentLabel.style.display = "inline";
-                        delete ratings[key];
-                        ratingDiv.querySelectorAll(".star").forEach(function(s) { s.classList.remove("active"); });
+                    if (matchedDoc && !els.studentDocId.value) {
+                        els.studentDocId.value = matchedDoc;
                     }
-                    addRecord({
-                        type: "attendance",
-                        day: day,
-                        activity: act,
-                        oldValue: oldVal,
-                        newValue: newVal,
-                        reason: this.reason
-                    });
-                    queueSave();
-                    updateSummary();
+                } catch(e) {
+                    console.error("Duplicate check error:", e);
                 }
-            });
-        }
-
-        function rate(star, value) {
-            const container = star.parentElement;
-            if (container.classList.contains("disabled")) return;
-            const day = container.dataset.day;
-            const act = container.dataset.act;
-            const key = day + "|" + act;
-            const oldVal = ratings[key] ? (ratings[key] + " نجوم") : "غير مقيم";
-
-            if (ratings[key] === value) return;
-
-            const revert = function() {
-                applyUIState();
-            };
-
-            requestChangeReason({
-                type: "rating",
-                day: day,
-                activity: act,
-                oldVal: oldVal,
-                newVal: value + " نجوم",
-                revert: revert,
-                execute: function() {
-                    ratings[key] = value;
-                    container.querySelectorAll(".star").forEach(function(s, i) {
-                        s.classList.toggle("active", i < value);
-                    });
-                    addRecord({
-                        type: "rating",
-                        day: day,
-                        activity: act,
-                        oldValue: oldVal,
-                        newValue: value + " نجوم",
-                        reason: this.reason
-                    });
-                    queueSave();
-                    updateSummary();
-                }
-            });
-        }
-
-        function addRecord(rec) {
-            if (!currentServer) return;
-            const student = els.name.value.trim() || "غير محدد";
-            const fullRec = {
-                timestamp: new Date().toISOString(),
-                serverId: currentServer.id,
-                serverName: currentServer.name,
-                studentName: student,
-                studentYear: els.year.value.trim(),
-                followDate: getTodayDate(),
-                day: rec.day,
-                activity: rec.activity,
-                type: rec.type,
-                oldValue: rec.oldValue || null,
-                newValue: rec.newValue || rec.value,
-                reason: rec.reason || null
-            };
-            records.unshift(fullRec);
-            if (records.length > 500) records = records.slice(0, 500);
-            updateSummary();
-
-            if (window.firebaseReady && window.db) {
-                addDoc(collection(window.db, "logs"), fullRec).catch(function(e) { console.error("Log error:", e); });
-                // Permanent archive per student per day
-                const archiveRef = collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
-                addDoc(archiveRef, fullRec).catch(function(e) {});
             }
+
+            loadStudent();
         }
 
-        function queueSave() {
-            if (saveTimeout) clearTimeout(saveTimeout);
-            setSaveStatus("saving");
-            saveTimeout = setTimeout(function() {
-                forceSave();
-            }, 1500);
-        }
-
-        async function forceSave() {
-            if (!window.firebaseReady || !window.db) {
-                setSaveStatus("offline");
-                saveLocalOnly();
-                return;
-            }
-            const docId = getStudentDocId();
-            if (!docId) return;
-
-            setSaveStatus("saving");
-            const today = getTodayDate();
-
-            // Concurrency check: read current daily record
-            let remoteUpdatedAt = null;
-            try {
-                const dailyRef = doc(window.db, "students", docId, "daily", today);
-                const dailySnap = await getDoc(dailyRef);
-                if (dailySnap.exists()) {
-                    const rData = dailySnap.data();
-                    remoteUpdatedAt = rData.updatedAt || null;
-                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt) {
-                        const otherServer = rData.updatedBy ? rData.updatedBy.name : "خادم آخر";
-                        showConflict(otherServer);
-                        return;
-                    }
-                }
-            } catch(e) {}
-
-            // Save student base info
-            const basePayload = {
-                name: els.name.value.trim(),
-                year: els.year.value.trim(),
-                lastUpdated: new Date().toISOString()
-            };
-            try {
-                await setDoc(doc(window.db, "students", docId), basePayload, { merge: true });
-            } catch(e) {}
-
-            // Save daily record
-            const dailyPayload = {
-                followups: {},
-                updatedAt: new Date().toISOString(),
-                updatedBy: currentServer ? { id: currentServer.id, name: currentServer.name } : null
-            };
-
-            DAYS.forEach(function(day) {
-                dailyPayload.followups[day] = {};
-                ACTS.forEach(function(act) {
-                    const key = day + "|" + act;
-                    dailyPayload.followups[day][act] = {
-                        attendance: attendance[key] === true ? true : (attendance[key] === false ? false : null),
-                        rating: ratings[key] || null
-                    };
-                });
-                dailyPayload.followups[day].note = document.getElementById("note-" + day)?.value || "";
-            });
-
-            try {
-                await setDoc(doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
-                lastKnownUpdatedAt = dailyPayload.updatedAt;
-                setSaveStatus("saved");
-                saveLocalOnly();
-            } catch (e) {
-                console.error("Save error:", e);
-                setSaveStatus("offline");
-                saveLocalOnly();
-            }
-        }
-
-        function saveLocalOnly() {
-            const payload = {
-                studentName: els.name.value,
-                studentYear: els.year.value,
-                attendance: attendance,
-                ratings: ratings,
-                records: records,
-                lastKnownUpdatedAt: lastKnownUpdatedAt,
-                isAlreadyAddedToday: isAlreadyAddedToday
-            };
-            localStorage.setItem("khadem_data", JSON.stringify(payload));
-        }
-
+        // ===== Load Student =====
         async function loadStudent() {
             const docId = getStudentDocId();
             if (!docId) return;
             currentStudentId = docId;
 
-            resetUI(false);
+            resetUI(false, false);
             hideAddedToday();
 
             const today = getTodayDate();
 
             if (window.firebaseReady && window.db) {
                 try {
-                    // Load base info
                     const baseSnap = await getDoc(doc(window.db, "students", docId));
                     if (baseSnap.exists()) {
                         const baseData = baseSnap.data();
@@ -1262,7 +1595,6 @@
                         if (baseData.year) els.year.value = baseData.year;
                     }
 
-                    // Load today's record
                     const dailySnap = await getDoc(doc(window.db, "students", docId, "daily", today));
                     if (dailySnap.exists()) {
                         const data = dailySnap.data();
@@ -1270,10 +1602,24 @@
                         isAlreadyAddedToday = true;
                         showAddedToday();
                         applyDailyData(data);
-                        return;
                     }
-                } catch (e) {
+
+                    // Load logs for this student
+                    const logsQuery = query(
+                        collection(window.db, "logs"),
+                        where("studentName", "==", els.name.value.trim()),
+                        orderBy("timestamp", "desc"),
+                        limit(CONFIG.maxLogEntries)
+                    );
+                    const logsSnap = await getDocs(logsQuery);
+                    records = [];
+                    logsSnap.forEach(d => records.push(d.data()));
+                    updateSummary();
+
+                    showToast("&#9989; تم تحميل بيانات الطالبة", "success");
+                } catch(e) {
                     console.error("Load error:", e);
+                    showToast("&#10060; خطأ في التحميل من السحابة", "error");
                 }
             }
 
@@ -1282,12 +1628,12 @@
 
         function applyDailyData(data) {
             if (data.followups) {
-                Object.keys(data.followups).forEach(function(day) {
+                Object.keys(data.followups).forEach(day => {
                     const dayData = data.followups[day];
                     const noteEl = document.getElementById("note-" + day);
                     if (noteEl && dayData.note) noteEl.value = dayData.note;
 
-                    ACTS.forEach(function(act) {
+                    ACTS.forEach(act => {
                         const actData = dayData[act];
                         const key = day + "|" + act;
                         if (actData) {
@@ -1300,34 +1646,34 @@
             }
             applyUIState();
             updateSummary();
+            checkConsecutiveAbsences();
+            updateStatusColors();
         }
 
         function loadLocalData() {
-            const raw = localStorage.getItem("khadem_data");
+            const docId = getStudentDocId();
+            if (!docId) return;
+            const key = "khadem_data_" + docId;
+            const raw = localStorage.getItem(key);
             if (!raw) return;
             try {
                 const data = JSON.parse(raw);
-                if (data.studentName) els.name.value = data.studentName;
-                if (data.studentYear) els.year.value = data.studentYear;
-                if (data.attendance) {
-                    Object.keys(data.attendance).forEach(function(k) { attendance[k] = data.attendance[k]; });
-                }
-                if (data.ratings) {
-                    Object.keys(data.ratings).forEach(function(k) { ratings[k] = data.ratings[k]; });
-                }
+                if (data.attendance) Object.keys(data.attendance).forEach(k => { attendance[k] = data.attendance[k]; });
+                if (data.ratings) Object.keys(data.ratings).forEach(k => { ratings[k] = data.ratings[k]; });
                 if (data.records) records = data.records;
                 if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
-                if (data.isAlreadyAddedToday) {
-                    isAlreadyAddedToday = true;
-                    showAddedToday();
-                }
+                if (data.isAlreadyAddedToday) { isAlreadyAddedToday = true; showAddedToday(); }
                 applyUIState();
                 updateSummary();
-            } catch(e) {}
+                checkConsecutiveAbsences();
+                updateStatusColors();
+            } catch(e) {
+                console.error("Local data parse error:", e);
+            }
         }
 
         function applyUIState() {
-            document.querySelectorAll(".activity-row").forEach(function(row) {
+            document.querySelectorAll(".activity-row").forEach(row => {
                 const day = row.dataset.day;
                 const act = row.dataset.act;
                 const key = day + "|" + act;
@@ -1349,45 +1695,48 @@
                     absentLabel.style.display = "none";
                 }
 
-                ratingDiv.querySelectorAll(".star").forEach(function(s, i) {
+                ratingDiv.querySelectorAll(".star").forEach((s, i) => {
                     s.classList.toggle("active", ratings[key] && i < ratings[key]);
                 });
             });
         }
 
-        function resetUI(clearNames) {
+        function resetUI(clearNames, clearRecords = false) {
             if (clearNames) {
                 els.name.value = "";
                 els.year.value = "";
+                els.studentDocId.value = "";
                 lastKnownUpdatedAt = null;
                 isAlreadyAddedToday = false;
             }
-            document.querySelectorAll(".toggle-switch input").forEach(function(t) {
+            document.querySelectorAll(".toggle-switch input").forEach(t => {
                 t.checked = false;
                 const row = t.closest(".activity-row");
                 row.querySelector(".rating").classList.add("disabled");
                 row.querySelector(".absent-label").style.display = "none";
             });
-            document.querySelectorAll(".star").forEach(function(s) { s.classList.remove("active"); });
-            document.querySelectorAll(".note-input").forEach(function(n) { n.value = ""; });
+            document.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
+            document.querySelectorAll(".note-input").forEach(n => n.value = "");
             for (let k in ratings) delete ratings[k];
             for (let k in attendance) delete attendance[k];
-            records = [];
+            if (clearRecords) records = [];
             els.conflictBanner.classList.remove("active");
+            els.absentAlertBanner.classList.remove("active");
             hideAddedToday();
             updateSummary();
+            updateStatusColors();
         }
 
         function updateSummary() {
             let present = 0, absent = 0;
-            Object.values(attendance).forEach(function(v) {
+            Object.values(attendance).forEach(v => {
                 if (v === true) present++;
                 else if (v === false) absent++;
             });
             const total = Object.keys(attendance).length;
             const rateValues = Object.values(ratings);
             const rated = rateValues.length;
-            const sum = rateValues.reduce(function(a, b) { return a + b; }, 0);
+            const sum = rateValues.reduce((a, b) => a + b, 0);
             const avg = rated > 0 ? (sum / rated).toFixed(1) : "0.0";
             const attRate = total > 0 ? Math.round((present / total) * 100) : 0;
 
@@ -1399,86 +1748,731 @@
             els.logCount.textContent = records.length;
         }
 
-        async function showLog() {
-            els.logModal.classList.add("active");
-            renderLogTable();
+        // ===== Attendance & Rating =====
+        function showConflict(serverName) {
+            els.conflictBanner.classList.add("active");
+            els.conflictText.textContent = "الخادم " + serverName + " عدل على البيانات وأنتِ شغالة! حدّثي الصفحة.";
+            setSaveStatus("offline");
+            showToast("تعارض في البيانات! حدّثي الصفحة", "error", 6000);
         }
 
-        function renderLogTable() {
+        function showAddedToday() { els.addedTodayBanner.classList.add("active"); }
+        function hideAddedToday() { els.addedTodayBanner.classList.remove("active"); }
+
+        function checkConsecutiveAbsences() {
+            let totalAbs = 0;
+            Object.values(attendance).forEach(v => { if (v === false) totalAbs++; });
+            if (totalAbs >= 3) {
+                els.absentAlertBanner.classList.add("active");
+                els.absentAlertText.innerHTML = "&#9888;&#65039; تحتاج متابعة - " + totalAbs + " غيابات مسجلة";
+            } else {
+                els.absentAlertBanner.classList.remove("active");
+            }
+        }
+
+        function updateStatusColors() {
+            DAYS.forEach(day => {
+                let present = 0, absent = 0, rated = 0, sum = 0;
+                ACTS.forEach(act => {
+                    const key = day + "|" + act;
+                    if (attendance[key] === true) present++;
+                    else if (attendance[key] === false) absent++;
+                    if (ratings[key]) { rated++; sum += ratings[key]; }
+                });
+                const total = present + absent;
+                const attRate = total > 0 ? present / total : 0;
+                const avg = rated > 0 ? sum / rated : 0;
+
+                const strip = document.getElementById("status-" + day);
+                if (!strip) return;
+
+                if (total === 0) {
+                    strip.className = "status-strip neutral";
+                } else if (attRate >= 0.75 && avg >= 3.5) {
+                    strip.className = "status-strip excellent";
+                } else if (attRate >= 0.5 && avg >= 2.5) {
+                    strip.className = "status-strip good";
+                } else {
+                    strip.className = "status-strip bad";
+                }
+            });
+        }
+
+        // ===== Change Reason Modal =====
+        function requestChangeReason(changeInfo) {
+            if (!currentServer) {
+                showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
+                return false;
+            }
+            const studentName = els.name.value.trim();
+            const studentYear = els.year.value.trim();
+            if (!studentName || !studentYear) {
+                changeInfo.reason = "تسجيل أولي";
+                changeInfo.execute();
+                return true;
+            }
+            pendingChange = changeInfo;
+            els.reasonInput.value = "";
+            els.reasonModal.classList.add("active");
+            setTimeout(() => els.reasonInput.focus(), 100);
+            return true;
+        }
+
+        function closeReasonModal(confirm) {
+            if (!confirm) {
+                if (pendingChange && pendingChange.revert) pendingChange.revert();
+                pendingChange = null;
+                els.reasonModal.classList.remove("active");
+                return;
+            }
+            const reason = els.reasonInput.value.trim() || "تعديل روتيني";
+            if (pendingChange) {
+                pendingChange.reason = reason;
+                pendingChange.execute();
+                pendingChange = null;
+            }
+            els.reasonModal.classList.remove("active");
+        }
+
+        // ===== Toggle Attendance =====
+        function toggleAttendance(checkbox) {
+            const row = checkbox.closest(".activity-row");
+            const ratingDiv = row.querySelector(".rating");
+            const absentLabel = row.querySelector(".absent-label");
+            const day = row.dataset.day;
+            const act = row.dataset.act;
+            const key = day + "|" + act;
+            const oldVal = attendance[key] === true ? "حاضرة" : (attendance[key] === false ? "غائبة" : "غير محدد");
+            const newVal = checkbox.checked ? "حاضرة" : "غائبة";
+
+            if ((checkbox.checked && attendance[key] === true) || (!checkbox.checked && attendance[key] === false)) return;
+
+            const revert = () => { checkbox.checked = !checkbox.checked; };
+
+            requestChangeReason({
+                type: "attendance",
+                day: day,
+                activity: act,
+                oldVal: oldVal,
+                newVal: newVal,
+                revert: revert,
+                execute: function() {
+                    if (checkbox.checked) {
+                        attendance[key] = true;
+                        ratingDiv.classList.remove("disabled");
+                        absentLabel.style.display = "none";
+                    } else {
+                        attendance[key] = false;
+                        ratingDiv.classList.add("disabled");
+                        absentLabel.style.display = "inline";
+                        delete ratings[key];
+                        ratingDiv.querySelectorAll(".star").forEach(s => s.classList.remove("active"));
+                    }
+                    addRecord({
+                        type: "attendance",
+                        day: day,
+                        activity: act,
+                        oldValue: oldVal,
+                        newValue: newVal,
+                        reason: this.reason
+                    });
+                    queueSave();
+                    updateSummary();
+                    checkConsecutiveAbsences();
+                    updateStatusColors();
+                }
+            });
+        }
+
+        // ===== Rate Activity =====
+        function rate(star, value) {
+            const container = star.parentElement;
+            if (container.classList.contains("disabled")) return;
+            const day = container.dataset.day;
+            const act = container.dataset.act;
+            const key = day + "|" + act;
+            const oldVal = ratings[key] ? (ratings[key] + " نجوم") : "غير مقيم";
+
+            if (ratings[key] === value) return;
+
+            const revert = () => { applyUIState(); };
+
+            requestChangeReason({
+                type: "rating",
+                day: day,
+                activity: act,
+                oldVal: oldVal,
+                newVal: value + " نجوم",
+                revert: revert,
+                execute: function() {
+                    ratings[key] = value;
+                    container.querySelectorAll(".star").forEach((s, i) => {
+                        s.classList.toggle("active", i < value);
+                    });
+                    addRecord({
+                        type: "rating",
+                        day: day,
+                        activity: act,
+                        oldValue: oldVal,
+                        newValue: value + " نجوم",
+                        reason: this.reason
+                    });
+                    queueSave();
+                    updateSummary();
+                    updateStatusColors();
+                }
+            });
+        }
+
+        // ===== Records & Audit =====
+        function addRecord(rec) {
+            if (!currentServer) return;
+            const student = els.name.value.trim() || "غير محدد";
+            const fullRec = {
+                timestamp: new Date().toISOString(),
+                serverId: currentServer.id,
+                serverName: currentServer.name,
+                studentName: student,
+                studentYear: els.year.value.trim(),
+                followDate: getTodayDate(),
+                day: rec.day,
+                activity: rec.activity,
+                type: rec.type,
+                oldValue: rec.oldValue || null,
+                newValue: rec.newValue || rec.value,
+                reason: rec.reason || null
+            };
+            records.unshift(fullRec);
+            if (records.length > CONFIG.maxRecords) records = records.slice(0, CONFIG.maxRecords);
+            updateSummary();
+
+            if (window.firebaseReady && window.db) {
+                addDoc(collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
+                const archiveRef = collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
+                addDoc(archiveRef, fullRec).catch(() => {});
+            }
+        }
+
+        // ===== Save System =====
+        function queueSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            setSaveStatus("saving");
+            saveTimeout = setTimeout(() => forceSave(), CONFIG.saveDebounceMs);
+        }
+
+        async function forceSave() {
+            if (isSaving) return;
+            isSaving = true;
+            els.saveBtn.disabled = true;
+
+            if (!window.firebaseReady || !window.db) {
+                setSaveStatus("offline");
+                saveLocalOnly();
+                els.saveBtn.disabled = false;
+                isSaving = false;
+                return;
+            }
+
+            const docId = getStudentDocId();
+            if (!docId) {
+                isSaving = false;
+                els.saveBtn.disabled = false;
+                return;
+            }
+            const today = getTodayDate();
+
+            // Conflict detection
+            try {
+                const dailyRef = doc(window.db, "students", docId, "daily", today);
+                const dailySnap = await getDoc(dailyRef);
+                if (dailySnap.exists()) {
+                    const rData = dailySnap.data();
+                    const remoteUpdatedAt = rData.updatedAt || null;
+                    const remoteServer = rData.updatedBy || {};
+                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt && remoteServer.id !== (currentServer && currentServer.id)) {
+                        showConflict(remoteServer.name || "خادم آخر");
+                        els.saveBtn.disabled = false;
+                        isSaving = false;
+                        return;
+                    }
+                }
+            } catch(e) {
+                console.warn("Conflict check failed:", e);
+            }
+
+            const basePayload = {
+                name: els.name.value.trim(),
+                year: els.year.value.trim(),
+                lastUpdated: new Date().toISOString()
+            };
+            try {
+                await setDoc(doc(window.db, "students", docId), basePayload, { merge: true });
+            } catch(e) {
+                console.error("Base save error:", e);
+            }
+
+            const dailyPayload = {
+                followups: {},
+                updatedAt: new Date().toISOString(),
+                updatedBy: currentServer ? { id: currentServer.id, name: currentServer.name } : null
+            };
+            DAYS.forEach(day => {
+                dailyPayload.followups[day] = {};
+                ACTS.forEach(act => {
+                    const key = day + "|" + act;
+                    dailyPayload.followups[day][act] = {
+                        attendance: attendance[key] === true ? true : (attendance[key] === false ? false : null),
+                        rating: ratings[key] || null
+                    };
+                });
+                dailyPayload.followups[day].note = document.getElementById("note-" + day)?.value || "";
+            });
+
+            try {
+                await setDoc(doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
+                lastKnownUpdatedAt = dailyPayload.updatedAt;
+                isAlreadyAddedToday = true;
+                showAddedToday();
+                setSaveStatus("saved");
+                saveLocalOnly();
+                showToast("&#9989; تم الحفظ في السحابة", "success");
+            } catch(e) {
+                console.error("Daily save error:", e);
+                setSaveStatus("error");
+                saveLocalOnly();
+                showToast("&#10060; فشل الحفظ - محفوظ محلياً", "error");
+            } finally {
+                els.saveBtn.disabled = false;
+                isSaving = false;
+            }
+        }
+
+        function saveLocalOnly() {
+            const docId = getStudentDocId();
+            if (!docId) return;
+            const payload = {
+                name: els.name.value.trim(),
+                year: els.year.value.trim(),
+                attendance: {...attendance},
+                ratings: {...ratings},
+                records: records.slice(0, CONFIG.maxRecords),
+                lastKnownUpdatedAt: lastKnownUpdatedAt,
+                isAlreadyAddedToday: isAlreadyAddedToday,
+                savedAt: new Date().toISOString()
+            };
+            try {
+                localStorage.setItem("khadem_data_" + docId, JSON.stringify(payload));
+            } catch(e) {
+                console.error("Local save error:", e);
+                if (e.name === "QuotaExceededError") {
+                    showToast("&#128308; ذاكرة التخزين ممتلئة! صدّري البيانات", "error", 5000);
+                }
+            }
+        }
+
+        // ===== Search (Debounced) =====
+        function debouncedSearch() {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => doQuickSearch(), CONFIG.searchDebounceMs);
+        }
+
+        async function doQuickSearch() {
+            const queryText = document.getElementById("quickSearch").value.trim();
+            const resultsBox = els.searchResults;
+            resultsBox.innerHTML = "";
+
+            if (!queryText || queryText.length < 2) {
+                resultsBox.classList.remove("active");
+                return;
+            }
+
+            // Cancel previous search
+            if (searchAbortController) searchAbortController.abort();
+            searchAbortController = new AbortController();
+
+            let found = [];
+            if (window.firebaseReady && window.db) {
+                try {
+                    const q = query(
+                        collection(window.db, "students"),
+                        where("name", ">=", queryText),
+                        where("name", "<=", queryText + "\\uf8ff"),
+                        limit(10)
+                    );
+                    const snap = await getDocs(q);
+                    snap.forEach(d => {
+                        const data = d.data();
+                        found.push({ name: data.name, year: data.year, id: d.id });
+                    });
+                } catch(e) {
+                    if (e.name !== "AbortError") console.error("Search error:", e);
+                }
+            }
+
+            if (found.length === 0) {
+                resultsBox.innerHTML = \'<div class="search-result-empty">لا توجد نتائج</div>\';
+            } else {
+                found.forEach(s => {
+                    const div = document.createElement("div");
+                    div.className = "search-result-item";
+                    div.innerHTML = `<b>${escapeHtml(s.name)}</b> <span class="result-year">- ${escapeHtml(s.year)}</span>`;
+                    div.onclick = () => {
+                        els.name.value = s.name;
+                        els.year.value = s.year;
+                        els.studentDocId.value = s.id;
+                        document.getElementById("quickSearch").value = "";
+                        resultsBox.classList.remove("active");
+                    };
+                    resultsBox.appendChild(div);
+                });
+            }
+            resultsBox.classList.add("active");
+        }
+
+        // ===== Statistics =====
+        async function showStats() {
+            els.statsModal.classList.add("active");
+            els.statsLoadingOverlay.classList.add("active");
+            await renderStats();
+            els.statsLoadingOverlay.classList.remove("active");
+        }
+
+        async function renderStats() {
+            if (!window.firebaseReady || !window.db) {
+                showToast("&#128268; الإحصائيات تحتاج اتصال", "warning");
+                return;
+            }
+
+            try {
+                const studentsSnap = await getDocs(collection(window.db, "students"));
+                let total = 0;
+                let studentStats = [];
+                let monthlyAbsents = 0;
+                let needFollow = 0;
+
+                const currentMonth = new Date().toISOString().slice(0, 7);
+
+                const studentIds = [];
+                studentsSnap.forEach(d => studentIds.push({ id: d.id, data: d.data() }));
+                total = studentIds.length;
+
+                const dailyPromises = studentIds.map(s =>
+                    getDocs(collection(window.db, "students", s.id, "daily"))
+                );
+                const dailySnaps = await Promise.all(dailyPromises);
+
+                studentIds.forEach((s, idx) => {
+                    const sName = s.data.name || "غير معروف";
+                    let presentCount = 0, absentCount = 0, ratingSum = 0, ratingCount = 0, monthAbsentCount = 0;
+
+                    dailySnaps[idx].forEach(d => {
+                        const dData = d.data();
+                        const date = d.id;
+                        if (dData.followups) {
+                            Object.values(dData.followups).forEach(dayData => {
+                                ACTS.forEach(act => {
+                                    const actData = dayData[act];
+                                    if (actData) {
+                                        if (actData.attendance === true) presentCount++;
+                                        else if (actData.attendance === false) {
+                                            absentCount++;
+                                            if (date.startsWith(currentMonth)) monthAbsentCount++;
+                                        }
+                                        if (actData.rating) { ratingSum += actData.rating; ratingCount++; }
+                                    }
+                                });
+                            });
+                        }
+                    });
+
+                    const totalActs = presentCount + absentCount;
+                    const attRate = totalActs > 0 ? presentCount / totalActs : 0;
+                    const avgRate = ratingCount > 0 ? ratingSum / ratingCount : 0;
+
+                    studentStats.push({ name: sName, present: presentCount, absent: absentCount, attRate, avgRate, monthAbsent: monthAbsentCount });
+                    monthlyAbsents += monthAbsentCount;
+                    if (attRate < 0.5 || avgRate < 2.5) needFollow++;
+                });
+
+                const sortedByPresent = [...studentStats].sort((a, b) => b.present - a.present);
+                const topPresent = sortedByPresent[0];
+                const leastPresent = sortedByPresent[sortedByPresent.length - 1];
+                const overallAvg = studentStats.length > 0
+                    ? (studentStats.reduce((s, st) => s + (st.avgRate || 0), 0) / studentStats.length).toFixed(1)
+                    : "0.0";
+
+                document.getElementById("statTotalStudents").textContent = total;
+                document.getElementById("statTopPresent").textContent = topPresent ? topPresent.name + " (" + topPresent.present + ")" : "-";
+                document.getElementById("statLeastPresent").textContent = leastPresent ? leastPresent.name + " (" + leastPresent.present + ")" : "-";
+                document.getElementById("statAvgRating").textContent = overallAvg;
+                document.getElementById("statMonthlyAbsents").textContent = monthlyAbsents;
+                document.getElementById("statNeedFollow").textContent = needFollow;
+
+                let excellent = 0, good = 0, bad = 0;
+                studentStats.forEach(st => {
+                    if (st.attRate >= 0.75 && st.avgRate >= 3.5) excellent++;
+                    else if (st.attRate >= 0.5 && st.avgRate >= 2.5) good++;
+                    else bad++;
+                });
+
+                const totalSafe = total || 1;
+                const distDiv = document.getElementById("statusDistribution");
+                distDiv.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-excellent);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#127942; ممتاز (${excellent})</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width:${(excellent/totalSafe*100)}%;background:var(--status-excellent);"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-good);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#127941; جيد (${good})</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width:${(good/totalSafe*100)}%;background:var(--status-good);"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:20px;height:20px;border-radius:50%;background:var(--status-bad);flex-shrink:0;"></div>
+                        <span style="flex:1;font-size:0.9rem;">&#128308; يحتاج متابعة (${bad})</span>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width:${(bad/totalSafe*100)}%;background:var(--status-bad);"></div>
+                        </div>
+                    </div>
+                `;
+            } catch(e) {
+                console.error("Stats error:", e);
+                showToast("&#10060; خطأ في تحميل الإحصائيات", "error");
+            }
+        }
+
+        function closeStats() { els.statsModal.classList.remove("active"); }
+
+        // ===== Monthly Log =====
+        function generateMonthSelector() {
+            const container = els.monthSelector;
+            container.innerHTML = "";
+            const now = new Date();
+            for (let i = 0; i < CONFIG.monthsToShow; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - 2 + i, 1);
+                const btn = document.createElement("button");
+                btn.className = "month-btn" + (i === 2 ? " active" : "");
+                btn.textContent = d.toLocaleDateString("ar-EG", { year: "numeric", month: "long" });
+                btn.onclick = () => selectMonth(d.getFullYear(), d.getMonth());
+                container.appendChild(btn);
+            }
+        }
+
+        function showMonthlyLog() {
+            els.monthlyModal.classList.add("active");
+            const now = new Date();
+            selectMonth(now.getFullYear(), now.getMonth());
+        }
+
+        function closeMonthlyLog() { els.monthlyModal.classList.remove("active"); }
+
+        async function selectMonth(year, month) {
+            // Update active button
+            const buttons = els.monthSelector.querySelectorAll(".month-btn");
+            const now = new Date();
+            buttons.forEach((btn, idx) => {
+                const btnMonth = new Date(now.getFullYear(), now.getMonth() - 2 + idx, 1);
+                btn.classList.toggle("active", btnMonth.getFullYear() === year && btnMonth.getMonth() === month);
+            });
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const daysInMonth = lastDay.getDate();
+            const startDayOfWeek = firstDay.getDay();
+
+            const calendar = els.monthCalendar;
+            calendar.innerHTML = "";
+
+            ARABIC_DAYS.forEach(d => {
+                const h = document.createElement("div");
+                h.className = "cal-header";
+                h.textContent = d;
+                calendar.appendChild(h);
+            });
+
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const empty = document.createElement("div");
+                empty.className = "cal-day empty";
+                calendar.appendChild(empty);
+            }
+
+            const monthPrefix = year + "-" + String(month + 1).padStart(2, "0");
+            const todayStr = getTodayDate();
+
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayStr = monthPrefix + "-" + String(d).padStart(2, "0");
+                const cell = document.createElement("div");
+                cell.className = "cal-day";
+                cell.textContent = d;
+                cell.setAttribute("role", "button");
+                cell.setAttribute("tabindex", "0");
+                cell.setAttribute("aria-label", "يوم " + d);
+                if (dayStr === todayStr) cell.classList.add("today");
+
+                if (dayStr === todayStr && isAlreadyAddedToday) {
+                    cell.classList.add("has-data");
+                    cell.innerHTML += \'<div class="cal-dot"></div>\';
+                }
+
+                cell.onclick = () => loadMonthDay(dayStr);
+                cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") loadMonthDay(dayStr); };
+                calendar.appendChild(cell);
+            }
+
+            els.monthDetails.style.display = "none";
+        }
+
+        async function loadMonthDay(dateStr) {
+            els.monthDetailTitle.textContent = "بيانات يوم " + dateStr;
+            const content = els.monthDetailContent;
+            content.innerHTML = "<p style=\\"text-align:center;color:var(--text-light);padding:20px;\\">&#9203; جاري التحميل...</p>";
+            els.monthDetails.style.display = "block";
+
+            if (!currentStudentId || !window.firebaseReady || !window.db) {
+                content.innerHTML = "<p style=\\"color:var(--text-light)\\">لا يوجد بيانات - اختاري طالبة أولاً</p>";
+                return;
+            }
+
+            try {
+                const snap = await getDoc(doc(window.db, "students", currentStudentId, "daily", dateStr));
+                if (snap.exists()) {
+                    const data = snap.data();
+                    let html = "";
+                    if (data.followups) {
+                        DAYS.forEach(day => {
+                            const dayData = data.followups[day];
+                            if (dayData) {
+                                html += \'<div style="margin-bottom:12px;padding:14px;background:white;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">\';
+                                html += \'<b style="color:var(--primary);display:block;margin-bottom:8px;">\' + day + \'</b>\';
+                                ACTS.forEach(act => {
+                                    const actData = dayData[act];
+                                    if (actData) {
+                                        const att = actData.attendance === true ? "&#9989; حاضرة" : (actData.attendance === false ? "&#10060; غائبة" : "➖");
+                                        const rat = actData.rating ? "&#11088;".repeat(actData.rating) : "غير مقيم";
+                                        html += \'<div style="padding:4px 0;font-size:0.9rem;"><b>\' + act + \'</b>: \' + att + \' | \' + rat + \'</div>\';
+                                    }
+                                });
+                                if (dayData.note) html += \'<div style="margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;font-size:0.85rem;color:var(--text-light);">&#128172; \' + escapeHtml(dayData.note) + \'</div>\';
+                                html += "</div>";
+                            }
+                        });
+                    }
+                    if (data.updatedBy) {
+                        html += \'<div style="margin-top:12px;font-size:0.8rem;color:var(--text-light);">&#128100; سُجلت بواسطة: \' + escapeHtml(data.updatedBy.name) + \' (#\' + data.updatedBy.id + \')</div>\';
+                    }
+                    content.innerHTML = html || "<p style=\\"color:var(--text-light)\\">لا توجد أنشطة مسجلة</p>";
+                } else {
+                    content.innerHTML = "<p style=\\"color:var(--text-light)\\">لا توجد بيانات لهذا اليوم</p>";
+                }
+            } catch(e) {
+                content.innerHTML = "<p style=\\"color:var(--danger)\\">&#10060; خطأ في التحميل</p>";
+            }
+        }
+
+        // ===== Audit Log =====
+        async function showLog() {
+            els.logModal.classList.add("active");
+            els.logLoadingOverlay.classList.add("active");
+            await renderLogTable();
+            els.logLoadingOverlay.classList.remove("active");
+        }
+
+        async function renderLogTable() {
             const tbody = els.logTableBody;
             tbody.innerHTML = "";
 
             const fDay = document.getElementById("filterDay").value;
             const fType = document.getElementById("filterType").value;
 
-            let displayRecords = records.slice(0, 200);
+            // Load fresh logs from Firestore if connected
+            if (window.firebaseReady && window.db && els.name.value.trim()) {
+                try {
+                    const logsQuery = query(
+                        collection(window.db, "logs"),
+                        where("studentName", "==", els.name.value.trim()),
+                        orderBy("timestamp", "desc"),
+                        limit(CONFIG.maxLogEntries)
+                    );
+                    const logsSnap = await getDocs(logsQuery);
+                    records = [];
+                    logsSnap.forEach(d => records.push(d.data()));
+                    updateSummary();
+                } catch(e) {
+                    console.warn("Could not refresh logs:", e);
+                }
+            }
 
-            displayRecords = displayRecords.filter(function(r) {
+            let displayRecords = records.slice(0, CONFIG.maxLogEntries);
+            displayRecords = displayRecords.filter(r => {
                 if (fDay && r.day !== fDay) return false;
                 if (fType && r.type !== fType) return false;
                 return true;
             });
 
             if (displayRecords.length === 0) {
-                tbody.innerHTML = "<tr><td colspan=\"6\" style=\"text-align:center; color:#999;\">لا يوجد سجلات مطابقة</td></tr>";
+                tbody.innerHTML = \'<tr><td colspan="6" style="text-align:center;color:var(--text-light);padding:30px;">لا يوجد سجلات مطابقة</td></tr>\';
                 return;
             }
 
-            displayRecords.forEach(function(rec) {
+            const fragment = document.createDocumentFragment();
+            displayRecords.forEach(rec => {
                 const date = new Date(rec.timestamp);
                 const timeStr = date.toLocaleString("ar-EG", { hour12: false });
 
                 let changeHtml = "";
                 if (rec.oldValue && rec.newValue) {
-                    changeHtml = '<span class="old-val">' + rec.oldValue + '</span> &#10132; <span class="new-val">' + rec.newValue + '</span>';
+                    changeHtml = \'<span class="old-val">\' + escapeHtml(String(rec.oldValue)) + \'</span> &#10132; <span class="new-val">\' + escapeHtml(String(rec.newValue)) + \'</span>\';
                 } else {
-                    changeHtml = '<span class="new-val">' + (rec.newValue || rec.value || "-") + '</span>';
+                    changeHtml = \'<span class="new-val">\' + escapeHtml(String(rec.newValue || rec.value || "-")) + \'</span>\';
                 }
 
                 let tagClass = "tag-present";
                 if (rec.type === "attendance" && rec.newValue === "غائبة") tagClass = "tag-absent";
-                if (rec.type === "rating") tagClass = "tag-rating";
-                if (rec.type === "note") tagClass = "tag-change";
+                else if (rec.type === "rating") tagClass = "tag-rating";
+                else if (rec.type === "note") tagClass = "tag-change";
 
-                const reasonHtml = rec.reason ? '<span class="reason-tag">&#128172; ' + rec.reason + '</span>' : '';
+                const reasonHtml = rec.reason ? \'<span class="reason-tag">&#128172; \' + escapeHtml(rec.reason) + \'</span>\' : "";
+                const typeLabel = rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type);
 
                 const tr = document.createElement("tr");
-                tr.innerHTML = 
+                tr.innerHTML =
                     "<td><b>" + timeStr + "</b></td>" +
-                    "<td><b>" + rec.serverName + "</b><br><small style=\"color:#999\">#" + rec.serverId + "</small></td>" +
-                    "<td>" + rec.studentName + "</td>" +
-                    "<td>" + rec.day + "<br><small>" + rec.activity + "</small></td>" +
-                    "<td><span class=\"tag " + tagClass + "\">" + (rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type)) + "</span><br>" + changeHtml + "</td>" +
+                    "<td><b>" + escapeHtml(rec.serverName || "-") + "</b><br><small style=\\"color:#999\\">#" + escapeHtml(rec.serverId || "-") + "</small></td>" +
+                    "<td>" + escapeHtml(rec.studentName || "-") + "</td>" +
+                    "<td>" + escapeHtml(rec.day || "-") + "<br><small>" + escapeHtml(rec.activity || "-") + "</small></td>" +
+                    "<td><span class=\\"tag " + tagClass + "\\">" + typeLabel + "</span><br>" + changeHtml + "</td>" +
                     "<td>" + reasonHtml + "</td>";
-                tbody.appendChild(tr);
+                fragment.appendChild(tr);
             });
+            tbody.appendChild(fragment);
         }
 
-        function closeLog() {
-            els.logModal.classList.remove("active");
-        }
+        function closeLog() { els.logModal.classList.remove("active"); }
 
+        // ===== Export =====
         async function exportData(format) {
             const student = els.name.value.trim() || "غير_محدد";
-            let payload = {
+            const payload = {
                 exportDate: new Date().toISOString(),
                 exportedBy: currentServer,
                 studentName: student,
                 studentYear: els.year.value.trim(),
                 followDate: getTodayDate(),
-                attendance: attendance,
-                ratings: ratings,
+                attendance: {...attendance},
+                ratings: {...ratings},
                 records: records
             };
 
             if (window.firebaseReady && window.db && currentStudentId) {
                 try {
                     const snap = await getDoc(doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        payload.firebaseData = data;
-                    }
-                } catch (e) {}
+                    if (snap.exists()) payload.firebaseData = snap.data();
+                } catch(e) {}
             }
 
             if (format === "json") {
@@ -1486,42 +2480,159 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "followup_" + student + "_" + getTodayDate() + ".json";
+                a.download = "followup_" + student.replace(/\\s+/g, "_") + "_" + getTodayDate() + ".json";
+                document.body.appendChild(a);
                 a.click();
-                URL.revokeObjectURL(url);
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+                showToast("&#9989; تم تصدير JSON", "success");
             } else if (format === "csv") {
-                let csv = "timestamp,serverId,serverName,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\n";
-                records.forEach(function(r) {
-                    csv += r.timestamp + "," + r.serverId + "," + r.serverName + "," + r.studentName + "," + (r.studentYear || "") + "," + (r.followDate || "") + "," + r.day + "," + r.activity + "," + r.type + "," + (r.oldValue || "") + "," + (r.newValue || r.value || "") + "," + (r.reason || "") + "\n";
+                let csv = "timestamp,serverId,serverName,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\\n";
+                records.forEach(r => {
+                    csv += (r.timestamp || "") + "," +
+                           (r.serverId || "") + "," +
+                           (r.serverName || "") + "," +
+                           (r.studentName || "") + "," +
+                           (r.studentYear || "") + "," +
+                           (r.followDate || "") + "," +
+                           (r.day || "") + "," +
+                           (r.activity || "") + "," +
+                           (r.type || "") + "," +
+                           "\\"" + (r.oldValue || "") + "\\"," +
+                           "\\"" + (r.newValue || r.value || "") + "\\"," +
+                           "\\"" + (r.reason || "") + "\\"\\n";
                 });
-                const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+                const blob = new Blob(["\\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
                 a.download = "followup_audit_" + getTodayDate() + ".csv";
+                document.body.appendChild(a);
                 a.click();
-                URL.revokeObjectURL(url);
+                setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+                showToast("&#9989; تم تصدير CSV", "success");
             }
         }
 
+        // ===== Reset =====
         async function resetAll() {
-            if (!confirm("هل تريدين مسح جميع البيانات لهذه الطالبة؟")) return;
-            resetUI(true);
-            if (window.firebaseReady && window.db && currentStudentId) {
+            if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\\n\\nالسجل التاريخي في Firebase ميتحذفش.")) return;
+            const docId = getStudentDocId();
+            resetUI(true, true);
+            if (window.firebaseReady && window.db && docId) {
                 try {
-                    await deleteDoc(doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
-                } catch (e) {
+                    await deleteDoc(doc(window.db, "students", docId, "daily", getTodayDate()));
+                    showToast("&#9989; تم المسح من السحابة", "success");
+                } catch(e) {
                     console.error("Delete error:", e);
+                    showToast("&#10060; خطأ في المسح من السحابة", "error");
                 }
             }
-            localStorage.removeItem("khadem_data");
+            const key = "khadem_data_" + docId;
+            if (key) localStorage.removeItem(key);
         }
 
-        els.logModal.addEventListener("click", function(e) {
-            if (e.target === this) closeLog();
+        // ===== Keyboard Shortcuts =====
+        function setupKeyboardShortcuts() {
+            document.addEventListener("keydown", (e) => {
+                // Ignore if in input/textarea
+                if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
+                    if (e.key === "Escape") {
+                        els.searchResults.classList.remove("active");
+                        document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
+                    }
+                    return;
+                }
+
+                if (e.ctrlKey || e.metaKey) {
+                    switch(e.key.toLowerCase()) {
+                        case "s":
+                            e.preventDefault();
+                            forceSave();
+                            break;
+                        case "p":
+                            e.preventDefault();
+                            window.print();
+                            break;
+                        case "f":
+                            e.preventDefault();
+                            document.getElementById("quickSearch").focus();
+                            break;
+                        case "n":
+                            e.preventDefault();
+                            newStudent();
+                            break;
+                        case "h":
+                            e.preventDefault();
+                            showLog();
+                            break;
+                        case "i":
+                            e.preventDefault();
+                            showStats();
+                            break;
+                    }
+                }
+                if (e.key === "Escape") {
+                    els.searchResults.classList.remove("active");
+                    document.querySelectorAll(".modal-overlay.active").forEach(m => m.classList.remove("active"));
+                }
+            });
+
+            // Enter key on login inputs
+            document.getElementById("loginName").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") document.getElementById("loginId").focus();
+            });
+            document.getElementById("loginId").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") handleLogin();
+            });
+        }
+
+        function toggleShortcuts() {
+            els.shortcutsHelp.classList.toggle("active");
+        }
+
+        // ===== Modal Close on Outside Click =====
+        [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal].forEach(modal => {
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) {
+                    if (modal === els.reasonModal) closeReasonModal(false);
+                    else modal.classList.remove("active");
+                }
+            });
         });
-        els.reasonModal.addEventListener("click", function(e) {
-            if (e.target === this) closeReasonModal(false);
+
+        document.addEventListener("click", (e) => {
+            if (!e.target.closest(".search-wrap")) {
+                els.searchResults.classList.remove("active");
+            }
+        });
+
+        // ===== Online/Offline Detection =====
+        window.addEventListener("online", () => {
+            setSaveStatus("online");
+            els.offlineBanner.classList.remove("active");
+            showToast("&#127760; تم استعادة الاتصال", "success");
+            // Retry sync
+            if (currentServer) forceSave();
+        });
+
+        window.addEventListener("offline", () => {
+            setSaveStatus("offline");
+            els.offlineBanner.classList.add("active");
+            showToast("&#128268; فُقد الاتصال - الوضع المحلي مفعل", "warning", 5000);
+        });
+
+        // ===== Visibility API - Save when tab hidden =====
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden && (saveTimeout || Object.keys(attendance).length > 0)) {
+                forceSave();
+            }
+        });
+
+        // ===== Cleanup on page unload =====
+        window.addEventListener("beforeunload", (e) => {
+            if (saveTimeout) {
+                forceSave();
+            }
         });
     </script>
 </body>
