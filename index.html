@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v4 (Auth)</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v4.1 (Auth Fix)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
@@ -30,7 +30,6 @@
             window.auth = getAuth(app);
             window.firebaseReady = true;
             
-            // Expose globally
             window.doc = doc;
             window.setDoc = setDoc;
             window.getDoc = getDoc;
@@ -98,7 +97,6 @@
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 10px; }
 
-        /* ===== Login Overlay ===== */
         .login-overlay {
             position: fixed;
             inset: 0;
@@ -215,7 +213,6 @@
             font-size: 0.85rem;
         }
 
-        /* ===== Server Bar ===== */
         .server-bar {
             display: flex;
             justify-content: space-between;
@@ -268,7 +265,6 @@
         .save-status.saving { background: #e3f2fd; color: var(--accent4); animation: pulse 1.5s infinite; }
         .save-status.saved { background: #e8f5e9; color: var(--accent1); }
 
-        /* ===== Header ===== */
         .header {
             text-align: center;
             margin-bottom: 25px;
@@ -312,7 +308,6 @@
             z-index: 1;
         }
 
-        /* ===== Info Card / Form ===== */
         .info-card {
             background: var(--card-bg);
             border-radius: var(--radius);
@@ -362,7 +357,6 @@
         }
         .duplicate-error.active { display: block; animation: slideUp 0.3s ease; }
 
-        /* ===== Banners ===== */
         .added-today-banner, .conflict-banner, .alert-banner, .offline-banner {
             padding: 12px 20px;
             border-radius: var(--radius-sm);
@@ -383,7 +377,6 @@
         .offline-banner { background: #e3f2fd; color: #1565c0; border-right: 4px solid var(--accent4); }
         .offline-banner.active { display: flex; }
 
-        /* ===== Cards Grid ===== */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -529,7 +522,6 @@
         }
         .note-input:focus { outline: none; border-color: var(--primary); background: white; }
 
-        /* ===== Action Buttons ===== */
         .actions {
             display: flex;
             gap: 10px;
@@ -561,7 +553,6 @@
         .btn-danger { background: linear-gradient(135deg, var(--danger), #fab1a0); color: white; }
         .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
 
-        /* ===== Summary Bar ===== */
         .summary-bar {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -580,7 +571,6 @@
         .stat-item h3 { font-size: 1.6rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
         .stat-item p { font-size: 0.8rem; color: var(--text-light); font-weight: 700; }
 
-        /* ===== Search ===== */
         .search-wrap { position: relative; flex: 1; min-width: 200px; }
         .search-box {
             display: flex;
@@ -627,7 +617,6 @@
         .search-result-item .result-year { color: var(--text-light); font-size: 0.8rem; }
         .search-result-empty { padding: 16px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
 
-        /* ===== Modal ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -687,7 +676,6 @@
             flex: 1;
         }
 
-        /* ===== Log Table ===== */
         .log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         .log-table th {
             background: var(--bg);
@@ -759,7 +747,6 @@
             gap: 8px;
         }
 
-        /* ===== Statistics ===== */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -794,7 +781,6 @@
             transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* ===== Month Selector ===== */
         .month-selector { display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; }
         .month-btn {
             padding: 8px 16px;
@@ -852,7 +838,6 @@
         .cal-day.empty { background: transparent; cursor: default; }
         .cal-day.empty:hover { background: transparent; color: inherit; }
 
-        /* ===== Keyboard Shortcuts Help ===== */
         .shortcuts-help {
             position: fixed;
             bottom: 20px;
@@ -897,7 +882,6 @@
         }
         .shortcut-toggle:hover { transform: scale(1.1); background: var(--primary-dark); }
 
-        /* ===== Loading Spinner ===== */
         .spinner {
             width: 20px; height: 20px;
             border: 2px solid rgba(255,255,255,0.3);
@@ -919,7 +903,6 @@
         }
         .loading-overlay.active { display: flex; }
 
-        /* ===== Toast Notifications ===== */
         .toast-container {
             position: fixed;
             top: 20px;
@@ -949,7 +932,6 @@
         .toast.hiding { animation: fadeOut 0.3s ease forwards; }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
 
-        /* ===== Responsive ===== */
         @media print {
             body { background: white; padding: 0; }
             .login-overlay, .server-bar, .actions, .modal-overlay,
@@ -973,13 +955,11 @@
             .modal-box { width: 98%; max-height: 95vh; }
         }
 
-        /* ===== Scrollbar Styling ===== */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: var(--bg); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
-        /* ===== Reduced Motion ===== */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
@@ -996,14 +976,12 @@
             <h2>&#128272; تسجيل دخول الخادم</h2>
             <p id="authSubtitle">أدخل بياناتك للوصول إلى نظام المتابعة</p>
             
-            <!-- Login Form -->
             <div id="loginForm">
                 <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
                 <input type="password" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" aria-label="كلمة المرور">
                 <button class="login-btn" id="loginBtn" onclick="handleLogin()">&#10132; دخول</button>
             </div>
             
-            <!-- Register Form (Hidden by default) -->
             <div id="registerForm" style="display:none;">
                 <input type="text" id="regName" placeholder="اسم الخادم الكامل" autocomplete="name" aria-label="اسم الخادم">
                 <input type="email" id="regEmail" placeholder="البريد الإلكتروني" autocomplete="email" aria-label="البريد الإلكتروني">
@@ -1021,7 +999,7 @@
             </div>
             
             <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
-                النسخة المحسّنة v4 &bull; Firebase Auth &bull; Firestore Rules
+                النسخة المحسّنة v4.1 &bull; Firebase Auth &bull; Local Persist
             </div>
         </div>
     </div>
@@ -1124,7 +1102,6 @@
         </div>
     </div>
 
-    <!-- Reason Modal -->
     <div class="modal-overlay" id="reasonModal">
         <div class="modal-box" style="max-width: 450px;">
             <div class="modal-header">
@@ -1144,7 +1121,6 @@
         </div>
     </div>
 
-    <!-- Audit Log Modal -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box">
             <div class="modal-header">
@@ -1194,7 +1170,6 @@
         </div>
     </div>
 
-    <!-- Statistics Modal -->
     <div class="modal-overlay" id="statsModal">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
@@ -1221,7 +1196,6 @@
         </div>
     </div>
 
-    <!-- Monthly Log Modal -->
     <div class="modal-overlay" id="monthlyModal">
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-header">
@@ -1252,7 +1226,6 @@
     </div>
 
     <script>
-        // ===== Configuration =====
         const CONFIG = {
             saveDebounceMs: 1200,
             searchDebounceMs: 350,
@@ -1261,8 +1234,7 @@
             monthsToShow: 6
         };
 
-        // ===== State =====
-        let currentServer = null; // { uid, name, email }
+        let currentServer = null;
         let currentStudentId = null;
         const ratings = {};
         const attendance = {};
@@ -1285,7 +1257,6 @@
         const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
         const ARABIC_DAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 
-        // ===== DOM References =====
         const els = {
             name: document.getElementById("studentName"),
             year: document.getElementById("studentYear"),
@@ -1336,7 +1307,6 @@
             authSubtitle: document.getElementById("authSubtitle")
         };
 
-        // ===== Utility Functions =====
         function escapeHtml(text) {
             if (!text) return "";
             const div = document.createElement("div");
@@ -1394,7 +1364,11 @@
             return safeName + "_" + safeYear;
         }
 
-        // ===== Initialization =====
+        function getLocalStorageKey() {
+            const docId = getStudentDocId();
+            return docId ? "khadem_data_" + docId : null;
+        }
+
         function generateCards() {
             els.cardsGrid.innerHTML = "";
             DAYS.forEach(day => {
@@ -1440,7 +1414,6 @@
 
         updateTodayBadge();
 
-        // ===== Auth Mode Toggle =====
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
             if (isRegisterMode) {
@@ -1460,7 +1433,6 @@
             els.loginSuccess.classList.remove("active");
         }
 
-        // ===== Register =====
         async function handleRegister() {
             const name = document.getElementById("regName").value.trim();
             const email = document.getElementById("regEmail").value.trim();
@@ -1499,10 +1471,8 @@
                 const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
                 const user = userCredential.user;
                 
-                // Update profile
                 await window.updateProfile(user, { displayName: name });
                 
-                // Save to Firestore users collection
                 await window.setDoc(window.doc(window.db, "users", user.uid), {
                     name: name,
                     email: email,
@@ -1514,7 +1484,6 @@
                 els.loginSuccess.innerHTML = "&#9989; تم إنشاء الحساب بنجاح! جاري الدخول...";
                 els.loginSuccess.classList.add("active");
                 
-                // Auto login after register
                 setTimeout(() => {
                     completeLogin(user);
                 }, 1000);
@@ -1535,7 +1504,6 @@
             btn.innerHTML = "&#128221; إنشاء حساب";
         }
 
-        // ===== Login =====
         async function handleLogin() {
             const btn = els.loginBtn;
             btn.disabled = true;
@@ -1585,7 +1553,6 @@
         }
 
         async function completeLogin(user) {
-            // Fetch user data from Firestore
             let userData = { name: user.displayName || "خادم", email: user.email, uid: user.uid };
             
             if (window.firebaseReady && window.db) {
@@ -1628,7 +1595,6 @@
         function logout() {
             if (!confirm("تأكيد تسجيل الخروج؟")) return;
             
-            // Cleanup listeners
             activeListeners.forEach(unsub => { try { unsub(); } catch(e) {} });
             activeListeners = [];
             
@@ -1641,11 +1607,9 @@
             location.reload();
         }
 
-        // Auto-login via Firebase Auth state
         if (window.firebaseReady && window.auth) {
             window.onAuthStateChanged(window.auth, async (user) => {
                 if (user) {
-                    // User is signed in
                     const savedSession = localStorage.getItem("khadem_session");
                     if (savedSession) {
                         try {
@@ -1663,7 +1627,6 @@
             });
         }
 
-        // ===== Student Dropdown =====
         async function loadStudentList() {
             if (!window.firebaseReady || !window.db) return;
             try {
@@ -1710,7 +1673,6 @@
             checkDuplicateAndLoad();
         }
 
-        // ===== Duplicate Check & Load =====
         async function checkDuplicateAndLoad() {
             const name = els.name.value.trim();
             const year = els.year.value.trim();
@@ -1751,7 +1713,7 @@
             loadStudent();
         }
 
-        // ===== Load Student =====
+        // ===== LOAD STUDENT - FIXED: Merge local + Firebase records =====
         async function loadStudent() {
             const docId = getStudentDocId();
             if (!docId) return;
@@ -1761,7 +1723,10 @@
             hideAddedToday();
 
             const today = getTodayDate();
+            let firebaseRecords = [];
+            let localRecords = [];
 
+            // 1. Load from Firebase first
             if (window.firebaseReady && window.db) {
                 try {
                     const baseSnap = await window.getDoc(window.doc(window.db, "students", docId));
@@ -1780,7 +1745,7 @@
                         applyDailyData(data);
                     }
 
-                    // Load logs for this student
+                    // Load logs from Firebase
                     const logsQuery = window.query(
                         window.collection(window.db, "logs"),
                         window.where("studentName", "==", els.name.value.trim()),
@@ -1788,18 +1753,84 @@
                         window.limit(CONFIG.maxLogEntries)
                     );
                     const logsSnap = await window.getDocs(logsQuery);
-                    records = [];
-                    logsSnap.forEach(d => records.push(d.data()));
-                    updateSummary();
-
-                    showToast("&#9989; تم تحميل بيانات الطالبة", "success");
+                    logsSnap.forEach(d => firebaseRecords.push(d.data()));
                 } catch(e) {
                     console.error("Load error:", e);
                     showToast("&#10060; خطأ في التحميل من السحابة", "error");
                 }
             }
 
-            loadLocalData();
+            // 2. Load from LocalStorage (includes records)
+            localRecords = loadLocalDataOnly();
+
+            // 3. Merge records: Firebase + Local, remove duplicates by timestamp
+            records = mergeRecords(firebaseRecords, localRecords);
+            updateSummary();
+
+            showToast("&#9989; تم تحميل بيانات الطالبة", "success");
+        }
+
+        // Extracted local data loader (returns data without side effects)
+        function loadLocalDataOnly() {
+            const key = getLocalStorageKey();
+            if (!key) return [];
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            try {
+                const data = JSON.parse(raw);
+                
+                // Apply attendance and ratings to global state
+                if (data.attendance) {
+                    Object.keys(data.attendance).forEach(k => { attendance[k] = data.attendance[k]; });
+                }
+                if (data.ratings) {
+                    Object.keys(data.ratings).forEach(k => { ratings[k] = data.ratings[k]; });
+                }
+                if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
+                if (data.isAlreadyAddedToday) {
+                    isAlreadyAddedToday = true;
+                    showAddedToday();
+                }
+                
+                // Apply notes
+                if (data.followups) {
+                    Object.keys(data.followups).forEach(day => {
+                        const noteEl = document.getElementById("note-" + day);
+                        if (noteEl && data.followups[day].note) {
+                            noteEl.value = data.followups[day].note;
+                        }
+                    });
+                }
+                
+                applyUIState();
+                updateSummary();
+                checkConsecutiveAbsences();
+                updateStatusColors();
+                
+                return data.records || [];
+            } catch(e) {
+                console.error("Local data parse error:", e);
+                return [];
+            }
+        }
+
+        function mergeRecords(firebaseRecs, localRecs) {
+            const map = new Map();
+            
+            // Add Firebase records first
+            firebaseRecs.forEach(r => {
+                if (r.timestamp) map.set(r.timestamp, r);
+            });
+            
+            // Add local records (overwrite if same timestamp, or add if new)
+            localRecs.forEach(r => {
+                if (r.timestamp) map.set(r.timestamp, r);
+            });
+            
+            // Convert to array, sort by timestamp descending, limit
+            const merged = Array.from(map.values());
+            merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            return merged.slice(0, CONFIG.maxRecords);
         }
 
         function applyDailyData(data) {
@@ -1824,28 +1855,6 @@
             updateSummary();
             checkConsecutiveAbsences();
             updateStatusColors();
-        }
-
-        function loadLocalData() {
-            const docId = getStudentDocId();
-            if (!docId) return;
-            const key = "khadem_data_" + docId;
-            const raw = localStorage.getItem(key);
-            if (!raw) return;
-            try {
-                const data = JSON.parse(raw);
-                if (data.attendance) Object.keys(data.attendance).forEach(k => { attendance[k] = data.attendance[k]; });
-                if (data.ratings) Object.keys(data.ratings).forEach(k => { ratings[k] = data.ratings[k]; });
-                if (data.records) records = data.records;
-                if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
-                if (data.isAlreadyAddedToday) { isAlreadyAddedToday = true; showAddedToday(); }
-                applyUIState();
-                updateSummary();
-                checkConsecutiveAbsences();
-                updateStatusColors();
-            } catch(e) {
-                console.error("Local data parse error:", e);
-            }
         }
 
         function applyUIState() {
@@ -1924,7 +1933,6 @@
             els.logCount.textContent = records.length;
         }
 
-        // ===== Attendance & Rating =====
         function showConflict(serverName) {
             els.conflictBanner.classList.add("active");
             els.conflictText.textContent = "الخادم " + serverName + " عدل على البيانات وأنتِ شغالة! حدّثي الصفحة.";
@@ -1974,10 +1982,9 @@
             });
         }
 
-        // ===== Change Reason Modal =====
         function requestChangeReason(changeInfo) {
             if (!currentServer) {
-                showToast("&#128272; لازم تسجيل دخول أولاُ", "warning");
+                showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
                 return false;
             }
             const studentName = els.name.value.trim();
@@ -2010,7 +2017,6 @@
             els.reasonModal.classList.remove("active");
         }
 
-        // ===== Toggle Attendance =====
         function toggleAttendance(checkbox) {
             const row = checkbox.closest(".activity-row");
             const ratingDiv = row.querySelector(".rating");
@@ -2060,7 +2066,6 @@
             });
         }
 
-        // ===== Rate Activity =====
         function rate(star, value) {
             const container = star.parentElement;
             if (container.classList.contains("disabled")) return;
@@ -2100,7 +2105,7 @@
             });
         }
 
-        // ===== Records & Audit =====
+        // ===== ADD RECORD - FIXED: Save to localStorage immediately =====
         function addRecord(rec) {
             if (!currentServer) return;
             const student = els.name.value.trim() || "غير محدد";
@@ -2123,6 +2128,9 @@
             if (records.length > CONFIG.maxRecords) records = records.slice(0, CONFIG.maxRecords);
             updateSummary();
 
+            // CRITICAL FIX: Save to localStorage immediately so refresh doesn't lose it
+            saveLocalOnly();
+
             if (window.firebaseReady && window.db) {
                 window.addDoc(window.collection(window.db, "logs"), fullRec).catch(e => console.error("Log error:", e));
                 const archiveRef = window.collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
@@ -2130,7 +2138,6 @@
             }
         }
 
-        // ===== Save System =====
         function queueSave() {
             if (saveTimeout) clearTimeout(saveTimeout);
             setSaveStatus("saving");
@@ -2158,7 +2165,6 @@
             }
             const today = getTodayDate();
 
-            // Conflict detection
             try {
                 const dailyRef = window.doc(window.db, "students", docId, "daily", today);
                 const dailySnap = await window.getDoc(dailyRef);
@@ -2227,11 +2233,19 @@
         function saveLocalOnly() {
             const docId = getStudentDocId();
             if (!docId) return;
+            
+            // Build followups structure for notes
+            const followups = {};
+            DAYS.forEach(day => {
+                followups[day] = { note: document.getElementById("note-" + day)?.value || "" };
+            });
+            
             const payload = {
                 name: els.name.value.trim(),
                 year: els.year.value.trim(),
                 attendance: {...attendance},
                 ratings: {...ratings},
+                followups: followups,
                 records: records.slice(0, CONFIG.maxRecords),
                 lastKnownUpdatedAt: lastKnownUpdatedAt,
                 isAlreadyAddedToday: isAlreadyAddedToday,
@@ -2247,7 +2261,6 @@
             }
         }
 
-        // ===== Search (Debounced) =====
         function debouncedSearch() {
             if (searchTimeout) clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => doQuickSearch(), CONFIG.searchDebounceMs);
@@ -2305,7 +2318,6 @@
             resultsBox.classList.add("active");
         }
 
-        // ===== Statistics =====
         async function showStats() {
             els.statsModal.classList.add("active");
             els.statsLoadingOverlay.classList.add("active");
@@ -2424,7 +2436,6 @@
 
         function closeStats() { els.statsModal.classList.remove("active"); }
 
-        // ===== Monthly Log =====
         function generateMonthSelector() {
             const container = els.monthSelector;
             container.innerHTML = "";
@@ -2549,7 +2560,6 @@
             }
         }
 
-        // ===== Audit Log =====
         async function showLog() {
             els.logModal.classList.add("active");
             els.logLoadingOverlay.classList.add("active");
@@ -2564,6 +2574,7 @@
             const fDay = document.getElementById("filterDay").value;
             const fType = document.getElementById("filterType").value;
 
+            // Refresh from Firebase if connected
             if (window.firebaseReady && window.db && els.name.value.trim()) {
                 try {
                     const logsQuery = window.query(
@@ -2573,8 +2584,10 @@
                         window.limit(CONFIG.maxLogEntries)
                     );
                     const logsSnap = await window.getDocs(logsQuery);
-                    records = [];
-                    logsSnap.forEach(d => records.push(d.data()));
+                    const freshRecords = [];
+                    logsSnap.forEach(d => freshRecords.push(d.data()));
+                    // Merge with existing to avoid losing unsaved local records
+                    records = mergeRecords(freshRecords, records);
                     updateSummary();
                 } catch(e) {
                     console.warn("Could not refresh logs:", e);
@@ -2628,7 +2641,6 @@
 
         function closeLog() { els.logModal.classList.remove("active"); }
 
-        // ===== Export =====
         async function exportData(format) {
             const student = els.name.value.trim() || "غير_محدد";
             const payload = {
@@ -2688,7 +2700,6 @@
             }
         }
 
-        // ===== Reset =====
         async function resetAll() {
             if (!confirm("&#9888;&#65039; هل تريدين مسح جميع البيانات لهذه الطالبة؟\n\nالسجل التاريخي في Firebase ميتحذفش.")) return;
             const docId = getStudentDocId();
@@ -2702,11 +2713,10 @@
                     showToast("&#10060; خطأ في المسح من السحابة", "error");
                 }
             }
-            const key = "khadem_data_" + docId;
+            const key = getLocalStorageKey();
             if (key) localStorage.removeItem(key);
         }
 
-        // ===== Keyboard Shortcuts =====
         function setupKeyboardShortcuts() {
             document.addEventListener("keydown", (e) => {
                 if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
@@ -2775,7 +2785,6 @@
             els.shortcutsHelp.classList.toggle("active");
         }
 
-        // ===== Modal Close on Outside Click =====
         [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal].forEach(modal => {
             modal.addEventListener("click", (e) => {
                 if (e.target === modal) {
@@ -2791,7 +2800,6 @@
             }
         });
 
-        // ===== Online/Offline Detection =====
         window.addEventListener("online", () => {
             setSaveStatus("online");
             els.offlineBanner.classList.remove("active");
@@ -2805,14 +2813,12 @@
             showToast("&#128268; فُقد الاتصال - الوضع المحلي مفعل", "warning", 5000);
         });
 
-        // ===== Visibility API - Save when tab hidden =====
         document.addEventListener("visibilitychange", () => {
             if (document.hidden && (saveTimeout || Object.keys(attendance).length > 0)) {
                 forceSave();
             }
         });
 
-        // ===== Cleanup on page unload =====
         window.addEventListener("beforeunload", (e) => {
             if (saveTimeout) {
                 forceSave();
