@@ -2,17 +2,14 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="نظام متابعة المخدومات - تتبع حضور وتقييم الطالبات">
     <meta name="theme-color" content="#6c5ce7">
-    <title>نظام متابعة المخدومات - النسخة المحسّنة v4.2 (Refresh Fix)</title>
+    <title>نظام متابعة المخدومات - النسخة المحسّنة v4.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     
-    <!-- ═══════════════════════════════════════════════════════════════
-         PART 1: FIREBASE MODULE - يُنشئ Promise عالمي
-    ═══════════════════════════════════════════════════════════════ -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -61,9 +58,6 @@
         });
     </script>
 
-    <!-- ═══════════════════════════════════════════════════════════════
-         PART 2: CSS STYLES (identical to original)
-    ═══════════════════════════════════════════════════════════════ -->
     <style>
         :root {
             --primary: #6c5ce7;
@@ -102,6 +96,7 @@
             padding: 20px;
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 10px; }
 
@@ -257,10 +252,13 @@
             padding: 6px 12px;
             border-radius: 8px;
             transition: var(--transition);
+            white-space: nowrap;
         }
         .link-btn:hover { background: rgba(108,92,231,0.08); }
         .link-btn.danger { color: var(--danger); }
         .link-btn.danger:hover { background: rgba(255,118,117,0.08); }
+        .link-btn.today-btn { background: rgba(0,184,148,0.1); color: var(--accent1); }
+        .link-btn.today-btn:hover { background: rgba(0,184,148,0.2); }
         .save-status {
             font-size: 0.8rem;
             padding: 4px 12px;
@@ -809,7 +807,7 @@
         }
         .month-calendar {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 8px;
             margin-top: 15px;
         }
@@ -940,6 +938,31 @@
         .toast.hiding { animation: fadeOut 0.3s ease forwards; }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
 
+        /* Today Attendance specific styles */
+        .attendance-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: var(--transition);
+        }
+        .attendance-row:hover { background: #f0f0f0; }
+        .attendance-row .student-info { flex: 1; }
+        .attendance-row .student-name { font-weight: 700; font-size: 0.95rem; }
+        .attendance-row .student-year { font-size: 0.8rem; color: var(--text-light); }
+        .attendance-row .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        .status-badge.present { background: #e8f5e9; color: var(--accent1); }
+        .status-badge.absent { background: #ffebee; color: var(--danger); }
+        .status-badge.not-recorded { background: #f0f0f0; color: var(--text-light); }
+
         @media print {
             body { background: white; padding: 0; }
             .login-overlay, .server-bar, .actions, .modal-overlay,
@@ -961,6 +984,7 @@
             .actions { justify-content: center; }
             .login-box { padding: 30px 20px; }
             .modal-box { width: 98%; max-height: 95vh; }
+            .month-calendar { grid-template-columns: repeat(3, 1fr); }
         }
 
         ::-webkit-scrollbar { width: 8px; }
@@ -978,9 +1002,6 @@
 </head>
 <body>
 
-    <!-- ═══════════════════════════════════════════════════════════════
-         PART 3: HTML UI
-    ═══════════════════════════════════════════════════════════════ -->
     <div class="toast-container" id="toastContainer"></div>
 
     <div class="login-overlay" id="loginOverlay">
@@ -1011,7 +1032,7 @@
             </div>
             
             <div style="margin-top:14px;font-size:0.8rem;color:var(--text-light);">
-                النسخة المحسّنة v4.2 &bull; Firebase Auth &bull; Refresh Fix
+                النسخة المحسّنة v4.3 &bull; Firebase Auth &bull; 3 أيام
             </div>
         </div>
     </div>
@@ -1033,6 +1054,7 @@
                     </div>
                     <div class="search-results" id="searchResults"></div>
                 </div>
+                <button class="link-btn today-btn" onclick="showTodayAttendance()">&#128204; حضور اليوم</button>
                 <button class="link-btn" onclick="showStats()">&#128202; إحصائيات</button>
                 <button class="link-btn" onclick="showLog()">&#128203; السجل</button>
                 <button class="link-btn" onclick="showMonthlyLog()">&#128197; الشهري</button>
@@ -1114,6 +1136,7 @@
         </div>
     </div>
 
+    <!-- MODAL: سبب التعديل -->
     <div class="modal-overlay" id="reasonModal">
         <div class="modal-box" style="max-width: 450px;">
             <div class="modal-header">
@@ -1133,6 +1156,7 @@
         </div>
     </div>
 
+    <!-- MODAL: السجل التاريخي -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box">
             <div class="modal-header">
@@ -1182,6 +1206,7 @@
         </div>
     </div>
 
+    <!-- MODAL: الإحصائيات -->
     <div class="modal-overlay" id="statsModal">
         <div class="modal-box" style="max-width: 700px;">
             <div class="modal-header">
@@ -1208,10 +1233,11 @@
         </div>
     </div>
 
+    <!-- MODAL: السجل الشهري (3 أيام فقط) -->
     <div class="modal-overlay" id="monthlyModal">
         <div class="modal-box" style="max-width: 600px;">
             <div class="modal-header">
-                <h3>&#128197; السجل الشهري</h3>
+                <h3>&#128197; السجل الشهري (السبت - الإثنين - الأربعاء)</h3>
                 <button class="modal-close" onclick="closeMonthlyLog()" aria-label="إغلاق">&#215;</button>
             </div>
             <div class="modal-body">
@@ -1220,6 +1246,54 @@
                 <div id="monthDetails" style="margin-top:15px;padding:18px;background:var(--bg);border-radius:var(--radius-sm);display:none;">
                     <h4 style="color:var(--primary);margin-bottom:10px;font-size:1rem;" id="monthDetailTitle"></h4>
                     <div id="monthDetailContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: حضور اليوم -->
+    <div class="modal-overlay" id="todayAttendanceModal">
+        <div class="modal-box" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>&#128204; لوحة حضور اليوم</h3>
+                <button class="modal-close" onclick="closeTodayAttendance()" aria-label="إغلاق">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <div class="loading-overlay" id="todayAttLoadingOverlay">
+                    <div class="spinner" style="border-color:var(--border);border-top-color:var(--primary);width:32px;height:32px;"></div>
+                </div>
+
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stats-card success">
+                        <h4 id="todayPresentCount">0</h4>
+                        <p>&#9989; حاضرين النهاردة</p>
+                    </div>
+                    <div class="stats-card danger">
+                        <h4 id="todayAbsentCount">0</h4>
+                        <p>&#10060; غائبات النهاردة</p>
+                    </div>
+                    <div class="stats-card warning">
+                        <h4 id="todayNotRecorded">0</h4>
+                        <p>&#9898; لم يُسجّل لهم</p>
+                    </div>
+                    <div class="stats-card">
+                        <h4 id="todayTotalStudents">0</h4>
+                        <p>&#128101; إجمالي الطالبات</p>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color:var(--primary);margin-bottom:12px;font-size:1.1rem;">&#127942; الأكثر حضوراً هذا الشهر</h4>
+                    <div id="topAttendeesList" style="display:flex;flex-direction:column;gap:10px;">
+                        <p style="color:var(--text-light);text-align:center;padding:20px;">جاري التحميل...</p>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="color:var(--danger);margin-bottom:12px;font-size:1.1rem;">&#128308; لم يحضرن النهاردة</h4>
+                    <div id="absentTodayList" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto;">
+                        <p style="color:var(--text-light);text-align:center;padding:20px;">جاري التحميل...</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1237,14 +1311,7 @@
         <div class="shortcut-item"><span>مسح البحث</span><span class="shortcut-key">Escape</span></div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════════════════
-         PART 4: MAIN SCRIPT
-         - await window.firebaseReadyPromise في البداية
-         - onAuthStateChanged يُسجّل بعد تأكد جاهزية Firebase
-         - كل الدوال في Global Scope (متاحة للـ HTML onclick)
-    ═══════════════════════════════════════════════════════════════ -->
     <script>
-        // ── الانتظار على Firebase ──
         (async function initApplication() {
             try {
                 await window.firebaseReadyPromise;
@@ -1257,9 +1324,6 @@
             }
         })();
 
-        // ═══════════════════════════════════════════════════════════
-        // CONFIG & STATE
-        // ═══════════════════════════════════════════════════════════
         const CONFIG = {
             saveDebounceMs: 1200,
             searchDebounceMs: 350,
@@ -1291,9 +1355,6 @@
         const DAY_ICONS = { "السبت": "&#128214;", "الإثنين": "&#127775;", "الأربعاء": "&#127919;" };
         const ARABIC_DAYS = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
 
-        // ═══════════════════════════════════════════════════════════
-        // DOM REFERENCES
-        // ═══════════════════════════════════════════════════════════
         const els = {
             name: document.getElementById("studentName"),
             year: document.getElementById("studentYear"),
@@ -1341,12 +1402,11 @@
             registerForm: document.getElementById("registerForm"),
             authToggleText: document.getElementById("authToggleText"),
             authToggleBtn: document.getElementById("authToggleBtn"),
-            authSubtitle: document.getElementById("authSubtitle")
+            authSubtitle: document.getElementById("authSubtitle"),
+            todayAttendanceModal: document.getElementById("todayAttendanceModal"),
+            todayAttLoadingOverlay: document.getElementById("todayAttLoadingOverlay")
         };
 
-        // ═══════════════════════════════════════════════════════════
-        // UTILITIES
-        // ═══════════════════════════════════════════════════════════
         function escapeHtml(text) {
             if (!text) return "";
             const div = document.createElement("div");
@@ -1407,9 +1467,6 @@
             return docId ? "khadem_data_" + docId : null;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // UI GENERATORS
-        // ═══════════════════════════════════════════════════════════
         function generateCards() {
             els.cardsGrid.innerHTML = "";
             DAYS.forEach(day => {
@@ -1453,9 +1510,6 @@
             });
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // AUTHENTICATION (Global Scope - accessible by HTML onclick)
-        // ═══════════════════════════════════════════════════════════
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
             if (isRegisterMode) {
@@ -1613,11 +1667,7 @@
             location.reload();
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // AUTH STATE LISTENER - THE REFRESH FIX
-        // ═══════════════════════════════════════════════════════════
         function onAppReady() {
-            // هذا يُستدعى بعد await window.firebaseReadyPromise
             window.onAuthStateChanged(window.auth, async (user) => {
                 if (user) {
                     const savedSession = localStorage.getItem("khadem_session");
@@ -1634,9 +1684,6 @@
             updateTodayBadge();
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // STUDENT MANAGEMENT
-        // ═══════════════════════════════════════════════════════════
         async function loadStudentList() {
             if (!window.firebaseReady || !window.db) return;
             try {
@@ -1920,9 +1967,6 @@
             });
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // CHANGE TRACKING & REASONS
-        // ═══════════════════════════════════════════════════════════
         function requestChangeReason(changeInfo) {
             if (!currentServer) {
                 showToast("&#128272; لازم تسجيل دخول أولاً", "warning");
@@ -2103,9 +2147,6 @@
             }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // SEARCH
-        // ═══════════════════════════════════════════════════════════
         function debouncedSearch() {
             if (searchTimeout) clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => doQuickSearch(), CONFIG.searchDebounceMs);
@@ -2147,6 +2188,161 @@
                 });
             }
             resultsBox.classList.add("active");
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // TODAY ATTENDANCE DASHBOARD
+        // ═══════════════════════════════════════════════════════════
+
+        function showTodayAttendance() {
+            els.todayAttendanceModal.classList.add("active");
+            els.todayAttLoadingOverlay.classList.add("active");
+            renderTodayAttendance();
+        }
+
+        function closeTodayAttendance() {
+            els.todayAttendanceModal.classList.remove("active");
+        }
+
+        async function renderTodayAttendance() {
+            const today = getTodayDate();
+            const currentMonthPrefix = today.slice(0, 7);
+            
+            try {
+                const studentsSnap = await window.getDocs(window.collection(window.db, "students"));
+                const students = [];
+                studentsSnap.forEach(d => {
+                    const data = d.data();
+                    students.push({ id: d.id, name: data.name || "بدون اسم", year: data.year || "-" });
+                });
+                
+                const totalStudents = students.length;
+                let todayPresent = 0;
+                let todayAbsent = 0;
+                let todayNotRecorded = 0;
+                const absentList = [];
+                const monthlyStats = [];
+
+                const studentPromises = students.map(async (student) => {
+                    const dailyRef = window.doc(window.db, "students", student.id, "daily", today);
+                    const dailySnap = await window.getDoc(dailyRef);
+                    
+                    let isPresentToday = false;
+                    let isRecordedToday = false;
+                    
+                    if (dailySnap.exists()) {
+                        const dData = dailySnap.data();
+                        isRecordedToday = true;
+                        if (dData.followups) {
+                            Object.values(dData.followups).forEach(dayData => {
+                                ACTS.forEach(act => {
+                                    const actData = dayData[act];
+                                    if (actData && actData.attendance === true) {
+                                        isPresentToday = true;
+                                    }
+                                });
+                            });
+                        }
+                    }
+                    
+                    if (isPresentToday) todayPresent++;
+                    else if (isRecordedToday) { todayAbsent++; absentList.push(student); }
+                    else { todayNotRecorded++; absentList.push(student); }
+                    
+                    let monthPresentCount = 0;
+                    try {
+                        const monthQuery = window.query(
+                            window.collection(window.db, "students", student.id, "daily"),
+                            window.where(window.documentId(), ">=", currentMonthPrefix + "-01"),
+                            window.where(window.documentId(), "<=", currentMonthPrefix + "-31")
+                        );
+                        const monthSnap = await window.getDocs(monthQuery);
+                        monthSnap.forEach(d => {
+                            const mData = d.data();
+                            if (mData.followups) {
+                                Object.values(mData.followups).forEach(dayData => {
+                                    ACTS.forEach(act => {
+                                        const actData = dayData[act];
+                                        if (actData && actData.attendance === true) monthPresentCount++;
+                                    });
+                                });
+                            }
+                        });
+                    } catch(e) { /* skip */ }
+                    
+                    monthlyStats.push({ ...student, monthPresentCount });
+                });
+
+                await Promise.all(studentPromises);
+
+                document.getElementById("todayPresentCount").textContent = todayPresent;
+                document.getElementById("todayAbsentCount").textContent = todayAbsent;
+                document.getElementById("todayNotRecorded").textContent = todayNotRecorded;
+                document.getElementById("todayTotalStudents").textContent = totalStudents;
+
+                monthlyStats.sort((a, b) => b.monthPresentCount - a.monthPresentCount);
+                const topList = document.getElementById("topAttendeesList");
+                topList.innerHTML = "";
+                
+                if (monthlyStats.length === 0 || monthlyStats[0].monthPresentCount === 0) {
+                    topList.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:10px;">لا توجد بيانات حضور كافية</p>';
+                } else {
+                    monthlyStats.slice(0, 5).forEach((s, idx) => {
+                        const div = document.createElement("div");
+                        div.style.cssText = "display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:10px;transition:var(--transition);";
+                        div.innerHTML = `
+                            <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem;">${idx + 1}</div>
+                            <div style="flex:1;">
+                                <div style="font-weight:700;font-size:0.95rem;">${escapeHtml(s.name)}</div>
+                                <div style="font-size:0.8rem;color:var(--text-light);">${escapeHtml(s.year)}</div>
+                            </div>
+                            <div style="font-weight:800;color:var(--accent1);font-size:1.1rem;">${s.monthPresentCount} <span style="font-size:0.75rem;color:var(--text-light);font-weight:500;">حضور</span></div>
+                        `;
+                        topList.appendChild(div);
+                    });
+                }
+
+                const absentContainer = document.getElementById("absentTodayList");
+                absentContainer.innerHTML = "";
+                
+                if (absentList.length === 0) {
+                    absentContainer.innerHTML = '<p style="color:var(--accent1);text-align:center;padding:20px;font-weight:700;">&#127881; كل الطالبات حاضرات أو مُسجلات!</p>';
+                } else {
+                    absentList.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ar"));
+                    
+                    absentList.forEach(s => {
+                        const div = document.createElement("div");
+                        div.className = "attendance-row";
+                        div.innerHTML = `
+                            <div class="student-info">
+                                <div class="student-name">${escapeHtml(s.name)}</div>
+                                <div class="student-year">${escapeHtml(s.year)}</div>
+                            </div>
+                            <button onclick="quickLoadStudent('${s.id}', '${escapeHtml(s.name)}', '${escapeHtml(s.year)}')" 
+                                    class="btn btn-sm" style="background:var(--danger);color:white;border:none;padding:6px 14px;border-radius:20px;font-family:'Tajawal';font-weight:700;font-size:0.8rem;cursor:pointer;">
+                                تسجيل &#9998;
+                            </button>
+                        `;
+                        absentContainer.appendChild(div);
+                    });
+                }
+
+            } catch (error) {
+                console.error("Today attendance error:", error);
+                showToast("&#10060; خطأ في تحميل بيانات الحضور", "error");
+            } finally {
+                els.todayAttLoadingOverlay.classList.remove("active");
+            }
+        }
+
+        function quickLoadStudent(id, name, year) {
+            closeTodayAttendance();
+            els.studentSelect.value = "";
+            els.name.value = name;
+            els.year.value = year;
+            els.studentDocId.value = id;
+            loadStudent();
+            showToast("&#128221; جاري فتح بطاقة: " + name, "info");
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -2241,7 +2437,7 @@
         function closeStats() { els.statsModal.classList.remove("active"); }
 
         // ═══════════════════════════════════════════════════════════
-        // MONTHLY LOG
+        // MONTHLY LOG (3 DAYS ONLY)
         // ═══════════════════════════════════════════════════════════
         function generateMonthSelector() {
             const container = els.monthSelector;
@@ -2265,38 +2461,80 @@
 
         function closeMonthlyLog() { els.monthlyModal.classList.remove("active"); }
 
-        async function selectMonth(year, month) {
+        function selectMonth(year, month) {
             const buttons = els.monthSelector.querySelectorAll(".month-btn");
             const now = new Date();
             buttons.forEach((btn, idx) => {
                 const btnMonth = new Date(now.getFullYear(), now.getMonth() - 2 + idx, 1);
                 btn.classList.toggle("active", btnMonth.getFullYear() === year && btnMonth.getMonth() === month);
             });
-            const firstDay = new Date(year, month, 1), lastDay = new Date(year, month + 1, 0);
-            const daysInMonth = lastDay.getDate(), startDayOfWeek = firstDay.getDay();
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay   = new Date(year, month + 1, 0);
+
             const calendar = els.monthCalendar;
             calendar.innerHTML = "";
-            ARABIC_DAYS.forEach(d => {
+            calendar.style.gridTemplateColumns = "repeat(3, 1fr)";
+
+            ["السبت", "الإثنين", "الأربعاء"].forEach(d => {
                 const h = document.createElement("div");
-                h.className = "cal-header"; h.textContent = d; calendar.appendChild(h);
+                h.className = "cal-header";
+                h.textContent = d;
+                calendar.appendChild(h);
             });
-            for (let i = 0; i < startDayOfWeek; i++) {
-                const empty = document.createElement("div"); empty.className = "cal-day empty"; calendar.appendChild(empty);
+
+            let saturday = new Date(firstDay);
+            while (saturday.getDay() !== 6) {
+                saturday.setDate(saturday.getDate() - 1);
             }
-            const monthPrefix = year + "-" + String(month + 1).padStart(2, "0");
+
             const todayStr = getTodayDate();
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dayStr = monthPrefix + "-" + String(d).padStart(2, "0");
-                const cell = document.createElement("div");
-                cell.className = "cal-day"; cell.textContent = d;
-                cell.setAttribute("role", "button"); cell.setAttribute("tabindex", "0");
-                cell.setAttribute("aria-label", "يوم " + d);
-                if (dayStr === todayStr) cell.classList.add("today");
-                if (dayStr === todayStr && isAlreadyAddedToday) { cell.classList.add("has-data"); cell.innerHTML += '<div class="cal-dot"></div>'; }
-                cell.onclick = () => loadMonthDay(dayStr);
-                cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") loadMonthDay(dayStr); };
-                calendar.appendChild(cell);
+            const offsets  = [0, 2, 4];
+
+            for (let week = 0; week < 6; week++) {
+                let weekHasCurrentMonth = false;
+
+                for (const offset of offsets) {
+                    const cellDate = new Date(saturday);
+                    cellDate.setDate(saturday.getDate() + offset);
+
+                    const isCurrentMonth = cellDate.getMonth() === month && cellDate.getFullYear() === year;
+
+                    const cell = document.createElement("div");
+
+                    if (!isCurrentMonth) {
+                        cell.className = "cal-day empty";
+                        calendar.appendChild(cell);
+                        continue;
+                    }
+
+                    weekHasCurrentMonth = true;
+                    const d = cellDate.getDate();
+                    const dayStr = cellDate.toISOString().slice(0, 10);
+
+                    cell.className = "cal-day";
+                    cell.textContent = d;
+                    cell.setAttribute("role", "button");
+                    cell.setAttribute("tabindex", "0");
+                    cell.setAttribute("aria-label", "يوم " + d);
+
+                    if (dayStr === todayStr) {
+                        cell.classList.add("today");
+                        if (isAlreadyAddedToday) {
+                            cell.classList.add("has-data");
+                            cell.innerHTML += '<div class="cal-dot"></div>';
+                        }
+                    }
+
+                    cell.onclick = () => loadMonthDay(dayStr);
+                    cell.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") loadMonthDay(dayStr); };
+                    calendar.appendChild(cell);
+                }
+
+                if (!weekHasCurrentMonth && saturday > lastDay) break;
+                saturday.setDate(saturday.getDate() + 7);
             }
+
             els.monthDetails.style.display = "none";
         }
 
@@ -2505,7 +2743,8 @@
 
         function toggleShortcuts() { els.shortcutsHelp.classList.toggle("active"); }
 
-        [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal].forEach(modal => {
+        [els.logModal, els.reasonModal, els.statsModal, els.monthlyModal, els.todayAttendanceModal].forEach(modal => {
+            if (!modal) return;
             modal.addEventListener("click", (e) => {
                 if (e.target === modal) {
                     if (modal === els.reasonModal) closeReasonModal(false);
