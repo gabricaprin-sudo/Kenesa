@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>كارت متابعة المهرجان - نظام الخدام</title>
+    <title>نظام متابعة المخدومات - تاريخ تلقائي</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
@@ -185,6 +185,15 @@
         }
         .header h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 6px; position: relative; }
         .header p { font-size: 1rem; opacity: 0.95; position: relative; }
+        .date-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 8px;
+            font-weight: 700;
+        }
         .info-card {
             background: var(--card-bg);
             border-radius: var(--radius);
@@ -207,6 +216,27 @@
             background: var(--bg);
         }
         .form-group input:focus { outline: none; border-color: var(--primary); background: white; }
+        .duplicate-error {
+            color: var(--danger);
+            font-size: 0.85rem;
+            margin-top: 4px;
+            display: none;
+            font-weight: 700;
+        }
+        .duplicate-error.active { display: block; }
+        .added-today-banner {
+            background: #e8f5e9;
+            color: var(--accent1);
+            padding: 10px 18px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            border-right: 4px solid var(--accent1);
+        }
+        .added-today-banner.active { display: flex; }
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -360,7 +390,7 @@
         .modal-box {
             background: white;
             width: 95%;
-            max-width: 800px;
+            max-width: 900px;
             max-height: 85vh;
             border-radius: var(--radius);
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
@@ -426,9 +456,60 @@
         .tag-present { background: #e8f5e9; color: var(--accent1); }
         .tag-absent { background: #ffebee; color: var(--danger); }
         .tag-rating { background: #fff8e1; color: #f39c12; }
+        .tag-change { background: #e3f2fd; color: var(--accent4); }
+        .old-val { text-decoration: line-through; color: var(--danger); opacity: 0.7; margin-left: 4px; }
+        .new-val { color: var(--accent1); font-weight: 700; }
+        .reason-tag {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            background: #fff3e0;
+            padding: 2px 8px;
+            border-radius: 6px;
+            border-right: 3px solid var(--accent3);
+        }
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-bar select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: "Tajawal", sans-serif;
+            font-size: 0.85rem;
+        }
+        .audit-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #fce4ec;
+            color: var(--secondary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+        }
+        .conflict-banner {
+            background: #ffebee;
+            color: var(--danger);
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            border-right: 4px solid var(--danger);
+        }
+        .conflict-banner.active { display: flex; }
         @media print {
             body { background: white; padding: 0; }
-            .login-overlay, .server-bar, .actions, .modal-overlay { display: none !important; }
+            .login-overlay, .server-bar, .actions, .modal-overlay, .conflict-banner, .added-today-banner { display: none !important; }
             .track-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
             .card-header, .header { -webkit-print-color-adjust: exact; }
         }
@@ -463,26 +544,38 @@
                 <span class="save-status online" id="saveStatus">&#127760; متصل</span>
             </div>
             <div class="server-actions">
-                <button class="link-btn" onclick="showLog()">&#128203; سجل العمليات</button>
+                <button class="link-btn" onclick="showLog()">&#128203; السجل التاريخي</button>
                 <button class="link-btn" onclick="exportData('json')">&#128229; JSON</button>
                 <button class="link-btn" onclick="exportData('csv')">&#128202; CSV</button>
                 <button class="link-btn danger" onclick="logout()">&#128682; خروج</button>
             </div>
         </div>
 
+        <div class="conflict-banner" id="conflictBanner">
+            <span>&#9888;&#65039;</span>
+            <span id="conflictText">حد تاني عدل على الطالبة دي وأنتي شغالة! حدّثي الصفحة عشان تشوفي آخر بيانات.</span>
+        </div>
+
+        <div class="added-today-banner" id="addedTodayBanner">
+            <span>&#9989;</span>
+            <span>الطالبة دي اتضافت اليوم بالفعل. تقدري تعدّلي البيانات (بس لازم تكتبي سبب).</span>
+        </div>
+
         <div class="header">
             <h1>&#127919; كارت متابعة المهرجان</h1>
             <p>أسرة إعدادية بنات - متابعة الحضور والتقييم الأسبوعي</p>
+            <div class="date-badge" id="todayDateBadge">&#128197; اليوم: --</div>
         </div>
 
         <div class="info-card">
             <div class="form-group">
                 <label>&#128100; اسم الطالبة</label>
-                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." onchange="loadStudentDebounced()">
+                <input type="text" id="studentName" placeholder="اكتبي اسم الطالبة..." onchange="checkDuplicateAndLoad()">
+                <div class="duplicate-error" id="dupNameError">&#10060; اسم الطالبة مستخدم بالفعل مع سنة دراسية مختلفة!</div>
             </div>
             <div class="form-group">
                 <label>&#128218; السنة الدراسية</label>
-                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." onchange="loadStudentDebounced()">
+                <input type="text" id="studentYear" placeholder="مثال: أولى إعدادي..." onchange="checkDuplicateAndLoad()">
             </div>
         </div>
 
@@ -645,15 +738,54 @@
         </div>
     </div>
 
+    <!-- Modal: Change Reason -->
+    <div class="modal-overlay" id="reasonModal">
+        <div class="modal-box" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>&#9998; سبب التعديل</h3>
+                <button class="modal-close" onclick="closeReasonModal(false)">&#215;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 12px; color: var(--text-light); font-size: 0.9rem;">
+                    أي تعديل في البيانات لازم يكون له سبب واضح عشان السجل التاريخي.
+                </p>
+                <textarea id="changeReasonInput" class="note-input" style="min-height: 80px;" placeholder="اكتبي سبب التعديل (مثال: تصحيح خطأ في الحضور، تحديث بعد مراجعة المشرفة...)"></textarea>
+                <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                    <button class="btn btn-success" onclick="closeReasonModal(true)">&#9989; تأكيد التعديل</button>
+                    <button class="btn btn-secondary" onclick="closeReasonModal(false)">&#10060; إلغاء</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Audit Log -->
     <div class="modal-overlay" id="logModal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3>&#128203; سجل العمليات (Audit Log)</h3>
+                <h3>&#128203; السجل التاريخي الدائم (Audit Trail)</h3>
                 <button class="modal-close" onclick="closeLog()">&#215;</button>
             </div>
             <div class="modal-body">
+                <div class="audit-badge">
+                    <span>&#128227;</span>
+                    <span>سجل دائم في Firebase. كل تعديل مسجل: مين عمله، إمتى، القيمة القديمة والجديدة، والسبب.</span>
+                </div>
+                <div class="filter-bar">
+                    <select id="filterDay" onchange="renderLogTable()">
+                        <option value="">كل الأيام</option>
+                        <option value="السبت">السبت</option>
+                        <option value="الإثنين">الإثنين</option>
+                        <option value="الأربعاء">الأربعاء</option>
+                    </select>
+                    <select id="filterType" onchange="renderLogTable()">
+                        <option value="">كل الأنواع</option>
+                        <option value="attendance">حضور/غياب</option>
+                        <option value="rating">تقييم</option>
+                        <option value="note">ملاحظة</option>
+                    </select>
+                </div>
                 <div style="margin-bottom:12px; color:var(--text-light); font-size:0.85rem;">
-                    آخر 100 عملية مسجلة في Firebase.
+                    &#128272; السجل محمي في Firebase ومينفعش يتمسح إلا من Console.
                 </div>
                 <table class="log-table">
                     <thead>
@@ -661,10 +793,9 @@
                             <th>الوقت</th>
                             <th>الخادم</th>
                             <th>الطالبة</th>
-                            <th>اليوم</th>
-                            <th>النشاط</th>
-                            <th>النوع</th>
-                            <th>القيمة</th>
+                            <th>اليوم / النشاط</th>
+                            <th>التغيير</th>
+                            <th>السبب</th>
                         </tr>
                     </thead>
                     <tbody id="logTableBody"></tbody>
@@ -674,7 +805,7 @@
     </div>
 
     <script type="module">
-        import { doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { doc, setDoc, getDoc, collection, addDoc, query, where, orderBy, limit, getDocs, deleteDoc, Timestamp, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         window.doc = doc;
         window.setDoc = setDoc;
@@ -687,6 +818,8 @@
         window.limit = limit;
         window.getDocs = getDocs;
         window.deleteDoc = deleteDoc;
+        window.Timestamp = Timestamp;
+        window.serverTimestamp = serverTimestamp;
     </script>
 
     <script>
@@ -706,6 +839,9 @@
         let records = [];
         let saveTimeout = null;
         let loadTimeout = null;
+        let pendingChange = null;
+        let lastKnownUpdatedAt = null;
+        let isAlreadyAddedToday = false;
         const DAYS = ["السبت","الإثنين","الأربعاء"];
         const ACTS = ["دراسي","محفوظات","قبطي","الحان"];
 
@@ -719,13 +855,31 @@
             loginError: document.getElementById("loginError"),
             logModal: document.getElementById("logModal"),
             logTableBody: document.getElementById("logTableBody"),
+            reasonModal: document.getElementById("reasonModal"),
+            reasonInput: document.getElementById("changeReasonInput"),
             presentCount: document.getElementById("presentCount"),
             absentCount: document.getElementById("absentCount"),
             ratedActivities: document.getElementById("ratedActivities"),
             avgRating: document.getElementById("avgRating"),
             attendanceRate: document.getElementById("attendanceRate"),
-            logCount: document.getElementById("logCount")
+            logCount: document.getElementById("logCount"),
+            conflictBanner: document.getElementById("conflictBanner"),
+            dupNameError: document.getElementById("dupNameError"),
+            addedTodayBanner: document.getElementById("addedTodayBanner"),
+            todayDateBadge: document.getElementById("todayDateBadge")
         };
+
+        // Show today's date automatically
+        function updateTodayBadge() {
+            const today = new Date();
+            const dateStr = today.toLocaleDateString("ar-EG", { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+            els.todayDateBadge.innerHTML = "&#128197; اليوم: " + dateStr;
+        }
+        updateTodayBadge();
+
+        function getTodayDate() {
+            return new Date().toISOString().slice(0,10);
+        }
 
         function setSaveStatus(status) {
             const el = els.saveStatus;
@@ -778,7 +932,7 @@
             els.mainApp.style.display = "block";
             els.serverDisplay.textContent = name + " (#" + id + ")";
             err.style.display = "none";
-            loadStudentDebounced();
+            checkDuplicateAndLoad();
         }
 
         function logout() {
@@ -801,59 +955,172 @@
             } catch(e) {}
         }
 
+        async function checkDuplicateAndLoad() {
+            const name = els.name.value.trim();
+            const year = els.year.value.trim();
+            const dupError = els.dupNameError;
+            dupError.classList.remove("active");
+
+            if (!name || !year) return;
+
+            if (window.firebaseReady && window.db) {
+                try {
+                    const q = query(collection(window.db, "students"), where("name", "==", name));
+                    const snap = await getDocs(q);
+                    let foundDifferent = false;
+                    snap.forEach(function(d) {
+                        const data = d.data();
+                        if (data.year !== year) {
+                            foundDifferent = true;
+                        }
+                    });
+                    if (foundDifferent) {
+                        dupError.textContent = "&#10060; اسم الطالبة \"" + name + "\" مسجل بالفعل مع سنة دراسية مختلفة!";
+                        dupError.classList.add("active");
+                        return;
+                    }
+                } catch(e) {}
+            }
+
+            loadStudentDebounced();
+        }
+
         function loadStudentDebounced() {
             clearTimeout(loadTimeout);
             loadTimeout = setTimeout(loadStudent, 500);
         }
 
-        function toggleAttendance(checkbox) {
+        function showConflict(serverName) {
+            els.conflictBanner.classList.add("active");
+            document.getElementById("conflictText").textContent = 
+                "الخادم " + serverName + " عدل على الطالبة دي وأنتي شغالة! حدّثي الصفحة عشان تشوفي آخر بيانات.";
+            setSaveStatus("offline");
+        }
+
+        function showAddedToday() {
+            els.addedTodayBanner.classList.add("active");
+        }
+
+        function hideAddedToday() {
+            els.addedTodayBanner.classList.remove("active");
+        }
+
+        // --- AUDIT TRAIL CORE ---
+
+        function requestChangeReason(changeInfo) {
             if (!currentServer) {
                 alert("لازم تسجيل دخول الخادم أولاً");
-                checkbox.checked = !checkbox.checked;
+                return false;
+            }
+            pendingChange = changeInfo;
+            els.reasonInput.value = "";
+            els.reasonModal.classList.add("active");
+            return true;
+        }
+
+        function closeReasonModal(confirm) {
+            if (!confirm) {
+                if (pendingChange && pendingChange.revert) pendingChange.revert();
+                pendingChange = null;
+                els.reasonModal.classList.remove("active");
                 return;
             }
+            const reason = els.reasonInput.value.trim() || "تعديل روتيني";
+            if (pendingChange) {
+                pendingChange.reason = reason;
+                pendingChange.execute();
+                pendingChange = null;
+            }
+            els.reasonModal.classList.remove("active");
+        }
+
+        function toggleAttendance(checkbox) {
             const row = checkbox.closest(".activity-row");
             const ratingDiv = row.querySelector(".rating");
             const absentLabel = row.querySelector(".absent-label");
             const day = row.dataset.day;
             const act = row.dataset.act;
             const key = day + "|" + act;
+            const oldVal = attendance[key] === true ? "حاضرة" : (attendance[key] === false ? "غائبة" : "غير محدد");
+            const newVal = checkbox.checked ? "حاضرة" : "غائبة";
 
-            if (checkbox.checked) {
-                attendance[key] = true;
-                ratingDiv.classList.remove("disabled");
-                absentLabel.style.display = "none";
-                addRecord({ type: "attendance", day: day, activity: act, value: "حاضرة" });
-            } else {
-                attendance[key] = false;
-                ratingDiv.classList.add("disabled");
-                absentLabel.style.display = "inline";
-                delete ratings[key];
-                ratingDiv.querySelectorAll(".star").forEach(function(s) { s.classList.remove("active"); });
-                addRecord({ type: "attendance", day: day, activity: act, value: "غائبة" });
-            }
-            queueSave();
-            updateSummary();
+            if ((checkbox.checked && attendance[key] === true) || (!checkbox.checked && attendance[key] === false)) return;
+
+            const revert = function() {
+                checkbox.checked = !checkbox.checked;
+            };
+
+            requestChangeReason({
+                type: "attendance",
+                day: day,
+                activity: act,
+                oldVal: oldVal,
+                newVal: newVal,
+                revert: revert,
+                execute: function() {
+                    if (checkbox.checked) {
+                        attendance[key] = true;
+                        ratingDiv.classList.remove("disabled");
+                        absentLabel.style.display = "none";
+                    } else {
+                        attendance[key] = false;
+                        ratingDiv.classList.add("disabled");
+                        absentLabel.style.display = "inline";
+                        delete ratings[key];
+                        ratingDiv.querySelectorAll(".star").forEach(function(s) { s.classList.remove("active"); });
+                    }
+                    addRecord({
+                        type: "attendance",
+                        day: day,
+                        activity: act,
+                        oldValue: oldVal,
+                        newValue: newVal,
+                        reason: this.reason
+                    });
+                    queueSave();
+                    updateSummary();
+                }
+            });
         }
 
         function rate(star, value) {
-            if (!currentServer) {
-                alert("لازم تسجيل دخول الخادم أولاً");
-                return;
-            }
             const container = star.parentElement;
             if (container.classList.contains("disabled")) return;
             const day = container.dataset.day;
             const act = container.dataset.act;
             const key = day + "|" + act;
-            ratings[key] = value;
+            const oldVal = ratings[key] ? (ratings[key] + " نجوم") : "غير مقيم";
 
-            container.querySelectorAll(".star").forEach(function(s, i) {
-                s.classList.toggle("active", i < value);
+            if (ratings[key] === value) return;
+
+            const revert = function() {
+                applyUIState();
+            };
+
+            requestChangeReason({
+                type: "rating",
+                day: day,
+                activity: act,
+                oldVal: oldVal,
+                newVal: value + " نجوم",
+                revert: revert,
+                execute: function() {
+                    ratings[key] = value;
+                    container.querySelectorAll(".star").forEach(function(s, i) {
+                        s.classList.toggle("active", i < value);
+                    });
+                    addRecord({
+                        type: "rating",
+                        day: day,
+                        activity: act,
+                        oldValue: oldVal,
+                        newValue: value + " نجوم",
+                        reason: this.reason
+                    });
+                    queueSave();
+                    updateSummary();
+                }
             });
-            addRecord({ type: "rating", day: day, activity: act, value: value + " نجوم" });
-            queueSave();
-            updateSummary();
         }
 
         function addRecord(rec) {
@@ -865,10 +1132,13 @@
                 serverName: currentServer.name,
                 studentName: student,
                 studentYear: els.year.value.trim(),
+                followDate: getTodayDate(),
                 day: rec.day,
                 activity: rec.activity,
                 type: rec.type,
-                value: rec.value
+                oldValue: rec.oldValue || null,
+                newValue: rec.newValue || rec.value,
+                reason: rec.reason || null
             };
             records.unshift(fullRec);
             if (records.length > 500) records = records.slice(0, 500);
@@ -876,6 +1146,9 @@
 
             if (window.firebaseReady && window.db) {
                 addDoc(collection(window.db, "logs"), fullRec).catch(function(e) { console.error("Log error:", e); });
+                // Permanent archive per student per day
+                const archiveRef = collection(window.db, "audit_archive", student + "_" + getTodayDate(), "changes");
+                addDoc(archiveRef, fullRec).catch(function(e) {});
             }
         }
 
@@ -897,29 +1170,56 @@
             if (!docId) return;
 
             setSaveStatus("saving");
-            const payload = {
+            const today = getTodayDate();
+
+            // Concurrency check: read current daily record
+            let remoteUpdatedAt = null;
+            try {
+                const dailyRef = doc(window.db, "students", docId, "daily", today);
+                const dailySnap = await getDoc(dailyRef);
+                if (dailySnap.exists()) {
+                    const rData = dailySnap.data();
+                    remoteUpdatedAt = rData.updatedAt || null;
+                    if (lastKnownUpdatedAt && remoteUpdatedAt && remoteUpdatedAt > lastKnownUpdatedAt) {
+                        const otherServer = rData.updatedBy ? rData.updatedBy.name : "خادم آخر";
+                        showConflict(otherServer);
+                        return;
+                    }
+                }
+            } catch(e) {}
+
+            // Save student base info
+            const basePayload = {
                 name: els.name.value.trim(),
                 year: els.year.value.trim(),
-                serverId: currentServer ? currentServer.id : null,
+                lastUpdated: new Date().toISOString()
+            };
+            try {
+                await setDoc(doc(window.db, "students", docId), basePayload, { merge: true });
+            } catch(e) {}
+
+            // Save daily record
+            const dailyPayload = {
                 followups: {},
                 updatedAt: new Date().toISOString(),
                 updatedBy: currentServer ? { id: currentServer.id, name: currentServer.name } : null
             };
 
             DAYS.forEach(function(day) {
-                payload.followups[day] = {};
+                dailyPayload.followups[day] = {};
                 ACTS.forEach(function(act) {
                     const key = day + "|" + act;
-                    payload.followups[day][act] = {
+                    dailyPayload.followups[day][act] = {
                         attendance: attendance[key] === true ? true : (attendance[key] === false ? false : null),
                         rating: ratings[key] || null
                     };
                 });
-                payload.followups[day].note = document.getElementById("note-" + day)?.value || "";
+                dailyPayload.followups[day].note = document.getElementById("note-" + day)?.value || "";
             });
 
             try {
-                await setDoc(doc(window.db, "students", docId), payload, { merge: true });
+                await setDoc(doc(window.db, "students", docId, "daily", today), dailyPayload, { merge: true });
+                lastKnownUpdatedAt = dailyPayload.updatedAt;
                 setSaveStatus("saved");
                 saveLocalOnly();
             } catch (e) {
@@ -935,7 +1235,9 @@
                 studentYear: els.year.value,
                 attendance: attendance,
                 ratings: ratings,
-                records: records
+                records: records,
+                lastKnownUpdatedAt: lastKnownUpdatedAt,
+                isAlreadyAddedToday: isAlreadyAddedToday
             };
             localStorage.setItem("khadem_data", JSON.stringify(payload));
         }
@@ -946,13 +1248,28 @@
             currentStudentId = docId;
 
             resetUI(false);
+            hideAddedToday();
+
+            const today = getTodayDate();
 
             if (window.firebaseReady && window.db) {
                 try {
-                    const snap = await getDoc(doc(window.db, "students", docId));
-                    if (snap.exists()) {
-                        const data = snap.data();
-                        applyFirebaseData(data);
+                    // Load base info
+                    const baseSnap = await getDoc(doc(window.db, "students", docId));
+                    if (baseSnap.exists()) {
+                        const baseData = baseSnap.data();
+                        if (baseData.name) els.name.value = baseData.name;
+                        if (baseData.year) els.year.value = baseData.year;
+                    }
+
+                    // Load today's record
+                    const dailySnap = await getDoc(doc(window.db, "students", docId, "daily", today));
+                    if (dailySnap.exists()) {
+                        const data = dailySnap.data();
+                        lastKnownUpdatedAt = data.updatedAt || null;
+                        isAlreadyAddedToday = true;
+                        showAddedToday();
+                        applyDailyData(data);
                         return;
                     }
                 } catch (e) {
@@ -963,10 +1280,7 @@
             loadLocalData();
         }
 
-        function applyFirebaseData(data) {
-            if (data.name) els.name.value = data.name;
-            if (data.year) els.year.value = data.year;
-
+        function applyDailyData(data) {
             if (data.followups) {
                 Object.keys(data.followups).forEach(function(day) {
                     const dayData = data.followups[day];
@@ -1002,6 +1316,11 @@
                     Object.keys(data.ratings).forEach(function(k) { ratings[k] = data.ratings[k]; });
                 }
                 if (data.records) records = data.records;
+                if (data.lastKnownUpdatedAt) lastKnownUpdatedAt = data.lastKnownUpdatedAt;
+                if (data.isAlreadyAddedToday) {
+                    isAlreadyAddedToday = true;
+                    showAddedToday();
+                }
                 applyUIState();
                 updateSummary();
             } catch(e) {}
@@ -1040,6 +1359,8 @@
             if (clearNames) {
                 els.name.value = "";
                 els.year.value = "";
+                lastKnownUpdatedAt = null;
+                isAlreadyAddedToday = false;
             }
             document.querySelectorAll(".toggle-switch input").forEach(function(t) {
                 t.checked = false;
@@ -1052,6 +1373,8 @@
             for (let k in ratings) delete ratings[k];
             for (let k in attendance) delete attendance[k];
             records = [];
+            els.conflictBanner.classList.remove("active");
+            hideAddedToday();
             updateSummary();
         }
 
@@ -1077,49 +1400,58 @@
         }
 
         async function showLog() {
+            els.logModal.classList.add("active");
+            renderLogTable();
+        }
+
+        function renderLogTable() {
             const tbody = els.logTableBody;
             tbody.innerHTML = "";
 
-            let displayRecords = records.slice(0, 100);
+            const fDay = document.getElementById("filterDay").value;
+            const fType = document.getElementById("filterType").value;
 
-            if (window.firebaseReady && window.db) {
-                try {
-                    const student = els.name.value.trim();
-                    let q;
-                    if (student) {
-                        q = query(collection(window.db, "logs"), where("studentName", "==", student), orderBy("timestamp", "desc"), limit(100));
-                    } else {
-                        q = query(collection(window.db, "logs"), orderBy("timestamp", "desc"), limit(100));
-                    }
-                    const snap = await getDocs(q);
-                    displayRecords = [];
-                    snap.forEach(function(d) { displayRecords.push(d.data()); });
-                } catch (e) {
-                    console.error("Log load error:", e);
-                }
-            }
+            let displayRecords = records.slice(0, 200);
+
+            displayRecords = displayRecords.filter(function(r) {
+                if (fDay && r.day !== fDay) return false;
+                if (fType && r.type !== fType) return false;
+                return true;
+            });
 
             if (displayRecords.length === 0) {
-                tbody.innerHTML = "<tr><td colspan=\"7\" style=\"text-align:center; color:#999;\">لا يوجد سجلات بعد</td></tr>";
-            } else {
-                displayRecords.forEach(function(rec) {
-                    const date = new Date(rec.timestamp);
-                    const timeStr = date.toLocaleString("ar-EG", { hour12: false });
-                    let tagClass = "tag-present";
-                    if (rec.type === "attendance" && rec.value === "غائبة") tagClass = "tag-absent";
-                    if (rec.type === "rating") tagClass = "tag-rating";
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = "<td>" + timeStr + "</td>" +
-                        "<td><b>" + rec.serverName + "</b><br><small style=\"color:#999\">#" + rec.serverId + "</small></td>" +
-                        "<td>" + rec.studentName + "</td>" +
-                        "<td>" + rec.day + "</td>" +
-                        "<td>" + rec.activity + "</td>" +
-                        "<td>" + (rec.type === "attendance" ? "حضور" : "تقييم") + "</td>" +
-                        "<td><span class=\"tag " + tagClass + "\">" + rec.value + "</span></td>";
-                    tbody.appendChild(tr);
-                });
+                tbody.innerHTML = "<tr><td colspan=\"6\" style=\"text-align:center; color:#999;\">لا يوجد سجلات مطابقة</td></tr>";
+                return;
             }
-            els.logModal.classList.add("active");
+
+            displayRecords.forEach(function(rec) {
+                const date = new Date(rec.timestamp);
+                const timeStr = date.toLocaleString("ar-EG", { hour12: false });
+
+                let changeHtml = "";
+                if (rec.oldValue && rec.newValue) {
+                    changeHtml = '<span class="old-val">' + rec.oldValue + '</span> &#10132; <span class="new-val">' + rec.newValue + '</span>';
+                } else {
+                    changeHtml = '<span class="new-val">' + (rec.newValue || rec.value || "-") + '</span>';
+                }
+
+                let tagClass = "tag-present";
+                if (rec.type === "attendance" && rec.newValue === "غائبة") tagClass = "tag-absent";
+                if (rec.type === "rating") tagClass = "tag-rating";
+                if (rec.type === "note") tagClass = "tag-change";
+
+                const reasonHtml = rec.reason ? '<span class="reason-tag">&#128172; ' + rec.reason + '</span>' : '';
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = 
+                    "<td><b>" + timeStr + "</b></td>" +
+                    "<td><b>" + rec.serverName + "</b><br><small style=\"color:#999\">#" + rec.serverId + "</small></td>" +
+                    "<td>" + rec.studentName + "</td>" +
+                    "<td>" + rec.day + "<br><small>" + rec.activity + "</small></td>" +
+                    "<td><span class=\"tag " + tagClass + "\">" + (rec.type === "attendance" ? "حضور" : (rec.type === "rating" ? "تقييم" : rec.type)) + "</span><br>" + changeHtml + "</td>" +
+                    "<td>" + reasonHtml + "</td>";
+                tbody.appendChild(tr);
+            });
         }
 
         function closeLog() {
@@ -1133,6 +1465,7 @@
                 exportedBy: currentServer,
                 studentName: student,
                 studentYear: els.year.value.trim(),
+                followDate: getTodayDate(),
                 attendance: attendance,
                 ratings: ratings,
                 records: records
@@ -1140,7 +1473,7 @@
 
             if (window.firebaseReady && window.db && currentStudentId) {
                 try {
-                    const snap = await getDoc(doc(window.db, "students", currentStudentId));
+                    const snap = await getDoc(doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
                     if (snap.exists()) {
                         const data = snap.data();
                         payload.firebaseData = data;
@@ -1153,19 +1486,19 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "followup_" + student + "_" + new Date().toISOString().slice(0,10) + ".json";
+                a.download = "followup_" + student + "_" + getTodayDate() + ".json";
                 a.click();
                 URL.revokeObjectURL(url);
             } else if (format === "csv") {
-                let csv = "timestamp,serverId,serverName,studentName,studentYear,day,activity,type,value\n";
+                let csv = "timestamp,serverId,serverName,studentName,studentYear,followDate,day,activity,type,oldValue,newValue,reason\n";
                 records.forEach(function(r) {
-                    csv += r.timestamp + "," + r.serverId + "," + r.serverName + "," + r.studentName + "," + (r.studentYear || "") + "," + r.day + "," + r.activity + "," + r.type + "," + r.value + "\n";
+                    csv += r.timestamp + "," + r.serverId + "," + r.serverName + "," + r.studentName + "," + (r.studentYear || "") + "," + (r.followDate || "") + "," + r.day + "," + r.activity + "," + r.type + "," + (r.oldValue || "") + "," + (r.newValue || r.value || "") + "," + (r.reason || "") + "\n";
                 });
                 const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "followup_log_" + new Date().toISOString().slice(0,10) + ".csv";
+                a.download = "followup_audit_" + getTodayDate() + ".csv";
                 a.click();
                 URL.revokeObjectURL(url);
             }
@@ -1176,7 +1509,7 @@
             resetUI(true);
             if (window.firebaseReady && window.db && currentStudentId) {
                 try {
-                    await deleteDoc(doc(window.db, "students", currentStudentId));
+                    await deleteDoc(doc(window.db, "students", currentStudentId, "daily", getTodayDate()));
                 } catch (e) {
                     console.error("Delete error:", e);
                 }
@@ -1187,6 +1520,9 @@
         els.logModal.addEventListener("click", function(e) {
             if (e.target === this) closeLog();
         });
+        els.reasonModal.addEventListener("click", function(e) {
+            if (e.target === this) closeReasonModal(false);
+        });
     </script>
 </body>
-    </html>
+</html>
