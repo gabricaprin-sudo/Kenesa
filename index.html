@@ -883,14 +883,14 @@ input[type="date"], input[type="month"] {
       <!-- Header -->
       <header class="app-header">
         <div class="header-right">
-          <button class="menu-btn" id="menuBtn">☰</button>
+          <button class="menu-btn" id="menuBtn" aria-label="القائمة">☰</button>
           <div class="header-titles">
             <h1 id="pageTitle">الرئيسية</h1>
             <span id="pageSubtitle" class="page-subtitle"></span>
           </div>
         </div>
         <div class="header-left">
-          <div class="sync-indicator" id="syncIndicator" title="المزامنة">
+          <div class="sync-indicator" id="syncIndicator" title="المزامنة" role="status" aria-label="حالة المزامنة">
             <span class="sync-icon">⟳</span>
           </div>
           <div class="avatar" id="userAvatar">خ</div>
@@ -1011,9 +1011,9 @@ input[type="date"], input[type="month"] {
         <!-- CALENDAR PAGE -->
         <div id="page-calendar" class="page hidden">
           <div class="calendar-nav">
-            <button class="cal-nav-btn" id="calPrev">◀</button>
+            <button class="cal-nav-btn" id="calPrev" aria-label="الشهر السابق">◀</button>
             <span id="calMonthYear" class="cal-month-title">---</span>
-            <button class="cal-nav-btn" id="calNext">▶</button>
+            <button class="cal-nav-btn" id="calNext" aria-label="الشهر التالي">▶</button>
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
           <div id="dayDetail" class="day-detail hidden"></div>
@@ -1082,20 +1082,20 @@ input[type="date"], input[type="month"] {
 
       <!-- Bottom Nav -->
       <nav class="bottom-nav">
-        <button class="nav-btn active" data-page="home"><span>🏠</span><label>الرئيسية</label></button>
-        <button class="nav-btn" data-page="attendance"><span>📋</span><label>الحضور</label></button>
-        <button class="nav-btn" data-page="girls"><span>👥</span><label>المخدومات</label></button>
-        <button class="nav-btn" data-page="calendar"><span>📅</span><label>التقويم</label></button>
-        <button class="nav-btn" data-page="stats"><span>📊</span><label>إحصائيات</label></button>
+        <button class="nav-btn active" data-page="home" aria-label="الرئيسية"><span>🏠</span><label>الرئيسية</label></button>
+        <button class="nav-btn" data-page="attendance" aria-label="الحضور"><span>📋</span><label>الحضور</label></button>
+        <button class="nav-btn" data-page="girls" aria-label="المخدومات"><span>👥</span><label>المخدومات</label></button>
+        <button class="nav-btn" data-page="calendar" aria-label="التقويم"><span>📅</span><label>التقويم</label></button>
+        <button class="nav-btn" data-page="stats" aria-label="إحصائيات"><span>📊</span><label>إحصائيات</label></button>
       </nav>
     </div>
 
     <!-- Modal: Add/Edit Girl -->
-    <div class="modal-overlay" id="girlModal">
+    <div class="modal-overlay" id="girlModal" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
           <h3 id="girlModalTitle">إضافة مخدومة</h3>
-          <button class="modal-close" id="closeGirlModal">✕</button>
+          <button class="modal-close" id="closeGirlModal" aria-label="إغلاق">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-group">
@@ -1129,7 +1129,7 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Confirm Modal -->
-    <div class="confirm-overlay" id="confirmOverlay">
+    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true">
       <div class="confirm-box">
         <div class="confirm-icon" id="confirmIcon">⚠️</div>
         <div class="confirm-title" id="confirmTitle">تأكيد</div>
@@ -1142,11 +1142,11 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Modal: Girl Profile -->
-    <div class="modal-overlay" id="girlProfileModal">
+    <div class="modal-overlay" id="girlProfileModal" role="dialog" aria-modal="true">
       <div class="modal modal-large">
         <div class="modal-header">
           <h3 id="profileName">ملف المخدومة</h3>
-          <button class="modal-close" id="closeProfileModal">✕</button>
+          <button class="modal-close" id="closeProfileModal" aria-label="إغلاق">✕</button>
         </div>
         <div class="modal-body" id="profileBody">
         </div>
@@ -1154,11 +1154,11 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Modal: Attendance Entry -->
-    <div class="modal-overlay" id="attendanceModal">
+    <div class="modal-overlay" id="attendanceModal" role="dialog" aria-modal="true">
       <div class="modal">
         <div class="modal-header">
           <h3 id="attendanceModalTitle">تسجيل الحضور</h3>
-          <button class="modal-close" id="closeAttendanceModal">✕</button>
+          <button class="modal-close" id="closeAttendanceModal" aria-label="إغلاق">✕</button>
         </div>
         <div class="modal-body">
           <p class="modal-girl-name" id="modalGirlName"></p>
@@ -1199,7 +1199,7 @@ input[type="date"], input[type="month"] {
              getRedirectResult, onAuthStateChanged, signOut }
                                         from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, getDocs,
-             query, orderBy, onSnapshot, writeBatch }
+             query, orderBy, onSnapshot, writeBatch, where }
                                         from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
     // ============================================================
@@ -1236,6 +1236,9 @@ input[type="date"], input[type="month"] {
     let isOnline      = navigator.onLine;
     let idb;                  // set once in openIDB()
     let appInitialized = false; // guard: prevent double init
+    let unsubGirls    = null;   // onSnapshot unsubscribe
+    let unsubAtt      = null;   // onSnapshot unsubscribe
+    let renderTimeout = null;   // debounce renders
 
     // ============================================================
     // SPLASH — guaranteed to hide after 3 s regardless of Firebase
@@ -1303,37 +1306,64 @@ input[type="date"], input[type="month"] {
     }
 
     // ============================================================
+    // DATE HELPERS (local timezone safe)
+    // ============================================================
+    function getLocalDateStr(d = new Date()) {
+      const year  = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day   = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    function getMonthStr(date) {
+      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+    }
+    function formatMonth(monthStr) {
+      if (!monthStr) return '';
+      const [y, m] = monthStr.split('-');
+      return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString('ar-EG',{year:'numeric',month:'long'});
+    }
+    function normalizeDay(d) {
+      return { 'الأحد':'الاحد','الاثنين':'الاثنين','الثلاثاء':'الثلاثاء',
+               'الأربعاء':'الاربعاء','الخميس':'الخميس','الجمعة':'الجمعة','السبت':'السبت' }[d] || d;
+    }
+    function normalizeArabic(str) {
+      if (!str) return '';
+      return str.replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+        .replace(/[إأآا]/g, 'ا')
+        .replace(/ى/g, 'ي')
+        .replace(/ؤ/g, 'و')
+        .replace(/ئ/g, 'ي')
+        .replace(/ة/g, 'ه')
+        .toLowerCase();
+    }
+
+    // ============================================================
     // BOOTSTRAP — open IDB first, THEN handle auth
     // ============================================================
     async function bootstrap() {
-      // 1. Open IndexedDB — must happen before anything else
       try { await openIDB(); }
       catch (e) { console.error('IDB open failed:', e); }
 
-      // 2. Handle redirect result (fires once on page load after a redirect)
       try {
         await getRedirectResult(auth);
-        // No extra action needed; onAuthStateChanged will pick up the user
       } catch (e) {
         console.error('getRedirectResult error:', e);
         showToast('فشل تسجيل الدخول: ' + e.message, 'error');
       }
 
-      // 3. Single auth-state listener — the only place that drives UI
       onAuthStateChanged(auth, async (user) => {
-        hideSplash(); // hide splash as soon as auth state is known
+        hideSplash();
 
         if (!user) {
-          // Signed out
           currentUser    = null;
           appInitialized = false;
           girls          = [];
           attendanceData = {};
+          stopSync();
           showLogin();
           return;
         }
 
-        // Signed in
         currentUser = user;
         showApp(user);
 
@@ -1385,17 +1415,28 @@ input[type="date"], input[type="month"] {
     }
 
     async function syncPendingData() {
-      if (!idb) return;
+      if (!idb || !isOnline) return;
       try {
         const pending = await idbGetAll('pending');
+        let syncCount = 0;
         for (const item of pending) {
-          if      (item.type === 'girl')       await setDoc(doc(db, 'girls',      item.data.id), item.data);
-          else if (item.type === 'attendance') await setDoc(doc(db, 'attendance', item.data.id), item.data);
-          const tx = idb.transaction('pending', 'readwrite');
-          tx.objectStore('pending').delete(item.id);
+          try {
+            if      (item.type === 'girl')       await setDoc(doc(db, 'girls',      item.data.id), item.data);
+            else if (item.type === 'attendance') await setDoc(doc(db, 'attendance', item.data.id), item.data);
+            await idbDelete('pending', item.id);
+            syncCount++;
+          } catch(e) { console.error('Sync item error:', e); }
         }
-        if (pending.length > 0) showToast(`تمت مزامنة ${pending.length} سجل`, 'success');
+        if (syncCount > 0) showToast(`تمت مزامنة ${syncCount} سجل`, 'success');
       } catch(e) { console.error('Sync error:', e); }
+    }
+
+    // ============================================================
+    // SYNC CLEANUP
+    // ============================================================
+    function stopSync() {
+      if (unsubGirls) { unsubGirls(); unsubGirls = null; }
+      if (unsubAtt)   { unsubAtt();   unsubAtt   = null; }
     }
 
     // ============================================================
@@ -1416,7 +1457,6 @@ input[type="date"], input[type="month"] {
 
     document.getElementById('signOutBtn').addEventListener('click', async () => {
       await signOut(auth);
-      // onAuthStateChanged will reset state and show login
     });
 
     // ============================================================
@@ -1464,7 +1504,8 @@ input[type="date"], input[type="month"] {
         } catch(e) { console.error('History sync error:', e); }
 
         // Live girls
-        onSnapshot(query(collection(db, 'girls'), orderBy('name')), async snap => {
+        if (unsubGirls) unsubGirls();
+        unsubGirls = onSnapshot(query(collection(db, 'girls'), orderBy('name')), async snap => {
           for (const change of snap.docChanges()) {
             const g = { id: change.doc.id, ...change.doc.data() };
             if (change.type === 'removed' || g.isDeleted) {
@@ -1477,23 +1518,34 @@ input[type="date"], input[type="month"] {
             }
           }
           girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-          renderCurrentPage();
+          scheduleRender();
         });
 
         // Live attendance
-        onSnapshot(query(collection(db, 'attendance'), orderBy('date', 'desc')), async snap => {
+        if (unsubAtt) unsubAtt();
+        unsubAtt = onSnapshot(query(collection(db, 'attendance'), orderBy('date', 'desc')), async snap => {
           for (const change of snap.docChanges()) {
             const a = { id: change.doc.id, ...change.doc.data() };
-            if (change.type === 'removed') { delete attendanceData[a.id]; }
-            else {
+            if (change.type === 'removed') {
+              delete attendanceData[a.id];
+              if (idb) await idbDelete('attendance', a.id);
+            } else {
               attendanceData[a.id] = a;
               if (idb) await idbPut('attendance', a);
             }
           }
-          renderCurrentPage();
+          scheduleRender();
         });
 
       } catch(e) { console.error('Load error:', e); }
+    }
+
+    // ============================================================
+    // RENDER DEBOUNCE
+    // ============================================================
+    function scheduleRender() {
+      clearTimeout(renderTimeout);
+      renderTimeout = setTimeout(() => renderCurrentPage(), 60);
     }
 
     // ============================================================
@@ -1570,7 +1622,7 @@ input[type="date"], input[type="month"] {
 
       document.getElementById('statTotal').textContent = girls.length;
 
-      const todayStr = now.toISOString().split('T')[0];
+      const todayStr = getLocalDateStr(now);
       let presentToday = 0, absentToday = 0;
       Object.values(attendanceData).forEach(a => {
         if (a.date === todayStr) {
@@ -1621,7 +1673,7 @@ input[type="date"], input[type="month"] {
       } else {
         needsEl.innerHTML = needsList.map(g => {
           const abs = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-          return `<div class="followup-item" onclick="showGirlProfile('${g.id}')">
+          return `<div class="followup-item" data-girl-id="${g.id}">
             <span class="followup-name">${g.name}</span>
             <span class="followup-badge">${abs} غياب</span>
           </div>`;
@@ -1636,9 +1688,10 @@ input[type="date"], input[type="month"] {
       const q         = this.value.trim();
       const resultsEl = document.getElementById('searchResults');
       if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
-      const matches = girls.filter(g => g.name.includes(q));
+      const qNorm = normalizeArabic(q);
+      const matches = girls.filter(g => normalizeArabic(g.name).includes(qNorm));
       resultsEl.innerHTML = matches.length
-        ? matches.map(g => `<div class="search-item" onclick="showGirlProfile('${g.id}')"><span>${g.name}</span><span class="grade-badge">${g.grade}</span></div>`).join('')
+        ? matches.map(g => `<div class="search-item" data-girl-id="${g.id}"><span>${g.name}</span><span class="grade-badge">${g.grade}</span></div>`).join('')
         : '<div class="search-item">لا توجد نتائج</div>';
       resultsEl.classList.remove('hidden');
     });
@@ -1658,14 +1711,14 @@ input[type="date"], input[type="month"] {
       el.innerHTML = filtered.map(g => {
         const presents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر').length;
         const absents  = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return `<div class="girl-card" onclick="showGirlProfile('${g.id}')">
+        return `<div class="girl-card" data-girl-id="${g.id}">
           <div class="girl-avatar">${g.name[0]}</div>
           <div class="girl-info">
             <span class="girl-name">${g.name}</span>
             <span class="girl-grade">${g.grade}</span>
             <div class="girl-stats"><span class="green-text">✓${presents}</span><span class="red-text">✗${absents}</span></div>
           </div>
-          <button class="edit-btn" onclick="event.stopPropagation(); editGirl('${g.id}')">✏️</button>
+          <button class="edit-btn" data-girl-id="${g.id}">✏️</button>
         </div>`;
       }).join('');
     }
@@ -1683,7 +1736,7 @@ input[type="date"], input[type="month"] {
       openModal('girlModal');
     });
 
-    window.editGirl = function(id) {
+    function editGirl(id) {
       const g = girls.find(x => x.id === id);
       if (!g) return;
       editingGirlId = id;
@@ -1694,7 +1747,7 @@ input[type="date"], input[type="month"] {
       document.getElementById('girlNotes').value = g.notes || '';
       document.getElementById('deleteGirlBtn').classList.remove('hidden');
       openModal('girlModal');
-    };
+    }
 
     document.getElementById('deleteGirlBtn').addEventListener('click', () => {
       if (!editingGirlId) return;
@@ -1707,12 +1760,33 @@ input[type="date"], input[type="month"] {
         okLabel: 'حذف',
         onOk: async () => {
           const id = editingGirlId;
+
+          // 1. Remove from local memory
           girls = girls.filter(x => x.id !== id);
-          if (idb) await idbDelete('girls', id);
-          if (isOnline) {
-            try { await setDoc(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' }, { merge: true }); }
-            catch(e) { console.error('Delete girl Firestore error:', e); }
+          const attKeysToDelete = Object.keys(attendanceData).filter(k => attendanceData[k].girlId === id);
+          attKeysToDelete.forEach(k => delete attendanceData[k]);
+
+          // 2. Update IDB (soft-delete girl, hard-delete attendance)
+          if (idb) {
+            await idbPut('girls', { ...g, isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' });
+            const allAtt = await idbGetAll('attendance');
+            for (const a of allAtt) {
+              if (a.girlId === id) await idbDelete('attendance', a.id);
+            }
           }
+
+          // 3. Firestore: soft-delete girl + batch delete attendance
+          if (isOnline) {
+            try {
+              const batch = writeBatch(db);
+              batch.set(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' }, { merge: true });
+              const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
+              const attSnap = await getDocs(attQuery);
+              attSnap.forEach(d => batch.delete(d.ref));
+              await batch.commit();
+            } catch(e) { console.error('Delete girl Firestore error:', e); }
+          }
+
           await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
           showToast(`تم حذف ${g.name}`, 'success');
           renderCurrentPage();
@@ -1763,7 +1837,7 @@ input[type="date"], input[type="month"] {
     // ============================================================
     // GIRL PROFILE
     // ============================================================
-    window.showGirlProfile = function(id) {
+    function showGirlProfile(id) {
       const g = girls.find(x => x.id === id);
       if (!g) return;
       document.getElementById('profileName').textContent = g.name;
@@ -1807,7 +1881,7 @@ input[type="date"], input[type="month"] {
 
       document.getElementById('profileBody').innerHTML = html;
       openModal('girlProfileModal');
-    };
+    }
 
     document.getElementById('closeProfileModal').addEventListener('click', () => closeModal('girlProfileModal'));
 
@@ -1816,7 +1890,7 @@ input[type="date"], input[type="month"] {
     // ============================================================
     function renderAttendancePage() {
       const dateInput = document.getElementById('attendanceDate');
-      if (!dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+      if (!dateInput.value) dateInput.value = getLocalDateStr();
       setActiveDay(selectedDay);
       setActiveActivity(selectedActivity);
       renderAttendanceList();
@@ -1851,7 +1925,7 @@ input[type="date"], input[type="month"] {
         else if (rec?.status === 'غائب') { statusClass = 'absent';  statusIcon = '✗'; statusText = 'غائب';     absent++;  }
         else                              pending++;
         const stars = rec?.rating ? '★'.repeat(rec.rating)+'☆'.repeat(5-rec.rating) : '';
-        return `<div class="att-item ${statusClass}" onclick="openAttendanceEntry('${g.id}','${g.name}','${date}')">
+        return `<div class="att-item ${statusClass}" data-girl-id="${g.id}">
           <div class="att-icon">${statusIcon}</div>
           <div class="att-info">
             <span class="att-name">${g.name}</span>
@@ -1868,7 +1942,7 @@ input[type="date"], input[type="month"] {
       document.getElementById('pendingCount').textContent = pending;
     }
 
-    window.openAttendanceEntry = function(girlId, girlName, date) {
+    function openAttendanceEntry(girlId, girlName, date) {
       currentAttendanceGirlId = girlId;
       currentAttendanceRating = 0;
       document.getElementById('attendanceModalTitle').textContent = `${selectedActivity} - ${date}`;
@@ -1888,7 +1962,7 @@ input[type="date"], input[type="month"] {
         document.getElementById('ratingSection').classList.add('hidden');
       }
       openModal('attendanceModal');
-    };
+    }
 
     document.querySelectorAll('.attend-btn').forEach(b => {
       b.addEventListener('click', () => {
@@ -1964,9 +2038,8 @@ input[type="date"], input[type="month"] {
         const dayOfWeek  = new Date(year, month, d).getDay();
         const isService  = [1, 3, 6].includes(dayOfWeek);
         const hasData    = Object.values(attendanceData).some(a => a.date === dateStr);
-        const isToday    = dateStr === new Date().toISOString().split('T')[0];
-        html += `<div class="cal-day ${isService?'service-day':''} ${hasData?'has-data':''} ${isToday?'today':''}"
-          onclick="showDayDetail('${dateStr}')">
+        const isToday    = dateStr === getLocalDateStr();
+        html += `<div class="cal-day ${isService?'service-day':''} ${hasData?'has-data':''} ${isToday?'today':''}" data-date="${dateStr}">
           <span>${d}</span>
           ${isService ? '<div class="service-dot"></div>' : ''}
         </div>`;
@@ -1975,7 +2048,7 @@ input[type="date"], input[type="month"] {
       document.getElementById('calendarGrid').innerHTML = html;
     }
 
-    window.showDayDetail = function(dateStr) {
+    function showDayDetail(dateStr) {
       const records = Object.values(attendanceData).filter(a => a.date === dateStr);
       const el      = document.getElementById('dayDetail');
       if (!records.length) {
@@ -1990,7 +2063,7 @@ input[type="date"], input[type="month"] {
         el.innerHTML = html;
       }
       el.classList.remove('hidden');
-    };
+    }
 
     document.getElementById('calPrev').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); });
     document.getElementById('calNext').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); });
@@ -2253,19 +2326,64 @@ input[type="date"], input[type="month"] {
       overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); }));
 
     // ============================================================
-    // HELPERS
+    // EVENT DELEGATION (replaces window.* globals)
     // ============================================================
-    function normalizeDay(d) {
-      return { 'الأحد':'الاحد','الاثنين':'الاثنين','الثلاثاء':'الثلاثاء',
-               'الأربعاء':'الاربعاء','الخميس':'الخميس','الجمعة':'الجمعة','السبت':'السبت' }[d] || d;
+    function setupEventDelegation() {
+      document.getElementById('needsFollowup').addEventListener('click', e => {
+        const item = e.target.closest('.followup-item');
+        if (item) showGirlProfile(item.dataset.girlId);
+      });
+
+      document.getElementById('girlsList').addEventListener('click', e => {
+        const editBtn = e.target.closest('.edit-btn');
+        if (editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; }
+        const card = e.target.closest('.girl-card');
+        if (card) showGirlProfile(card.dataset.girlId);
+      });
+
+      document.getElementById('searchResults').addEventListener('click', e => {
+        const item = e.target.closest('.search-item');
+        if (item) showGirlProfile(item.dataset.girlId);
+      });
+
+      document.getElementById('attendanceList').addEventListener('click', e => {
+        const item = e.target.closest('.att-item');
+        if (item) {
+          const g = girls.find(x => x.id === item.dataset.girlId);
+          if (g) openAttendanceEntry(g.id, g.name, document.getElementById('attendanceDate').value);
+        }
+      });
+
+      document.getElementById('calendarGrid').addEventListener('click', e => {
+        const day = e.target.closest('.cal-day');
+        if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
+      });
     }
-    function getMonthStr(date) {
-      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
-    }
-    function formatMonth(monthStr) {
-      if (!monthStr) return '';
-      const [y, m] = monthStr.split('-');
-      return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString('ar-EG',{year:'numeric',month:'long'});
+
+    setupEventDelegation();
+  </script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        self.addEventListener('install', e => { self.skipWaiting(); });
+        self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+        self.addEventListener('fetch', e => {
+          e.respondWith(
+            caches.match(e.request).then(cached => {
+              return cached || fetch(e.request).then(response => {
+                if (!response || response.status !== 200 || response.type !== 'basic') return response;
+                const resClone = response.clone();
+                caches.open('makhdomat-v1').then(cache => cache.put(e.request, resClone));
+                return response;
+              }).catch(() => cached);
+            })
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
     }
   </script>
 </body>
