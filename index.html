@@ -9,10 +9,11 @@
   <title>متابعة المخدومات</title>
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <style>
 /* ============================================================
-   نظام متابعة المخدومات - Styles
+   نظام متابعة المخدومات — Optimized Styles
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -37,9 +38,10 @@
   --shadow-lg: 0 8px 40px rgba(26,39,68,0.2);
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tap-target: 44px;
 }
 
-html { font-size: 16px; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 
 body {
   font-family: 'Tajawal', sans-serif;
@@ -49,8 +51,10 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   user-select: none;
   -webkit-user-select: none;
+  overscroll-behavior-y: none;
 }
 
 #app { min-height: 100vh; position: relative; max-width: 480px; margin: 0 auto; }
@@ -63,13 +67,15 @@ body {
   background: linear-gradient(160deg, #1a2744 0%, #2a3d6b 50%, #1a2744 100%);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.5s ease;
+  contain: strict;
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
-.splash-content { text-align: center; color: white; }
+.splash-content { text-align: center; color: white; contain: layout; }
 .splash-cross {
   font-size: 64px; display: block; margin-bottom: 16px;
   animation: pulse 2s ease-in-out infinite;
   filter: drop-shadow(0 0 20px rgba(232,160,32,0.5));
+  will-change: transform;
 }
 .splash-content h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
 .splash-content p { font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 32px; }
@@ -80,6 +86,7 @@ body {
 .splash-loader div {
   height: 100%; width: 40%; background: var(--accent);
   border-radius: 2px; animation: loading 1.2s ease-in-out infinite;
+  will-change: transform;
 }
 @keyframes loading { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
@@ -97,6 +104,7 @@ body {
   transform: translate(-50%, -60%);
   font-size: 200px; color: rgba(255,255,255,0.04);
   pointer-events: none;
+  user-select: none;
 }
 #loginScreen {
   position: fixed; inset: 0; z-index: 10;
@@ -120,8 +128,10 @@ body {
   font-size: 17px; font-weight: 600; color: var(--text);
   cursor: pointer; display: flex; align-items: center;
   justify-content: center; gap: 12px;
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .btn-google:active { transform: scale(0.97); }
 .login-note { margin-top: 16px; color: var(--text-muted); font-size: 14px; }
@@ -136,13 +146,15 @@ body {
   padding: calc(16px + var(--safe-top)) 16px 16px;
   display: flex; align-items: center; justify-content: space-between;
   z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.2);
+  contain: layout;
 }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .menu-btn {
   background: rgba(255,255,255,0.1); border: none;
-  color: white; font-size: 22px; width: 44px; height: 44px;
+  color: white; font-size: 22px; width: var(--tap-target); height: var(--tap-target);
   border-radius: 12px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
 }
 .header-titles h1 { color: white; font-size: 20px; font-weight: 700; line-height: 1.2; }
 .page-subtitle { color: rgba(255,255,255,0.6); font-size: 12px; display: block; }
@@ -150,7 +162,7 @@ body {
 .sync-indicator {
   width: 32px; height: 32px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; transition: all 0.3s;
+  font-size: 18px; transition: color 0.3s;
 }
 .sync-indicator.online { color: var(--green); animation: spin 2s linear 1; }
 .sync-indicator.offline { color: var(--orange); }
@@ -169,18 +181,21 @@ body {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   z-index: 200; opacity: 0; pointer-events: none;
   transition: opacity 0.3s;
+  will-change: opacity;
 }
 .drawer-overlay.show { opacity: 1; pointer-events: all; }
 .drawer {
   position: fixed; top: 0; right: -280px; bottom: 0;
   width: 280px; background: white; z-index: 201;
-  transition: right 0.3s cubic-bezier(0.4,0,0.2,1);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
   box-shadow: var(--shadow-lg);
   display: flex; flex-direction: column;
   padding-top: var(--safe-top);
   padding-bottom: var(--safe-bottom);
+  will-change: transform;
+  contain: layout;
 }
-.drawer.open { right: 0; }
+.drawer.open { transform: translateX(-280px); }
 .drawer-header {
   background: var(--primary); color: white;
   padding: 24px 20px; display: flex; align-items: center; gap: 14px;
@@ -196,13 +211,13 @@ body {
 .drawer-user-info span { font-size: 16px; font-weight: 600; }
 .drawer-email { font-size: 12px !important; font-weight: 400 !important; opacity: 0.7; }
 .drawer-menu { list-style: none; flex: 1; overflow-y: auto; padding: 12px 0; }
-.drawer-menu li { }
 .menu-item {
   display: flex; align-items: center; gap: 14px;
   padding: 14px 20px; text-decoration: none;
   color: var(--text); font-size: 16px; font-weight: 500;
-  border-radius: 0; transition: background 0.2s;
+  transition: background 0.2s;
   cursor: pointer;
+  min-height: var(--tap-target);
 }
 .menu-item span { font-size: 20px; }
 .menu-item.active { background: rgba(26,39,68,0.08); color: var(--primary); font-weight: 700; }
@@ -224,9 +239,10 @@ body {
   padding-top: calc(76px + var(--safe-top));
   padding-bottom: calc(70px + var(--safe-bottom));
   min-height: 100vh;
+  contain: layout;
 }
-.page { padding: 16px; }
-.page.hidden { display: none; }
+.page { padding: 16px; display: none; }
+.page.active { display: block; }
 
 /* ============================================================
    BOTTOM NAV
@@ -238,15 +254,18 @@ body {
   display: flex; align-items: center; justify-content: space-around;
   padding: 8px 0 calc(8px + var(--safe-bottom));
   z-index: 100; box-shadow: 0 -2px 16px rgba(0,0,0,0.08);
+  contain: layout;
 }
 .nav-btn {
   flex: 1; background: none; border: none;
   display: flex; flex-direction: column; align-items: center;
   gap: 4px; padding: 8px 4px;
   color: var(--text-muted); cursor: pointer; font-family: 'Tajawal', sans-serif;
-  transition: all 0.2s;
+  transition: color 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
-.nav-btn span { font-size: 22px; line-height: 1; }
+.nav-btn span { font-size: 22px; line-height: 1; transition: transform 0.2s; display: block; }
 .nav-btn label { font-size: 11px; font-weight: 600; cursor: pointer; }
 .nav-btn.active { color: var(--primary); }
 .nav-btn.active span { transform: scale(1.1); }
@@ -268,12 +287,14 @@ body {
   background: white; border-radius: 14px;
   box-shadow: var(--shadow-lg); margin-top: -8px;
   overflow: hidden; z-index: 50; position: relative;
+  display: none;
 }
-.search-results.hidden { display: none; }
+.search-results.show { display: block; }
 .search-item {
   padding: 14px 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
   cursor: pointer; font-size: 15px;
+  min-height: var(--tap-target);
 }
 .search-item:last-child { border-bottom: none; }
 .search-item:active { background: var(--bg); }
@@ -284,6 +305,7 @@ body {
   color: white; display: flex; justify-content: space-between;
   align-items: center; margin-bottom: 16px;
   box-shadow: var(--shadow);
+  contain: layout;
 }
 .today-label { font-size: 13px; opacity: 0.7; display: block; }
 .today-day { font-size: 24px; font-weight: 800; display: block; }
@@ -304,6 +326,7 @@ body {
   padding: 16px; text-align: center;
   box-shadow: var(--shadow);
   border-top: 4px solid transparent;
+  contain: layout;
 }
 .stat-card.blue { border-color: var(--primary); }
 .stat-card.green { border-color: var(--green); }
@@ -319,11 +342,13 @@ body {
 }
 
 .top-list, .followup-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-.top-item {
+.top-item, .followup-item {
   background: white; border-radius: 12px; padding: 12px 16px;
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  contain: layout;
 }
+.top-item { gap: 12px; }
 .top-rank {
   width: 28px; height: 28px; border-radius: 50%;
   background: var(--primary); color: white;
@@ -335,10 +360,9 @@ body {
 .top-count { font-size: 14px; color: var(--green); font-weight: 600; }
 
 .followup-item {
-  background: white; border-radius: 12px; padding: 12px 16px;
-  display: flex; align-items: center; justify-content: space-between;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  justify-content: space-between;
   border-right: 4px solid var(--red); cursor: pointer;
+  min-height: var(--tap-target);
 }
 .followup-name { font-size: 15px; font-weight: 600; }
 .followup-badge {
@@ -354,14 +378,14 @@ body {
 /* ============================================================
    ATTENDANCE PAGE
    ============================================================ */
-.day-selector {
-  display: flex; gap: 8px; margin-bottom: 12px;
-}
+.day-selector { display: flex; gap: 8px; margin-bottom: 12px; }
 .day-btn {
   flex: 1; padding: 12px 8px; border: 2px solid var(--border);
   background: white; border-radius: 12px;
   font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 600;
   color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .day-btn.active {
   background: var(--primary); color: white; border-color: var(--primary);
@@ -376,12 +400,14 @@ body {
 .date-input-wrap label { font-size: 15px; font-weight: 600; color: var(--primary); }
 .date-input {
   flex: 1; border: none; outline: none; background: transparent;
-  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left;
+  font-family: 'Tajawal', sans-serif; font-size: 15px;
+  text-align: left; direction: ltr;
 }
 
 .activities-tabs {
   display: flex; gap: 6px; margin-bottom: 12px;
   overflow-x: auto; padding-bottom: 4px;
+  scrollbar-width: none;
 }
 .activities-tabs::-webkit-scrollbar { display: none; }
 .act-tab {
@@ -389,6 +415,8 @@ body {
   border: 2px solid var(--border); background: white;
   font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 600;
   color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .act-tab.active {
   background: var(--accent); color: white; border-color: var(--accent);
@@ -398,6 +426,7 @@ body {
   display: flex; gap: 16px; margin-bottom: 12px;
   background: white; border-radius: 12px; padding: 12px 16px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  contain: layout;
 }
 .summ-item { font-size: 14px; font-weight: 600; }
 .green-text { color: var(--green); }
@@ -411,6 +440,8 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   cursor: pointer; transition: transform 0.15s;
   border-right: 4px solid var(--border);
+  contain: layout;
+  min-height: var(--tap-target);
 }
 .att-item:active { transform: scale(0.98); }
 .att-item.present { border-color: var(--green); }
@@ -441,15 +472,15 @@ body {
   font-family: 'Tajawal', sans-serif; font-size: 16px; font-weight: 700;
   cursor: pointer; box-shadow: 0 6px 20px rgba(26,39,68,0.35);
   z-index: 50; transition: transform 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .fab-save:active { transform: scale(0.95); }
 
 /* ============================================================
    GIRLS PAGE
    ============================================================ */
-.filter-bar {
-  display: flex; gap: 10px; margin-bottom: 14px; align-items: center;
-}
+.filter-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 .filter-select {
   flex: 1; padding: 12px 14px; background: white;
   border: 2px solid var(--border); border-radius: 12px;
@@ -462,6 +493,8 @@ body {
   font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 700;
   cursor: pointer; white-space: nowrap;
   box-shadow: 0 4px 12px rgba(26,39,68,0.3);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 
 .girls-list { display: flex; flex-direction: column; gap: 10px; }
@@ -469,6 +502,8 @@ body {
   background: white; border-radius: 16px; padding: 16px;
   display: flex; align-items: center; gap: 14px;
   box-shadow: var(--shadow); cursor: pointer; transition: transform 0.15s;
+  contain: layout;
+  min-height: var(--tap-target);
 }
 .girl-card:active { transform: scale(0.98); }
 .girl-avatar {
@@ -485,6 +520,8 @@ body {
 .edit-btn {
   background: var(--bg); border: none; border-radius: 10px;
   padding: 8px 10px; font-size: 18px; cursor: pointer;
+  min-width: var(--tap-target); min-height: var(--tap-target);
+  display: flex; align-items: center; justify-content: center;
 }
 
 .grade-badge {
@@ -503,8 +540,10 @@ body {
 .cal-month-title { font-size: 18px; font-weight: 700; }
 .cal-nav-btn {
   background: rgba(255,255,255,0.15); border: none; color: white;
-  width: 40px; height: 40px; border-radius: 10px; cursor: pointer;
+  width: var(--tap-target); height: var(--tap-target);
+  border-radius: 10px; cursor: pointer;
   font-size: 18px; display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
 }
 
 .calendar-grid {
@@ -526,6 +565,8 @@ body {
   border: 1px solid var(--border);
   cursor: pointer; position: relative; font-size: 15px;
   transition: background 0.15s; font-weight: 500;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .cal-day:active { background: var(--bg); }
 .cal-day.empty { background: transparent; cursor: default; }
@@ -541,8 +582,9 @@ body {
 .day-detail {
   background: white; border-radius: var(--radius);
   margin-top: 12px; padding: 16px; box-shadow: var(--shadow);
+  display: none;
 }
-.day-detail.hidden { display: none; }
+.day-detail.show { display: block; }
 .day-detail-header { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 12px; }
 .day-activity { font-size: 15px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .day-activity:last-child { border-bottom: none; }
@@ -558,7 +600,8 @@ body {
 .stats-month-selector label { font-size: 16px; font-weight: 600; color: var(--primary); }
 .month-input {
   flex: 1; border: none; outline: none; background: transparent;
-  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left;
+  font-family: 'Tajawal', sans-serif; font-size: 15px;
+  text-align: left; direction: ltr;
 }
 
 .big-stats-grid {
@@ -569,6 +612,7 @@ body {
   background: white; border-radius: var(--radius);
   padding: 20px; text-align: center; box-shadow: var(--shadow);
   border-top: 4px solid var(--primary);
+  contain: layout;
 }
 .big-stat-card.green-card { border-color: var(--green); }
 .big-stat-card.red-card { border-color: var(--red); }
@@ -613,6 +657,8 @@ body {
   font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 600;
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
   transition: background 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .btn-clear-history:active { background: rgba(231,76,60,0.25); }
 .load-more-wrap { text-align: center; margin-top: 16px; padding-bottom: 8px; }
@@ -621,6 +667,8 @@ body {
   background: white; border-radius: 14px;
   font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 600;
   color: var(--primary); cursor: pointer; transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .btn-load-more:active { background: var(--bg); }
 .history-list { display: flex; flex-direction: column; gap: 8px; }
@@ -628,53 +676,13 @@ body {
   background: white; border-radius: 14px; padding: 14px 16px;
   display: flex; gap: 12px; align-items: flex-start;
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  contain: layout;
 }
 .history-icon { font-size: 24px; flex-shrink: 0; }
 .history-info { flex: 1; }
 .history-action { font-size: 15px; font-weight: 700; display: block; color: var(--primary); }
 .history-detail { font-size: 13px; color: var(--text); display: block; margin: 2px 0; }
 .history-meta { font-size: 12px; color: var(--text-muted); display: block; }
-
-/* Delete girl button inside modal */
-.btn-danger {
-  flex: 1; padding: 14px; background: rgba(231,76,60,0.1); border: none;
-  border-radius: 12px; font-family: 'Tajawal', sans-serif;
-  font-size: 15px; font-weight: 600; color: var(--red); cursor: pointer;
-  transition: background 0.2s;
-}
-.btn-danger:active { background: rgba(231,76,60,0.25); }
-
-/* Confirm modal overlay (shared) */
-.confirm-overlay {
-  position: fixed; inset: 0; z-index: 400;
-  background: rgba(0,0,0,0.55);
-  display: flex; align-items: center; justify-content: center;
-  padding: 24px; opacity: 0; pointer-events: none;
-  transition: opacity 0.2s;
-}
-.confirm-overlay.show { opacity: 1; pointer-events: all; }
-.confirm-box {
-  background: white; border-radius: 20px; padding: 28px 24px;
-  width: 100%; max-width: 360px; text-align: center;
-  box-shadow: var(--shadow-lg);
-  transform: scale(0.9); transition: transform 0.2s;
-}
-.confirm-overlay.show .confirm-box { transform: scale(1); }
-.confirm-icon { font-size: 48px; margin-bottom: 12px; }
-.confirm-title { font-size: 20px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
-.confirm-msg { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
-.confirm-actions { display: flex; gap: 10px; }
-.confirm-cancel {
-  flex: 1; padding: 13px; background: var(--bg); border: none;
-  border-radius: 12px; font-family: 'Tajawal', sans-serif;
-  font-size: 16px; font-weight: 600; color: var(--text-muted); cursor: pointer;
-}
-.confirm-ok {
-  flex: 1; padding: 13px; border: none; border-radius: 12px;
-  font-family: 'Tajawal', sans-serif; font-size: 16px; font-weight: 700;
-  color: white; cursor: pointer; background: var(--red);
-}
-.confirm-ok.blue { background: var(--primary); }
 
 /* ============================================================
    EXPORT PAGE
@@ -697,6 +705,8 @@ body {
   padding: 18px 20px; border-radius: 14px; border: none;
   cursor: pointer; font-family: 'Tajawal', sans-serif;
   text-align: right; transition: transform 0.15s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .export-btn:active { transform: scale(0.97); }
 .export-btn span { font-size: 28px; }
@@ -715,6 +725,7 @@ body {
   display: flex; align-items: flex-end; justify-content: center;
   opacity: 0; pointer-events: none;
   transition: opacity 0.3s;
+  will-change: opacity;
   padding-bottom: var(--safe-bottom);
 }
 .modal-overlay.show { opacity: 1; pointer-events: all; }
@@ -722,15 +733,17 @@ body {
   background: white; width: 100%; max-height: 90vh;
   border-radius: 24px 24px 0 0;
   overflow: hidden; display: flex; flex-direction: column;
-  transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  will-change: transform;
+  contain: layout;
 }
 .modal-overlay.show .modal { transform: translateY(0); }
 .modal-large { max-height: 85vh; }
 .modal-header {
   background: var(--primary); color: white;
-  padding: 20px 20px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
+  padding: 20px; display: flex; align-items: center;
+  justify-content: space-between; flex-shrink: 0;
 }
 .modal-header h3 { font-size: 18px; font-weight: 700; }
 .modal-close {
@@ -738,8 +751,9 @@ body {
   width: 36px; height: 36px; border-radius: 10px;
   font-size: 18px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
+  touch-action: manipulation;
 }
-.modal-body { flex: 1; overflow-y: auto; padding: 20px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 20px; overscroll-behavior-y: contain; }
 .modal-footer {
   padding: 16px 20px; display: flex; gap: 10px;
   border-top: 1px solid var(--border); flex-shrink: 0;
@@ -760,12 +774,16 @@ textarea.form-input { resize: none; }
   flex: 1; padding: 14px; background: var(--bg); border: none;
   border-radius: 12px; font-family: 'Tajawal', sans-serif;
   font-size: 16px; font-weight: 600; color: var(--text-muted); cursor: pointer;
+  min-height: var(--tap-target);
 }
 .btn-primary {
   flex: 2; padding: 14px; background: var(--primary); border: none;
   border-radius: 12px; font-family: 'Tajawal', sans-serif;
   font-size: 16px; font-weight: 700; color: white; cursor: pointer;
   box-shadow: 0 4px 12px rgba(26,39,68,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .btn-primary:active { transform: scale(0.97); }
 
@@ -776,6 +794,8 @@ textarea.form-input { resize: none; }
   flex: 1; padding: 16px; border-radius: 14px; border: 3px solid transparent;
   font-family: 'Tajawal', sans-serif; font-size: 18px; font-weight: 700;
   cursor: pointer; transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
 }
 .attend-btn.present { background: rgba(46,204,113,0.1); color: var(--green); border-color: var(--green); }
 .attend-btn.absent { background: rgba(231,76,60,0.1); color: var(--red); border-color: var(--red); }
@@ -785,7 +805,7 @@ textarea.form-input { resize: none; }
 .rating-section { margin-bottom: 16px; }
 .rating-section label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
 .stars-input { display: flex; gap: 8px; flex-direction: row-reverse; justify-content: flex-end; }
-.star { font-size: 32px; color: var(--border); cursor: pointer; transition: color 0.15s; }
+.star { font-size: 32px; color: var(--border); cursor: pointer; transition: color 0.15s; touch-action: manipulation; }
 .star.active { color: var(--accent); }
 
 /* Profile Modal */
@@ -826,9 +846,11 @@ textarea.form-input { resize: none; }
   z-index: 500; white-space: nowrap;
   box-shadow: var(--shadow-lg);
   transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
-.toast.hidden { display: none; }
-.toast.show { display: block; }
+.toast.hidden { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); display: block; }
 .toast.success { background: var(--green); }
 .toast.error { background: var(--red); }
 .toast.warning { background: var(--orange); }
@@ -846,6 +868,17 @@ textarea.form-input { resize: none; }
 /* iOS specific */
 input[type="date"], input[type="month"] {
   -webkit-appearance: none;
+  direction: ltr;
+  text-align: left;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
   </style>
 </head>
@@ -890,7 +923,7 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
         <div class="header-left">
-          <div class="sync-indicator" id="syncIndicator" title="المزامنة" role="status" aria-label="حالة المزامنة">
+          <div class="sync-indicator" id="syncIndicator" title="المزامنة" role="status" aria-live="polite">
             <span class="sync-icon">⟳</span>
           </div>
           <div class="avatar" id="userAvatar">خ</div>
@@ -899,7 +932,7 @@ input[type="date"], input[type="month"] {
 
       <!-- Side Drawer -->
       <div class="drawer-overlay" id="drawerOverlay"></div>
-      <nav class="drawer" id="drawer">
+      <nav class="drawer" id="drawer" aria-label="القائمة الرئيسية">
         <div class="drawer-header">
           <div class="drawer-avatar" id="drawerAvatar">خ</div>
           <div class="drawer-user-info">
@@ -929,9 +962,9 @@ input[type="date"], input[type="month"] {
         <!-- HOME PAGE -->
         <div id="page-home" class="page active">
           <div class="search-bar-wrap">
-            <input type="text" id="globalSearch" class="search-bar" placeholder="🔍 ابحث عن مخدومة...">
+            <input type="text" id="globalSearch" class="search-bar" placeholder="🔍 ابحث عن مخدومة..." autocomplete="off">
           </div>
-          <div id="searchResults" class="search-results hidden"></div>
+          <div id="searchResults" class="search-results"></div>
 
           <div class="today-card">
             <div class="today-info">
@@ -969,14 +1002,14 @@ input[type="date"], input[type="month"] {
         </div>
 
         <!-- ATTENDANCE PAGE -->
-        <div id="page-attendance" class="page hidden">
+        <div id="page-attendance" class="page">
           <div class="day-selector">
             <button class="day-btn" data-day="السبت">السبت</button>
             <button class="day-btn" data-day="الاثنين">الإثنين</button>
             <button class="day-btn" data-day="الاربعاء">الأربعاء</button>
           </div>
           <div class="date-input-wrap">
-            <label>التاريخ:</label>
+            <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
           <div class="activities-tabs">
@@ -995,7 +1028,7 @@ input[type="date"], input[type="month"] {
         </div>
 
         <!-- GIRLS PAGE -->
-        <div id="page-girls" class="page hidden">
+        <div id="page-girls" class="page">
           <div class="filter-bar">
             <select id="gradeFilter" class="filter-select">
               <option value="">كل السنوات</option>
@@ -1009,20 +1042,20 @@ input[type="date"], input[type="month"] {
         </div>
 
         <!-- CALENDAR PAGE -->
-        <div id="page-calendar" class="page hidden">
+        <div id="page-calendar" class="page">
           <div class="calendar-nav">
             <button class="cal-nav-btn" id="calPrev" aria-label="الشهر السابق">◀</button>
             <span id="calMonthYear" class="cal-month-title">---</span>
             <button class="cal-nav-btn" id="calNext" aria-label="الشهر التالي">▶</button>
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
-          <div id="dayDetail" class="day-detail hidden"></div>
+          <div id="dayDetail" class="day-detail"></div>
         </div>
 
         <!-- STATS PAGE -->
-        <div id="page-stats" class="page hidden">
+        <div id="page-stats" class="page">
           <div class="stats-month-selector">
-            <label>الشهر:</label>
+            <label for="statsMonth">الشهر:</label>
             <input type="month" id="statsMonth" class="month-input">
           </div>
           <div class="big-stats-grid" id="bigStatsGrid"></div>
@@ -1033,7 +1066,7 @@ input[type="date"], input[type="month"] {
         </div>
 
         <!-- HISTORY PAGE -->
-        <div id="page-history" class="page hidden">
+        <div id="page-history" class="page">
           <div class="history-controls">
             <select id="historyFilter" class="filter-select">
               <option value="">كل الأحداث</option>
@@ -1053,12 +1086,12 @@ input[type="date"], input[type="month"] {
         </div>
 
         <!-- EXPORT PAGE -->
-        <div id="page-export" class="page hidden">
+        <div id="page-export" class="page">
           <div class="export-card">
             <div class="export-icon">📊</div>
             <h3>تصدير البيانات</h3>
             <div class="export-month-wrap">
-              <label>اختر الشهر:</label>
+              <label for="exportMonth">اختر الشهر:</label>
               <input type="month" id="exportMonth" class="month-input">
             </div>
             <div class="export-btns">
@@ -1081,7 +1114,7 @@ input[type="date"], input[type="month"] {
       </main>
 
       <!-- Bottom Nav -->
-      <nav class="bottom-nav">
+      <nav class="bottom-nav" aria-label="التنقل السفلي">
         <button class="nav-btn active" data-page="home" aria-label="الرئيسية"><span>🏠</span><label>الرئيسية</label></button>
         <button class="nav-btn" data-page="attendance" aria-label="الحضور"><span>📋</span><label>الحضور</label></button>
         <button class="nav-btn" data-page="girls" aria-label="المخدومات"><span>👥</span><label>المخدومات</label></button>
@@ -1091,7 +1124,7 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Modal: Add/Edit Girl -->
-    <div class="modal-overlay" id="girlModal" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="girlModal" role="dialog" aria-modal="true" aria-labelledby="girlModalTitle">
       <div class="modal">
         <div class="modal-header">
           <h3 id="girlModalTitle">إضافة مخدومة</h3>
@@ -1099,15 +1132,15 @@ input[type="date"], input[type="month"] {
         </div>
         <div class="modal-body">
           <div class="form-group">
-            <label>الاسم الكامل *</label>
-            <input type="text" id="girlName" class="form-input" placeholder="اسم المخدومة">
+            <label for="girlName">الاسم الكامل *</label>
+            <input type="text" id="girlName" class="form-input" placeholder="اسم المخدومة" autocomplete="off">
           </div>
           <div class="form-group">
-            <label>رقم الهاتف</label>
-            <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون">
+            <label for="girlPhone">رقم الهاتف</label>
+            <input type="tel" id="girlPhone" class="form-input" placeholder="رقم التليفون" dir="ltr">
           </div>
           <div class="form-group">
-            <label>السنة الدراسية *</label>
+            <label for="girlGrade">السنة الدراسية *</label>
             <select id="girlGrade" class="form-input">
               <option value="">اختر السنة</option>
               <option value="أولى إعدادي">أولى إعدادي</option>
@@ -1116,7 +1149,7 @@ input[type="date"], input[type="month"] {
             </select>
           </div>
           <div class="form-group">
-            <label>ملاحظات</label>
+            <label for="girlNotes">ملاحظات</label>
             <textarea id="girlNotes" class="form-input" rows="3" placeholder="أي ملاحظات..."></textarea>
           </div>
         </div>
@@ -1129,7 +1162,7 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Confirm Modal -->
-    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true">
+    <div class="confirm-overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
       <div class="confirm-box">
         <div class="confirm-icon" id="confirmIcon">⚠️</div>
         <div class="confirm-title" id="confirmTitle">تأكيد</div>
@@ -1142,19 +1175,18 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Modal: Girl Profile -->
-    <div class="modal-overlay" id="girlProfileModal" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="girlProfileModal" role="dialog" aria-modal="true" aria-labelledby="profileName">
       <div class="modal modal-large">
         <div class="modal-header">
           <h3 id="profileName">ملف المخدومة</h3>
           <button class="modal-close" id="closeProfileModal" aria-label="إغلاق">✕</button>
         </div>
-        <div class="modal-body" id="profileBody">
-        </div>
+        <div class="modal-body" id="profileBody"></div>
       </div>
     </div>
 
     <!-- Modal: Attendance Entry -->
-    <div class="modal-overlay" id="attendanceModal" role="dialog" aria-modal="true">
+    <div class="modal-overlay" id="attendanceModal" role="dialog" aria-modal="true" aria-labelledby="attendanceModalTitle">
       <div class="modal">
         <div class="modal-header">
           <h3 id="attendanceModalTitle">تسجيل الحضور</h3>
@@ -1163,21 +1195,21 @@ input[type="date"], input[type="month"] {
         <div class="modal-body">
           <p class="modal-girl-name" id="modalGirlName"></p>
           <div class="attend-options">
-            <button class="attend-btn present" data-status="حاضر">✓ حاضر</button>
-            <button class="attend-btn absent" data-status="غائب">✗ غائب</button>
+            <button class="attend-btn present" data-status="حاضر" type="button">✓ حاضر</button>
+            <button class="attend-btn absent" data-status="غائب" type="button">✗ غائب</button>
           </div>
           <div id="ratingSection" class="rating-section">
             <label>التقييم:</label>
             <div class="stars-input" id="starsInput">
-              <span class="star" data-val="1">★</span>
-              <span class="star" data-val="2">★</span>
-              <span class="star" data-val="3">★</span>
-              <span class="star" data-val="4">★</span>
-              <span class="star" data-val="5">★</span>
+              <span class="star" data-val="1" role="button" aria-label="1 نجمة">★</span>
+              <span class="star" data-val="2" role="button" aria-label="2 نجمة">★</span>
+              <span class="star" data-val="3" role="button" aria-label="3 نجوم">★</span>
+              <span class="star" data-val="4" role="button" aria-label="4 نجوم">★</span>
+              <span class="star" data-val="5" role="button" aria-label="5 نجوم">★</span>
             </div>
           </div>
           <div class="form-group">
-            <label>ملاحظات:</label>
+            <label for="attendanceNotes">ملاحظات:</label>
             <textarea id="attendanceNotes" class="form-input" rows="3" placeholder="ملاحظات..."></textarea>
           </div>
         </div>
@@ -1189,7 +1221,7 @@ input[type="date"], input[type="month"] {
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
   <!-- Firebase -->
@@ -1221,111 +1253,122 @@ input[type="date"], input[type="month"] {
     const provider    = new GoogleAuthProvider();
 
     // ============================================================
+    // DOM CACHE — one-time query
+    // ============================================================
+    const $ = (id) => document.getElementById(id);
+    const $$ = (sel, root = document) => root.querySelectorAll(sel);
+
+    const DOM = {
+      splash: $('splash'), loginScreen: $('loginScreen'), mainApp: $('mainApp'),
+      pageTitle: $('pageTitle'), pageSubtitle: $('pageSubtitle'),
+      syncIndicator: $('syncIndicator'), userAvatar: $('userAvatar'),
+      drawer: $('drawer'), drawerOverlay: $('drawerOverlay'),
+      drawerAvatar: $('drawerAvatar'), drawerUserName: $('drawerUserName'),
+      drawerUserEmail: $('drawerUserEmail'), offlineBadge: $('offlineBadge'),
+      pageContent: $('pageContent'), toast: $('toast'),
+      globalSearch: $('globalSearch'), searchResults: $('searchResults'),
+      todayDay: $('todayDay'), todayDate: $('todayDate'), todayServiceBadge: $('todayServiceBadge'),
+      statTotal: $('statTotal'), statPresentToday: $('statPresentToday'),
+      statAbsentToday: $('statAbsentToday'), statAvgRating: $('statAvgRating'),
+      topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
+      attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
+      presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'),
+      saveAttendanceBtn: $('saveAttendanceBtn'), gradeFilter: $('gradeFilter'),
+      girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
+      calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
+      dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
+      statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
+      absenceChart: $('absenceChart'), attendanceRanking: $('attendanceRanking'),
+      historyList: $('historyList'), historyFilter: $('historyFilter'),
+      clearHistoryBtn: $('clearHistoryBtn'), loadMoreHistory: $('loadMoreHistory'),
+      loadMoreHistoryBtn: $('loadMoreHistoryBtn'), exportMonth: $('exportMonth'),
+      exportCSV: $('exportCSV'), exportJSON: $('exportJSON'), exportPrint: $('exportPrint'),
+      girlModal: $('girlModal'), girlModalTitle: $('girlModalTitle'),
+      girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
+      girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
+      closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
+      saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
+      profileName: $('profileName'), profileBody: $('profileBody'),
+      closeProfileModal: $('closeProfileModal'), attendanceModal: $('attendanceModal'),
+      attendanceModalTitle: $('attendanceModalTitle'), modalGirlName: $('modalGirlName'),
+      attendanceNotes: $('attendanceNotes'), ratingSection: $('ratingSection'),
+      starsInput: $('starsInput'), saveAttendanceEntry: $('saveAttendanceEntry'),
+      closeAttendanceModal: $('closeAttendanceModal'), cancelAttendanceModal: $('cancelAttendanceModal'),
+      confirmOverlay: $('confirmOverlay'), confirmIcon: $('confirmIcon'),
+      confirmTitle: $('confirmTitle'), confirmMsg: $('confirmMsg'),
+      confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
+      menuBtn: $('menuBtn'), signOutBtn: $('signOutBtn'), googleSignIn: $('googleSignIn')
+    };
+
+    // ============================================================
     // APP STATE
     // ============================================================
-    let currentUser   = null;
-    let girls         = [];
-    let attendanceData = {};
-    let currentPage   = 'home';
-    let selectedDay   = 'السبت';
-    let selectedActivity = 'دراسي';
-    let currentAttendanceGirlId = null;
-    let currentAttendanceRating = 0;
-    let editingGirlId = null;
-    let calendarDate  = new Date();
-    let isOnline      = navigator.onLine;
-    let idb;                  // set once in openIDB()
-    let appInitialized = false; // guard: prevent double init
-    let unsubGirls    = null;   // onSnapshot unsubscribe
-    let unsubAtt      = null;   // onSnapshot unsubscribe
-    let renderTimeout = null;   // debounce renders
+    const state = {
+      currentUser: null,
+      girls: [],
+      attendanceData: {},
+      currentPage: 'home',
+      selectedDay: 'السبت',
+      selectedActivity: 'دراسي',
+      currentAttendanceGirlId: null,
+      currentAttendanceRating: 0,
+      editingGirlId: null,
+      calendarDate: new Date(),
+      isOnline: navigator.onLine,
+      idb: null,
+      appInitialized: false,
+      unsubGirls: null,
+      unsubAtt: null,
+      renderTimeout: null,
+      historyOffset: 0,
+      historyAllLogs: [],
+      dirtyFlags: new Set()
+    };
+
+    const HISTORY_PAGE_SIZE = 30;
+    const SERVICE_DAYS = { 'السبت': true, 'الاثنين': true, 'الاربعاء': true };
+    const DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+    const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
 
     // ============================================================
-    // SPLASH — guaranteed to hide after 3 s regardless of Firebase
+    // XSS PROTECTION
     // ============================================================
-    let splashHidden = false;
-    function hideSplash() {
-      if (splashHidden) return;
-      splashHidden = true;
-      const splash = document.getElementById('splash');
-      if (!splash) return;
-      splash.classList.add('fade-out');
-      setTimeout(() => { if (splash.parentNode) splash.remove(); }, 500);
-    }
-    setTimeout(hideSplash, 3000); // hard fallback
+    const esc = (() => {
+      const div = document.createElement('div');
+      const txt = document.createTextNode('');
+      div.appendChild(txt);
+      return (str) => {
+        txt.nodeValue = String(str ?? '');
+        return div.innerHTML;
+      };
+    })();
 
     // ============================================================
-    // INDEXEDDB
+    // DATE UTILITIES (local timezone safe)
     // ============================================================
-    function openIDB() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open('MakhdomatDB', 2);
-        req.onupgradeneeded = e => {
-          const d = e.target.result;
-          if (!d.objectStoreNames.contains('girls'))      d.createObjectStore('girls',      { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('attendance')) d.createObjectStore('attendance', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('history'))    d.createObjectStore('history',    { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('pending'))    d.createObjectStore('pending',    { keyPath: 'id' });
-        };
-        req.onsuccess = e => { idb = e.target.result; resolve(idb); };
-        req.onerror   = ()  => reject(req.error);
-      });
-    }
-
-    function idbPut(store, data) {
-      return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readwrite');
-        tx.objectStore(store).put(data);
-        tx.oncomplete = () => res();
-        tx.onerror    = () => rej(tx.error);
-      });
-    }
-    function idbGetAll(store) {
-      return new Promise((res, rej) => {
-        const tx  = idb.transaction(store, 'readonly');
-        const req = tx.objectStore(store).getAll();
-        req.onsuccess = () => res(req.result);
-        req.onerror   = () => rej(req.error);
-      });
-    }
-    function idbDelete(store, id) {
-      return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readwrite');
-        tx.objectStore(store).delete(id);
-        tx.oncomplete = () => res();
-        tx.onerror    = () => rej(tx.error);
-      });
-    }
-    function idbClear(store) {
-      return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readwrite');
-        tx.objectStore(store).clear();
-        tx.oncomplete = () => res();
-        tx.onerror    = () => rej(tx.error);
-      });
-    }
+    const DateUtil = {
+      pad: (n) => String(n).padStart(2, '0'),
+      toStr(d = new Date()) {
+        return `${d.getFullYear()}-${this.pad(d.getMonth()+1)}-${this.pad(d.getDate())}`;
+      },
+      getMonthStr(d = new Date()) {
+        return `${d.getFullYear()}-${this.pad(d.getMonth()+1)}`;
+      },
+      formatMonth(str) {
+        if (!str) return '';
+        const [y, m] = str.split('-').map(Number);
+        return new Date(y, m-1, 1).toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
+      },
+      dayName(d = new Date()) { return DAY_NAMES[d.getDay()]; },
+      normalize(d) {
+        return { 'الأحد':'الاحد','الاثنين':'الاثنين','الثلاثاء':'الثلاثاء',
+                 'الأربعاء':'الاربعاء','الخميس':'الخميس','الجمعة':'الجمعة','السبت':'السبت' }[d] || d;
+      }
+    };
 
     // ============================================================
-    // DATE HELPERS (local timezone safe)
+    // ARABIC TEXT NORMALIZATION
     // ============================================================
-    function getLocalDateStr(d = new Date()) {
-      const year  = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day   = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    function getMonthStr(date) {
-      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
-    }
-    function formatMonth(monthStr) {
-      if (!monthStr) return '';
-      const [y, m] = monthStr.split('-');
-      return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString('ar-EG',{year:'numeric',month:'long'});
-    }
-    function normalizeDay(d) {
-      return { 'الأحد':'الاحد','الاثنين':'الاثنين','الثلاثاء':'الثلاثاء',
-               'الأربعاء':'الاربعاء','الخميس':'الخميس','الجمعة':'الجمعة','السبت':'السبت' }[d] || d;
-    }
     function normalizeArabic(str) {
       if (!str) return '';
       return str.replace(/[\u064B-\u065F\u0670\u0640]/g, '')
@@ -1338,114 +1381,155 @@ input[type="date"], input[type="month"] {
     }
 
     // ============================================================
-    // BOOTSTRAP — open IDB first, THEN handle auth
+    // INDEXEDDB
     // ============================================================
-    async function bootstrap() {
-      try { await openIDB(); }
-      catch (e) { console.error('IDB open failed:', e); }
-
-      try {
-        await getRedirectResult(auth);
-      } catch (e) {
-        console.error('getRedirectResult error:', e);
-        showToast('فشل تسجيل الدخول: ' + e.message, 'error');
+    const IDB = {
+      async open() {
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open('MakhdomatDB', 2);
+          req.onupgradeneeded = e => {
+            const d = e.target.result;
+            ['girls','attendance','history','pending'].forEach(store => {
+              if (!d.objectStoreNames.contains(store)) d.createObjectStore(store, { keyPath: 'id' });
+            });
+          };
+          req.onsuccess = e => { state.idb = e.target.result; resolve(state.idb); };
+          req.onerror   = ()  => reject(req.error);
+        });
+      },
+      async put(store, data) {
+        return new Promise((res, rej) => {
+          const tx = state.idb.transaction(store, 'readwrite');
+          tx.objectStore(store).put(data);
+          tx.oncomplete = () => res();
+          tx.onerror    = () => rej(tx.error);
+        });
+      },
+      async getAll(store) {
+        return new Promise((res, rej) => {
+          const tx  = state.idb.transaction(store, 'readonly');
+          const req = tx.objectStore(store).getAll();
+          req.onsuccess = () => res(req.result);
+          req.onerror   = () => rej(req.error);
+        });
+      },
+      async delete(store, id) {
+        return new Promise((res, rej) => {
+          const tx = state.idb.transaction(store, 'readwrite');
+          tx.objectStore(store).delete(id);
+          tx.oncomplete = () => res();
+          tx.onerror    = () => rej(tx.error);
+        });
+      },
+      async clear(store) {
+        return new Promise((res, rej) => {
+          const tx = state.idb.transaction(store, 'readwrite');
+          tx.objectStore(store).clear();
+          tx.oncomplete = () => res();
+          tx.onerror    = () => rej(tx.error);
+        });
       }
-
-      onAuthStateChanged(auth, async (user) => {
-        hideSplash();
-
-        if (!user) {
-          currentUser    = null;
-          appInitialized = false;
-          girls          = [];
-          attendanceData = {};
-          stopSync();
-          showLogin();
-          return;
-        }
-
-        currentUser = user;
-        showApp(user);
-
-        if (!appInitialized) {
-          appInitialized = true;
-          await loadData();
-          renderCurrentPage();
-        }
-      });
-    }
-
-    bootstrap();
+    };
 
     // ============================================================
     // TOAST
     // ============================================================
+    let toastTimeout;
     function showToast(msg, type = 'info') {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.className   = `toast show ${type}`;
-      setTimeout(() => { t.className = 'toast hidden'; }, 3000);
+      clearTimeout(toastTimeout);
+      DOM.toast.textContent = msg;
+      DOM.toast.className = `toast show ${type}`;
+      toastTimeout = setTimeout(() => { DOM.toast.className = 'toast hidden'; }, 3000);
     }
+
+    // ============================================================
+    // SPLASH
+    // ============================================================
+    let splashDone = false;
+    function hideSplash() {
+      if (splashDone) return;
+      splashDone = true;
+      DOM.splash.classList.add('fade-out');
+      setTimeout(() => DOM.splash.remove(), 500);
+    }
+    setTimeout(hideSplash, 3000);
 
     // ============================================================
     // ONLINE / OFFLINE
     // ============================================================
     window.addEventListener('online', () => {
-      isOnline = true;
-      updateSyncIndicator();
-      syncPendingData();
+      state.isOnline = true;
+      updateSyncUI();
+      syncPending();
       showToast('تم الاتصال بالإنترنت - جارٍ المزامنة', 'success');
-    });
-    window.addEventListener('offline', () => {
-      isOnline = false;
-      updateSyncIndicator();
-      showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
-    });
+    }, { passive: true });
 
-    function updateSyncIndicator() {
-      const ind   = document.getElementById('syncIndicator');
-      const badge = document.getElementById('offlineBadge');
-      if (isOnline) {
-        ind.classList.remove('offline'); ind.classList.add('online');
-        badge?.classList.remove('show');
+    window.addEventListener('offline', () => {
+      state.isOnline = false;
+      updateSyncUI();
+      showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
+    }, { passive: true });
+
+    function updateSyncUI() {
+      const { syncIndicator, offlineBadge } = DOM;
+      if (state.isOnline) {
+        syncIndicator.classList.remove('offline');
+        syncIndicator.classList.add('online');
+        offlineBadge.classList.remove('show');
       } else {
-        ind.classList.remove('online'); ind.classList.add('offline');
-        badge?.classList.add('show');
+        syncIndicator.classList.remove('online');
+        syncIndicator.classList.add('offline');
+        offlineBadge.classList.add('show');
       }
     }
 
-    async function syncPendingData() {
-      if (!idb || !isOnline) return;
+    async function syncPending() {
+      if (!state.idb || !state.isOnline) return;
       try {
-        const pending = await idbGetAll('pending');
-        let syncCount = 0;
+        const pending = await IDB.getAll('pending');
+        let count = 0;
         for (const item of pending) {
           try {
-            if      (item.type === 'girl')       await setDoc(doc(db, 'girls',      item.data.id), item.data);
+            if (item.type === 'girl')       await setDoc(doc(db, 'girls', item.data.id), item.data);
             else if (item.type === 'attendance') await setDoc(doc(db, 'attendance', item.data.id), item.data);
-            await idbDelete('pending', item.id);
-            syncCount++;
+            await IDB.delete('pending', item.id);
+            count++;
           } catch(e) { console.error('Sync item error:', e); }
         }
-        if (syncCount > 0) showToast(`تمت مزامنة ${syncCount} سجل`, 'success');
+        if (count > 0) showToast(`تمت مزامنة ${count} سجل`, 'success');
       } catch(e) { console.error('Sync error:', e); }
     }
 
     // ============================================================
-    // SYNC CLEANUP
+    // AUTH
     // ============================================================
-    function stopSync() {
-      if (unsubGirls) { unsubGirls(); unsubGirls = null; }
-      if (unsubAtt)   { unsubAtt();   unsubAtt   = null; }
+    async function initAuth() {
+      try { await getRedirectResult(auth); } catch(e) { console.error(e); }
+
+      onAuthStateChanged(auth, async (user) => {
+        hideSplash();
+        if (!user) {
+          state.currentUser = null;
+          state.appInitialized = false;
+          state.girls = [];
+          state.attendanceData = {};
+          stopListeners();
+          showLogin();
+          return;
+        }
+        state.currentUser = user;
+        showApp(user);
+        if (!state.appInitialized) {
+          state.appInitialized = true;
+          await loadData();
+          renderPage();
+        }
+      });
     }
 
-    // ============================================================
-    // AUTH BUTTONS
-    // ============================================================
-    document.getElementById('googleSignIn').addEventListener('click', async () => {
-      try {
-        await signInWithPopup(auth, provider);
-      } catch (e) {
+    DOM.googleSignIn.addEventListener('click', async () => {
+      try { await signInWithPopup(auth, provider); }
+      catch (e) {
         if (['auth/popup-blocked','auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(e.code)) {
           try { await signInWithRedirect(auth, provider); }
           catch (e2) { showToast('فشل تسجيل الدخول: ' + e2.message, 'error'); }
@@ -1455,26 +1539,31 @@ input[type="date"], input[type="month"] {
       }
     });
 
-    document.getElementById('signOutBtn').addEventListener('click', async () => {
+    DOM.signOutBtn.addEventListener('click', async () => {
       await signOut(auth);
     });
 
-    // ============================================================
-    // SHOW / HIDE APP
-    // ============================================================
     function showApp(user) {
-      document.getElementById('loginScreen').classList.add('hidden');
-      document.getElementById('mainApp').classList.remove('hidden');
+      DOM.loginScreen.classList.add('hidden');
+      DOM.mainApp.classList.remove('hidden');
       const initial = user.displayName ? user.displayName[0] : 'خ';
-      document.getElementById('userAvatar').textContent      = initial;
-      document.getElementById('drawerAvatar').textContent    = initial;
-      document.getElementById('drawerUserName').textContent  = user.displayName || 'الخادم';
-      document.getElementById('drawerUserEmail').textContent = user.email || '';
+      DOM.userAvatar.textContent = initial;
+      DOM.drawerAvatar.textContent = initial;
+      DOM.drawerUserName.textContent = user.displayName || 'الخادم';
+      DOM.drawerUserEmail.textContent = user.email || '';
     }
 
     function showLogin() {
-      document.getElementById('loginScreen').classList.remove('hidden');
-      document.getElementById('mainApp').classList.add('hidden');
+      DOM.loginScreen.classList.remove('hidden');
+      DOM.mainApp.classList.add('hidden');
+    }
+
+    // ============================================================
+    // FIREBASE LISTENERS LIFECYCLE
+    // ============================================================
+    function stopListeners() {
+      if (state.unsubGirls) { state.unsubGirls(); state.unsubGirls = null; }
+      if (state.unsubAtt)   { state.unsubAtt();   state.unsubAtt   = null; }
     }
 
     // ============================================================
@@ -1482,708 +1571,742 @@ input[type="date"], input[type="month"] {
     // ============================================================
     async function loadData() {
       try {
-        // Show cached data immediately
-        if (idb) {
-          const localGirls = await idbGetAll('girls');
-          if (localGirls.length > 0) {
-            girls = localGirls.filter(g => !g.isDeleted);
-            renderCurrentPage();
+        if (state.idb) {
+          const localGirls = await IDB.getAll('girls');
+          if (localGirls.length) {
+            state.girls = localGirls.filter(g => !g.isDeleted);
+            renderPage();
           }
-          const localAtt = await idbGetAll('attendance');
-          localAtt.forEach(a => { attendanceData[a.id] = a; });
+          const localAtt = await IDB.getAll('attendance');
+          localAtt.forEach(a => { state.attendanceData[a.id] = a; });
         }
+        if (!state.isOnline) return;
 
-        if (!isOnline) return;
-
-        // Sync history (once, not live)
+        // History once
         try {
           const histSnap = await getDocs(query(collection(db, 'history'), orderBy('timestamp', 'desc')));
-          for (const d of histSnap.docs) {
-            if (idb) await idbPut('history', { id: d.id, ...d.data() });
-          }
+          for (const d of histSnap.docs) await IDB.put('history', { id: d.id, ...d.data() });
         } catch(e) { console.error('History sync error:', e); }
 
         // Live girls
-        if (unsubGirls) unsubGirls();
-        unsubGirls = onSnapshot(query(collection(db, 'girls'), orderBy('name')), async snap => {
+        state.unsubGirls = onSnapshot(query(collection(db, 'girls'), orderBy('name')), async snap => {
           for (const change of snap.docChanges()) {
             const g = { id: change.doc.id, ...change.doc.data() };
             if (change.type === 'removed' || g.isDeleted) {
-              girls = girls.filter(x => x.id !== g.id);
-              if (idb) await idbDelete('girls', g.id);
+              state.girls = state.girls.filter(x => x.id !== g.id);
+              if (state.idb) await IDB.delete('girls', g.id);
             } else {
-              if (idb) await idbPut('girls', g);
-              const idx = girls.findIndex(x => x.id === g.id);
-              if (idx >= 0) girls[idx] = g; else girls.push(g);
+              if (state.idb) await IDB.put('girls', g);
+              const idx = state.girls.findIndex(x => x.id === g.id);
+              idx >= 0 ? (state.girls[idx] = g) : state.girls.push(g);
             }
           }
-          girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+          state.girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
           scheduleRender();
         });
 
         // Live attendance
-        if (unsubAtt) unsubAtt();
-        unsubAtt = onSnapshot(query(collection(db, 'attendance'), orderBy('date', 'desc')), async snap => {
+        state.unsubAtt = onSnapshot(query(collection(db, 'attendance'), orderBy('date', 'desc')), async snap => {
           for (const change of snap.docChanges()) {
             const a = { id: change.doc.id, ...change.doc.data() };
             if (change.type === 'removed') {
-              delete attendanceData[a.id];
-              if (idb) await idbDelete('attendance', a.id);
+              delete state.attendanceData[a.id];
+              if (state.idb) await IDB.delete('attendance', a.id);
             } else {
-              attendanceData[a.id] = a;
-              if (idb) await idbPut('attendance', a);
+              state.attendanceData[a.id] = a;
+              if (state.idb) await IDB.put('attendance', a);
             }
           }
           scheduleRender();
         });
-
       } catch(e) { console.error('Load error:', e); }
     }
 
     // ============================================================
-    // RENDER DEBOUNCE
+    // RENDER ENGINE (debounced, dirty-flagged)
     // ============================================================
     function scheduleRender() {
-      clearTimeout(renderTimeout);
-      renderTimeout = setTimeout(() => renderCurrentPage(), 60);
+      clearTimeout(state.renderTimeout);
+      state.renderTimeout = setTimeout(() => renderPage(), 60);
+    }
+
+    function renderPage() {
+      switch(state.currentPage) {
+        case 'home':       renderHome(); break;
+        case 'attendance': renderAttendancePage(); break;
+        case 'girls':      renderGirlsList(); break;
+        case 'calendar':   renderCalendar(); break;
+        case 'stats':      renderStats(); break;
+        case 'history':    renderHistory(false); break;
+        case 'export':     renderExport(); break;
+      }
     }
 
     // ============================================================
     // NAVIGATION
     // ============================================================
+    const PAGE_TITLES = {
+      home:       ['الرئيسية', ''],
+      attendance: ['الحضور اليومي', 'تسجيل وإدارة الحضور'],
+      girls:      ['المخدومات', 'قائمة المخدومات'],
+      calendar:   ['التقويم الشهري', 'أيام الخدمة'],
+      stats:      ['الإحصائيات', 'تحليلات وتقارير'],
+      history:    ['السجل التاريخي', 'سجل التعديلات'],
+      export:     ['التصدير', 'تصدير البيانات']
+    };
+
     function navigateTo(page) {
-      document.querySelectorAll('.page').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
-      const pg = document.getElementById('page-' + page);
-      if (pg) { pg.classList.remove('hidden'); pg.classList.add('active'); }
-
-      document.querySelectorAll('.nav-btn').forEach(b  => b.classList.toggle('active', b.dataset.page === page));
-      document.querySelectorAll('.menu-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
-
-      const titles = {
-        home:       ['الرئيسية',        ''],
-        attendance: ['الحضور اليومي',   'تسجيل وإدارة الحضور'],
-        girls:      ['المخدومات',        'قائمة المخدومات'],
-        calendar:   ['التقويم الشهري',  'أيام الخدمة'],
-        stats:      ['الإحصائيات',      'تحليلات وتقارير'],
-        history:    ['السجل التاريخي',  'سجل التعديلات'],
-        export:     ['التصدير',          'تصدير البيانات']
-      };
-      document.getElementById('pageTitle').textContent    = titles[page]?.[0] || page;
-      document.getElementById('pageSubtitle').textContent = titles[page]?.[1] || '';
-
-      currentPage = page;
-      renderCurrentPage();
+      $$('.page').forEach(p => p.classList.remove('active'));
+      $(`page-${page}`).classList.add('active');
+      $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      $$('.menu-item[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      const [title, sub] = PAGE_TITLES[page] || [page, ''];
+      DOM.pageTitle.textContent = title;
+      DOM.pageSubtitle.textContent = sub;
+      state.currentPage = page;
+      renderPage();
       closeDrawer();
     }
 
-    function renderCurrentPage() {
-      switch(currentPage) {
-        case 'home':       renderHome();           break;
-        case 'attendance': renderAttendancePage(); break;
-        case 'girls':      renderGirlsList();      break;
-        case 'calendar':   renderCalendar();        break;
-        case 'stats':      renderStats();           break;
-        case 'history':    renderHistory();         break;
-        case 'export':     renderExport();          break;
-      }
+    $$('.nav-btn').forEach(btn => btn.addEventListener('click', () => navigateTo(btn.dataset.page)));
+    $$('.menu-item[data-page]').forEach(item => item.addEventListener('click', e => {
+      e.preventDefault();
+      navigateTo(item.dataset.page);
+    }));
+
+    DOM.menuBtn.addEventListener('click', openDrawer);
+    DOM.drawerOverlay.addEventListener('click', closeDrawer);
+
+    function openDrawer() {
+      DOM.drawer.classList.add('open');
+      DOM.drawerOverlay.classList.add('show');
     }
-
-    document.querySelectorAll('.nav-btn').forEach(btn =>
-      btn.addEventListener('click', () => navigateTo(btn.dataset.page)));
-    document.querySelectorAll('.menu-item[data-page]').forEach(item =>
-      item.addEventListener('click', e => { e.preventDefault(); navigateTo(item.dataset.page); }));
-
-    // Drawer
-    document.getElementById('menuBtn').addEventListener('click', openDrawer);
-    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
-    function openDrawer()  { document.getElementById('drawer').classList.add('open');    document.getElementById('drawerOverlay').classList.add('show'); }
-    function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); }
+    function closeDrawer() {
+      DOM.drawer.classList.remove('open');
+      DOM.drawerOverlay.classList.remove('show');
+    }
 
     // ============================================================
     // HOME PAGE
     // ============================================================
     function renderHome() {
-      const now  = new Date();
-      const days = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-      const dayName = days[now.getDay()];
-      document.getElementById('todayDay').textContent  = dayName;
-      document.getElementById('todayDate').textContent = now.toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'});
+      const now = new Date();
+      const dayName = DateUtil.dayName(now);
+      DOM.todayDay.textContent = dayName;
+      DOM.todayDate.textContent = now.toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric'});
 
-      const todayBadge    = document.getElementById('todayServiceBadge');
-      const normalizedDay = normalizeDay(dayName);
-      const serviceMap    = { 'السبت':'يوم خدمة ✓', 'الاثنين':'يوم خدمة ✓', 'الاربعاء':'يوم خدمة ✓' };
-      if (serviceMap[normalizedDay]) {
-        todayBadge.textContent = serviceMap[normalizedDay];
-        todayBadge.classList.add('active');
-      } else {
-        todayBadge.textContent = 'لا توجد خدمة اليوم';
-        todayBadge.classList.remove('active');
-      }
+      const normalized = DateUtil.normalize(dayName);
+      const isService = SERVICE_DAYS[normalized];
+      DOM.todayServiceBadge.textContent = isService ? 'يوم خدمة ✓' : 'لا توجد خدمة اليوم';
+      DOM.todayServiceBadge.classList.toggle('active', isService);
 
-      document.getElementById('statTotal').textContent = girls.length;
+      DOM.statTotal.textContent = state.girls.length;
 
-      const todayStr = getLocalDateStr(now);
+      const todayStr = DateUtil.toStr(now);
       let presentToday = 0, absentToday = 0;
-      Object.values(attendanceData).forEach(a => {
-        if (a.date === todayStr) {
-          if      (a.status === 'حاضر') presentToday++;
-          else if (a.status === 'غائب') absentToday++;
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.date !== todayStr) return;
+        if (a.status === 'حاضر') presentToday++;
+        else if (a.status === 'غائب') absentToday++;
+      });
+      DOM.statPresentToday.textContent = presentToday;
+      DOM.statAbsentToday.textContent = absentToday;
+
+      const monthStr = DateUtil.getMonthStr(now);
+      let totalRating = 0, ratingCount = 0;
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.date?.startsWith(monthStr) && a.rating > 0) {
+          totalRating += a.rating; ratingCount++;
         }
       });
-      document.getElementById('statPresentToday').textContent = presentToday;
-      document.getElementById('statAbsentToday').textContent  = absentToday;
+      DOM.statAvgRating.textContent = ratingCount ? (totalRating/ratingCount).toFixed(1) : '-';
 
-      const monthStr = getMonthStr(now);
-      let totalRating = 0, ratingCount = 0;
-      Object.values(attendanceData).forEach(a => {
-        if (a.date?.startsWith(monthStr) && a.rating > 0) { totalRating += a.rating; ratingCount++; }
+      // Top attendees — computed once
+      const counts = {};
+      state.girls.forEach(g => counts[g.id] = 0);
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && counts[a.girlId] !== undefined) {
+          counts[a.girlId]++;
+        }
       });
-      document.getElementById('statAvgRating').textContent = ratingCount > 0 ? (totalRating/ratingCount).toFixed(1) : '-';
+      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
+      const topEl = DOM.topAttendees;
 
-      // Top attendees
-      const attendanceCounts = {};
-      girls.forEach(g => attendanceCounts[g.id] = 0);
-      Object.values(attendanceData).forEach(a => {
-        if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && attendanceCounts[a.girlId] !== undefined)
-          attendanceCounts[a.girlId]++;
-      });
-      const sorted = Object.entries(attendanceCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
-      const topEl  = document.getElementById('topAttendees');
-      if (!sorted.length || sorted[0][1] === 0) {
+      if (!sorted.length || !sorted[0][1]) {
         topEl.innerHTML = '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>';
       } else {
-        topEl.innerHTML = sorted.map(([id, count], i) => {
-          const g = girls.find(x => x.id === id);
-          if (!g || count === 0) return '';
-          return `<div class="top-item">
-            <span class="top-rank">${i+1}</span>
-            <span class="top-name">${g.name}</span>
-            <span class="top-count">${count} يوم</span>
-          </div>`;
-        }).join('');
+        const frag = document.createDocumentFragment();
+        sorted.forEach(([id, count], i) => {
+          const g = state.girls.find(x => x.id === id);
+          if (!g || !count) return;
+          const div = document.createElement('div');
+          div.className = 'top-item';
+          div.innerHTML = `<span class="top-rank">${i+1}</span><span class="top-name">${esc(g.name)}</span><span class="top-count">${count} يوم</span>`;
+          frag.appendChild(div);
+        });
+        topEl.innerHTML = '';
+        topEl.appendChild(frag);
       }
 
       // Needs followup
-      const needsEl   = document.getElementById('needsFollowup');
-      const needsList = girls.filter(g => {
-        return Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length >= 2;
+      const needs = state.girls.filter(g => {
+        const abs = Object.values(state.attendanceData).filter(a =>
+          a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
+        ).length;
+        return abs >= 2;
       });
-      if (!needsList.length) {
+      const needsEl = DOM.needsFollowup;
+      if (!needs.length) {
         needsEl.innerHTML = '<div class="empty-state">لا توجد حالات تحتاج متابعة</div>';
       } else {
-        needsEl.innerHTML = needsList.map(g => {
-          const abs = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-          return `<div class="followup-item" data-girl-id="${g.id}">
-            <span class="followup-name">${g.name}</span>
-            <span class="followup-badge">${abs} غياب</span>
-          </div>`;
-        }).join('');
+        const frag = document.createDocumentFragment();
+        needs.forEach(g => {
+          const abs = Object.values(state.attendanceData).filter(a =>
+            a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
+          ).length;
+          const div = document.createElement('div');
+          div.className = 'followup-item';
+          div.dataset.girlId = g.id;
+          div.innerHTML = `<span class="followup-name">${esc(g.name)}</span><span class="followup-badge">${abs} غياب</span>`;
+          frag.appendChild(div);
+        });
+        needsEl.innerHTML = '';
+        needsEl.appendChild(frag);
       }
     }
 
     // ============================================================
     // SEARCH
     // ============================================================
-    document.getElementById('globalSearch').addEventListener('input', function() {
-      const q         = this.value.trim();
-      const resultsEl = document.getElementById('searchResults');
-      if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
+    DOM.globalSearch.addEventListener('input', function() {
+      const q = this.value.trim();
+      const resultsEl = DOM.searchResults;
+      if (!q) { resultsEl.classList.remove('show'); resultsEl.innerHTML = ''; return; }
       const qNorm = normalizeArabic(q);
-      const matches = girls.filter(g => normalizeArabic(g.name).includes(qNorm));
+      const matches = state.girls.filter(g => normalizeArabic(g.name).includes(qNorm));
       resultsEl.innerHTML = matches.length
-        ? matches.map(g => `<div class="search-item" data-girl-id="${g.id}"><span>${g.name}</span><span class="grade-badge">${g.grade}</span></div>`).join('')
+        ? matches.map(g => `<div class="search-item" data-girl-id="${esc(g.id)}"><span>${esc(g.name)}</span><span class="grade-badge">${esc(g.grade)}</span></div>`).join('')
         : '<div class="search-item">لا توجد نتائج</div>';
-      resultsEl.classList.remove('hidden');
+      resultsEl.classList.add('show');
     });
 
     // ============================================================
     // GIRLS PAGE
     // ============================================================
     function renderGirlsList() {
-      const filter   = document.getElementById('gradeFilter').value;
-      const filtered = filter ? girls.filter(g => g.grade === filter) : girls;
-      const el       = document.getElementById('girlsList');
+      const filter = DOM.gradeFilter.value;
+      const filtered = filter ? state.girls.filter(g => g.grade === filter) : state.girls;
+      const el = DOM.girlsList;
       if (!filtered.length) {
         el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
         return;
       }
-      const monthStr = getMonthStr(new Date());
-      el.innerHTML = filtered.map(g => {
-        const presents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر').length;
-        const absents  = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return `<div class="girl-card" data-girl-id="${g.id}">
-          <div class="girl-avatar">${g.name[0]}</div>
+      const monthStr = DateUtil.getMonthStr(new Date());
+      const frag = document.createDocumentFragment();
+      filtered.forEach(g => {
+        const presents = Object.values(state.attendanceData).filter(a =>
+          a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر'
+        ).length;
+        const absents = Object.values(state.attendanceData).filter(a =>
+          a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
+        ).length;
+        const div = document.createElement('div');
+        div.className = 'girl-card';
+        div.dataset.girlId = g.id;
+        div.innerHTML = `
+          <div class="girl-avatar">${esc(g.name[0])}</div>
           <div class="girl-info">
-            <span class="girl-name">${g.name}</span>
-            <span class="girl-grade">${g.grade}</span>
+            <span class="girl-name">${esc(g.name)}</span>
+            <span class="girl-grade">${esc(g.grade)}</span>
             <div class="girl-stats"><span class="green-text">✓${presents}</span><span class="red-text">✗${absents}</span></div>
           </div>
-          <button class="edit-btn" data-girl-id="${g.id}">✏️</button>
-        </div>`;
-      }).join('');
+          <button class="edit-btn" data-girl-id="${esc(g.id)}" aria-label="تعديل ${esc(g.name)}">✏️</button>`;
+        frag.appendChild(div);
+      });
+      el.innerHTML = '';
+      el.appendChild(frag);
     }
 
-    document.getElementById('gradeFilter').addEventListener('change', renderGirlsList);
+    DOM.gradeFilter.addEventListener('change', renderGirlsList);
 
-    document.getElementById('addGirlBtn').addEventListener('click', () => {
-      editingGirlId = null;
-      document.getElementById('girlModalTitle').textContent = 'إضافة مخدومة';
-      document.getElementById('girlName').value  = '';
-      document.getElementById('girlPhone').value = '';
-      document.getElementById('girlGrade').value = '';
-      document.getElementById('girlNotes').value = '';
-      document.getElementById('deleteGirlBtn').classList.add('hidden');
+    DOM.addGirlBtn.addEventListener('click', () => {
+      state.editingGirlId = null;
+      DOM.girlModalTitle.textContent = 'إضافة مخدومة';
+      DOM.girlName.value = '';
+      DOM.girlPhone.value = '';
+      DOM.girlGrade.value = '';
+      DOM.girlNotes.value = '';
+      DOM.deleteGirlBtn.classList.add('hidden');
       openModal('girlModal');
     });
 
     function editGirl(id) {
-      const g = girls.find(x => x.id === id);
+      const g = state.girls.find(x => x.id === id);
       if (!g) return;
-      editingGirlId = id;
-      document.getElementById('girlModalTitle').textContent = 'تعديل بيانات المخدومة';
-      document.getElementById('girlName').value  = g.name;
-      document.getElementById('girlPhone').value = g.phone || '';
-      document.getElementById('girlGrade').value = g.grade;
-      document.getElementById('girlNotes').value = g.notes || '';
-      document.getElementById('deleteGirlBtn').classList.remove('hidden');
+      state.editingGirlId = id;
+      DOM.girlModalTitle.textContent = 'تعديل بيانات المخدومة';
+      DOM.girlName.value = g.name;
+      DOM.girlPhone.value = g.phone || '';
+      DOM.girlGrade.value = g.grade;
+      DOM.girlNotes.value = g.notes || '';
+      DOM.deleteGirlBtn.classList.remove('hidden');
       openModal('girlModal');
     }
 
-    document.getElementById('deleteGirlBtn').addEventListener('click', () => {
-      if (!editingGirlId) return;
-      const g = girls.find(x => x.id === editingGirlId);
+    DOM.deleteGirlBtn.addEventListener('click', () => {
+      if (!state.editingGirlId) return;
+      const g = state.girls.find(x => x.id === state.editingGirlId);
       if (!g) return;
       closeModal('girlModal');
       showConfirm({
         icon: '🗑️', title: 'حذف مخدومة',
-        msg: `هل أنت متأكد من حذف "${g.name}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
+        msg: `هل أنت متأكد من حذف "${esc(g.name)}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
         okLabel: 'حذف',
         onOk: async () => {
-          const id = editingGirlId;
+          const id = state.editingGirlId;
+          state.girls = state.girls.filter(x => x.id !== id);
+          const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
+          attKeys.forEach(k => delete state.attendanceData[k]);
 
-          // 1. Remove from local memory
-          girls = girls.filter(x => x.id !== id);
-          const attKeysToDelete = Object.keys(attendanceData).filter(k => attendanceData[k].girlId === id);
-          attKeysToDelete.forEach(k => delete attendanceData[k]);
-
-          // 2. Update IDB (soft-delete girl, hard-delete attendance)
-          if (idb) {
-            await idbPut('girls', { ...g, isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' });
-            const allAtt = await idbGetAll('attendance');
-            for (const a of allAtt) {
-              if (a.girlId === id) await idbDelete('attendance', a.id);
-            }
+          if (state.idb) {
+            await IDB.put('girls', { ...g, isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' });
+            const allAtt = await IDB.getAll('attendance');
+            for (const a of allAtt) if (a.girlId === id) await IDB.delete('attendance', a.id);
           }
 
-          // 3. Firestore: soft-delete girl + batch delete attendance
-          if (isOnline) {
+          if (state.isOnline) {
             try {
               const batch = writeBatch(db);
-              batch.set(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' }, { merge: true });
+              batch.set(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' }, { merge: true });
               const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
               const attSnap = await getDocs(attQuery);
               attSnap.forEach(d => batch.delete(d.ref));
               await batch.commit();
             } catch(e) { console.error('Delete girl Firestore error:', e); }
           }
-
           await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
           showToast(`تم حذف ${g.name}`, 'success');
-          renderCurrentPage();
+          renderPage();
         }
       });
     });
 
-    document.getElementById('saveGirlBtn').addEventListener('click', async () => {
-      const name  = document.getElementById('girlName').value.trim();
-      const phone = document.getElementById('girlPhone').value.trim();
-      const grade = document.getElementById('girlGrade').value;
-      const notes = document.getElementById('girlNotes').value.trim();
+    DOM.saveGirlBtn.addEventListener('click', async () => {
+      const name = DOM.girlName.value.trim();
+      const phone = DOM.girlPhone.value.trim();
+      const grade = DOM.girlGrade.value;
+      const notes = DOM.girlNotes.value.trim();
 
-      if (!name)  { showToast('الرجاء إدخال اسم المخدومة', 'error');       return; }
-      if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error');    return; }
-      if (girls.find(g => g.name === name && g.id !== editingGirlId)) {
+      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
+      if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
+      if (state.girls.find(g => g.name === name && g.id !== state.editingGirlId)) {
         showToast('هذه المخدومة موجودة بالفعل', 'error'); return;
       }
 
-      const id       = editingGirlId || 'girl_' + Date.now();
+      const id = state.editingGirlId || 'girl_' + Date.now();
       const girlData = {
         id, name, phone, grade, notes,
-        createdAt:      editingGirlId ? (girls.find(g=>g.id===editingGirlId)?.createdAt || Date.now()) : Date.now(),
-        updatedAt:      Date.now(),
-        updatedBy:      currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || '',
-        isDeleted:      false
+        createdAt: state.editingGirlId ? (state.girls.find(g=>g.id===state.editingGirlId)?.createdAt || Date.now()) : Date.now(),
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || '',
+        isDeleted: false
       };
 
-      if (idb) await idbPut('girls', girlData);
-      if (editingGirlId) girls = girls.map(g => g.id === id ? girlData : g);
-      else girls.push(girlData);
-
-      await logHistory(editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
-
-      if (isOnline) {
-        try { await setDoc(doc(db, 'girls', id), girlData); }
-        catch(e) { await addToPending('girl', girlData); }
+      if (state.idb) await IDB.put('girls', girlData);
+      if (state.editingGirlId) {
+        state.girls = state.girls.map(g => g.id === id ? girlData : g);
       } else {
-        await addToPending('girl', girlData);
+        state.girls.push(girlData);
+      }
+
+      await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
+
+      if (state.isOnline) {
+        try { await setDoc(doc(db, 'girls', id), girlData); }
+        catch(e) { await addPending('girl', girlData); }
+      } else {
+        await addPending('girl', girlData);
       }
 
       closeModal('girlModal');
-      showToast(editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
-      renderCurrentPage();
+      showToast(state.editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
+      renderPage();
     });
 
     // ============================================================
     // GIRL PROFILE
     // ============================================================
     function showGirlProfile(id) {
-      const g = girls.find(x => x.id === id);
+      const g = state.girls.find(x => x.id === id);
       if (!g) return;
-      document.getElementById('profileName').textContent = g.name;
+      DOM.profileName.textContent = g.name;
 
-      const girlAtt = Object.values(attendanceData).filter(a => a.girlId === id);
+      const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
       girlAtt.sort((a,b) => b.date?.localeCompare(a.date));
 
       const months = {};
-      girlAtt.forEach(a => { const m = a.date?.substring(0,7); if (!months[m]) months[m]=[]; months[m].push(a); });
+      girlAtt.forEach(a => {
+        const m = a.date?.substring(0,7);
+        if (!m) return;
+        (months[m] ||= []).push(a);
+      });
 
       let html = `<div class="profile-info">
-        <span class="grade-badge">${g.grade}</span>
-        ${g.phone ? `<span class="profile-phone">📞 ${g.phone}</span>` : ''}
-        ${g.notes ? `<p class="profile-notes">${g.notes}</p>` : ''}
+        <span class="grade-badge">${esc(g.grade)}</span>
+        ${g.phone ? `<span class="profile-phone">📞 ${esc(g.phone)}</span>` : ''}
+        ${g.notes ? `<p class="profile-notes">${esc(g.notes)}</p>` : ''}
       </div>`;
 
       if (!Object.keys(months).length) {
         html += '<div class="empty-state">لا توجد سجلات حضور</div>';
       } else {
-        Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([month, records]) => {
-          const presents = records.filter(r=>r.status==='حاضر').length;
-          const absents  = records.filter(r=>r.status==='غائب').length;
+        Object.entries(months).sort((a,b) => b[0].localeCompare(a[0])).forEach(([month, records]) => {
+          const presents = records.filter(r => r.status === 'حاضر').length;
+          const absents  = records.filter(r => r.status === 'غائب').length;
           html += `<div class="profile-month">
             <div class="profile-month-header">
-              <span>${formatMonth(month)}</span>
+              <span>${DateUtil.formatMonth(month)}</span>
               <span class="green-text">✓${presents}</span>
               <span class="red-text">✗${absents}</span>
             </div>
             <div class="profile-records">
-              ${records.map(r=>`<div class="profile-record">
-                <span class="rec-date">${r.date}</span>
-                <span class="rec-activity">${r.activity||''}</span>
-                <span class="rec-status ${r.status==='حاضر'?'present':'absent'}">${r.status}</span>
-                ${r.rating?`<span class="rec-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>`:''}
-                ${r.notes?`<span class="rec-notes">${r.notes}</span>`:''}
-              </div>`).join('')}
+              ${records.map(r => {
+                const stars = r.rating ? '★'.repeat(r.rating) + '☆'.repeat(5-r.rating) : '';
+                return `<div class="profile-record">
+                  <span class="rec-date">${esc(r.date)}</span>
+                  <span class="rec-activity">${esc(r.activity||'')}</span>
+                  <span class="rec-status ${r.status==='حاضر'?'present':'absent'}">${esc(r.status)}</span>
+                  ${stars ? `<span class="rec-rating">${stars}</span>` : ''}
+                  ${r.notes ? `<span class="rec-notes">${esc(r.notes)}</span>` : ''}
+                </div>`;
+              }).join('')}
             </div>
           </div>`;
         });
       }
-
-      document.getElementById('profileBody').innerHTML = html;
+      DOM.profileBody.innerHTML = html;
       openModal('girlProfileModal');
     }
 
-    document.getElementById('closeProfileModal').addEventListener('click', () => closeModal('girlProfileModal'));
+    DOM.closeProfileModal.addEventListener('click', () => closeModal('girlProfileModal'));
 
     // ============================================================
     // ATTENDANCE PAGE
     // ============================================================
     function renderAttendancePage() {
-      const dateInput = document.getElementById('attendanceDate');
-      if (!dateInput.value) dateInput.value = getLocalDateStr();
-      setActiveDay(selectedDay);
-      setActiveActivity(selectedActivity);
+      if (!DOM.attendanceDate.value) DOM.attendanceDate.value = DateUtil.toStr();
+      setActiveDay(state.selectedDay);
+      setActiveActivity(state.selectedActivity);
       renderAttendanceList();
     }
 
     function setActiveDay(day) {
-      selectedDay = day;
-      document.querySelectorAll('.day-btn').forEach(b => b.classList.toggle('active', b.dataset.day === day));
+      state.selectedDay = day;
+      $$('.day-btn').forEach(b => b.classList.toggle('active', b.dataset.day === day));
     }
     function setActiveActivity(act) {
-      selectedActivity = act;
-      document.querySelectorAll('.act-tab').forEach(b => b.classList.toggle('active', b.dataset.activity === act));
+      state.selectedActivity = act;
+      $$('.act-tab').forEach(b => b.classList.toggle('active', b.dataset.activity === act));
     }
 
-    document.querySelectorAll('.day-btn').forEach(b =>
-      b.addEventListener('click', () => { setActiveDay(b.dataset.day); renderAttendanceList(); }));
-    document.querySelectorAll('.act-tab').forEach(b =>
-      b.addEventListener('click', () => { setActiveActivity(b.dataset.activity); renderAttendanceList(); }));
-    document.getElementById('attendanceDate').addEventListener('change', renderAttendanceList);
+    $$('.day-btn').forEach(b => b.addEventListener('click', () => {
+      setActiveDay(b.dataset.day);
+      renderAttendanceList();
+    }));
+    $$('.act-tab').forEach(b => b.addEventListener('click', () => {
+      setActiveActivity(b.dataset.activity);
+      renderAttendanceList();
+    }));
+    DOM.attendanceDate.addEventListener('change', renderAttendanceList);
 
     function renderAttendanceList() {
-      const date = document.getElementById('attendanceDate').value;
-      const el   = document.getElementById('attendanceList');
+      const date = DOM.attendanceDate.value;
+      const el = DOM.attendanceList;
       if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
 
       let present = 0, absent = 0, pending = 0;
-      el.innerHTML = girls.map(g => {
-        const key = `${g.id}_${date}_${selectedActivity}`;
-        const rec = attendanceData[key];
+      const frag = document.createDocumentFragment();
+
+      state.girls.forEach(g => {
+        const key = `${g.id}_${date}_${state.selectedActivity}`;
+        const rec = state.attendanceData[key];
         let statusClass = 'pending', statusIcon = '○', statusText = 'لم يُسجَّل';
-        if      (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '✓'; statusText = 'حاضر';     present++; }
-        else if (rec?.status === 'غائب') { statusClass = 'absent';  statusIcon = '✗'; statusText = 'غائب';     absent++;  }
-        else                              pending++;
+        if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '✓'; statusText = 'حاضر'; present++; }
+        else if (rec?.status === 'غائب') { statusClass = 'absent'; statusIcon = '✗'; statusText = 'غائب'; absent++; }
+        else pending++;
+
         const stars = rec?.rating ? '★'.repeat(rec.rating)+'☆'.repeat(5-rec.rating) : '';
-        return `<div class="att-item ${statusClass}" data-girl-id="${g.id}">
+        const div = document.createElement('div');
+        div.className = `att-item ${statusClass}`;
+        div.dataset.girlId = g.id;
+        div.innerHTML = `
           <div class="att-icon">${statusIcon}</div>
           <div class="att-info">
-            <span class="att-name">${g.name}</span>
-            <span class="att-grade">${g.grade}</span>
+            <span class="att-name">${esc(g.name)}</span>
+            <span class="att-grade">${esc(g.grade)}</span>
             ${stars ? `<span class="att-stars">${stars}</span>` : ''}
-            ${rec?.notes ? `<span class="att-note">${rec.notes}</span>` : ''}
+            ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
           </div>
-          <span class="att-status-text ${statusClass}">${statusText}</span>
-        </div>`;
-      }).join('');
+          <span class="att-status-text ${statusClass}">${statusText}</span>`;
+        frag.appendChild(div);
+      });
 
-      document.getElementById('presentCount').textContent = present;
-      document.getElementById('absentCount').textContent  = absent;
-      document.getElementById('pendingCount').textContent = pending;
+      el.innerHTML = '';
+      el.appendChild(frag);
+      DOM.presentCount.textContent = present;
+      DOM.absentCount.textContent = absent;
+      DOM.pendingCount.textContent = pending;
     }
 
     function openAttendanceEntry(girlId, girlName, date) {
-      currentAttendanceGirlId = girlId;
-      currentAttendanceRating = 0;
-      document.getElementById('attendanceModalTitle').textContent = `${selectedActivity} - ${date}`;
-      document.getElementById('modalGirlName').textContent        = girlName;
-      document.getElementById('attendanceNotes').value            = '';
+      state.currentAttendanceGirlId = girlId;
+      state.currentAttendanceRating = 0;
+      DOM.attendanceModalTitle.textContent = `${state.selectedActivity} - ${date}`;
+      DOM.modalGirlName.textContent = girlName;
+      DOM.attendanceNotes.value = '';
 
-      const key      = `${girlId}_${date}_${selectedActivity}`;
-      const existing = attendanceData[key];
+      const key = `${girlId}_${date}_${state.selectedActivity}`;
+      const existing = state.attendanceData[key];
       if (existing) {
-        document.querySelectorAll('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
+        $$('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
         setRating(existing.rating || 0);
-        document.getElementById('attendanceNotes').value = existing.notes || '';
-        document.getElementById('ratingSection').classList.toggle('hidden', existing.status !== 'حاضر');
+        DOM.attendanceNotes.value = existing.notes || '';
+        DOM.ratingSection.classList.toggle('hidden', existing.status !== 'حاضر');
       } else {
-        document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
+        $$('.attend-btn').forEach(b => b.classList.remove('selected'));
         setRating(0);
-        document.getElementById('ratingSection').classList.add('hidden');
+        DOM.ratingSection.classList.add('hidden');
       }
       openModal('attendanceModal');
     }
 
-    document.querySelectorAll('.attend-btn').forEach(b => {
+    $$('.attend-btn').forEach(b => {
       b.addEventListener('click', () => {
-        document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
+        $$('.attend-btn').forEach(x => x.classList.remove('selected'));
         b.classList.add('selected');
-        document.getElementById('ratingSection').classList.toggle('hidden', b.dataset.status !== 'حاضر');
+        DOM.ratingSection.classList.toggle('hidden', b.dataset.status !== 'حاضر');
       });
     });
 
-    document.querySelectorAll('.star').forEach(s =>
-      s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
+    $$('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
     function setRating(val) {
-      currentAttendanceRating = val;
-      document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= val));
+      state.currentAttendanceRating = val;
+      $$('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= val));
     }
 
-    document.getElementById('saveAttendanceEntry').addEventListener('click', async () => {
-      const date      = document.getElementById('attendanceDate').value;
+    DOM.saveAttendanceEntry.addEventListener('click', async () => {
+      const date = DOM.attendanceDate.value;
       const statusBtn = document.querySelector('.attend-btn.selected');
       if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
 
-      const key = `${currentAttendanceGirlId}_${date}_${selectedActivity}`;
+      const key = `${state.currentAttendanceGirlId}_${date}_${state.selectedActivity}`;
       const rec = {
-        id:             key,
-        girlId:         currentAttendanceGirlId,
+        id: key,
+        girlId: state.currentAttendanceGirlId,
         date,
-        day:            selectedDay,
-        activity:       selectedActivity,
-        status:         statusBtn.dataset.status,
-        rating:         statusBtn.dataset.status === 'حاضر' ? currentAttendanceRating : 0,
-        notes:          document.getElementById('attendanceNotes').value.trim(),
-        updatedAt:      Date.now(),
-        updatedBy:      currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || ''
+        day: state.selectedDay,
+        activity: state.selectedActivity,
+        status: statusBtn.dataset.status,
+        rating: statusBtn.dataset.status === 'حاضر' ? state.currentAttendanceRating : 0,
+        notes: DOM.attendanceNotes.value.trim(),
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || ''
       };
 
-      if (idb) await idbPut('attendance', rec);
-      attendanceData[key] = rec;
+      if (state.idb) await IDB.put('attendance', rec);
+      state.attendanceData[key] = rec;
 
-      if (isOnline) {
+      if (state.isOnline) {
         try { await setDoc(doc(db, 'attendance', key), rec); }
-        catch(e) { await addToPending('attendance', rec); }
+        catch(e) { await addPending('attendance', rec); }
       } else {
-        await addToPending('attendance', rec);
+        await addPending('attendance', rec);
       }
 
-      await logHistory('تسجيل حضور', `${girls.find(g=>g.id===currentAttendanceGirlId)?.name} - ${selectedActivity} - ${date} - ${rec.status}`);
+      const gName = state.girls.find(g => g.id === state.currentAttendanceGirlId)?.name || '';
+      await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
       closeModal('attendanceModal');
       showToast('تم الحفظ', 'success');
       renderAttendanceList();
     });
 
-    document.getElementById('saveAttendanceBtn').addEventListener('click', () => showToast('جميع البيانات محفوظة', 'success'));
+    DOM.saveAttendanceBtn.addEventListener('click', () => showToast('جميع البيانات محفوظة', 'success'));
 
     // ============================================================
     // CALENDAR PAGE
     // ============================================================
     function renderCalendar() {
-      const year  = calendarDate.getFullYear();
-      const month = calendarDate.getMonth();
-      document.getElementById('calMonthYear').textContent =
-        calendarDate.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
+      const year  = state.calendarDate.getFullYear();
+      const month = state.calendarDate.getMonth();
+      DOM.calMonthYear.textContent = state.calendarDate.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
 
-      const firstDay    = new Date(year, month, 1).getDay();
+      const firstDay = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month+1, 0).getDate();
+      const todayStr = DateUtil.toStr();
 
       let html = '<div class="cal-weekdays">';
       ['أح','إث','ثل','أر','خم','جم','سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
       html += '</div><div class="cal-days">';
       for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
       for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr    = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const dayOfWeek  = new Date(year, month, d).getDay();
-        const isService  = [1, 3, 6].includes(dayOfWeek);
-        const hasData    = Object.values(attendanceData).some(a => a.date === dateStr);
-        const isToday    = dateStr === getLocalDateStr();
+        const dateStr = `${year}-${DateUtil.pad(month+1)}-${DateUtil.pad(d)}`;
+        const dayOfWeek = new Date(year, month, d).getDay();
+        const isService = [1, 3, 6].includes(dayOfWeek);
+        const hasData = Object.values(state.attendanceData).some(a => a.date === dateStr);
+        const isToday = dateStr === todayStr;
         html += `<div class="cal-day ${isService?'service-day':''} ${hasData?'has-data':''} ${isToday?'today':''}" data-date="${dateStr}">
-          <span>${d}</span>
-          ${isService ? '<div class="service-dot"></div>' : ''}
+          <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
         </div>`;
       }
       html += '</div>';
-      document.getElementById('calendarGrid').innerHTML = html;
+      DOM.calendarGrid.innerHTML = html;
     }
 
     function showDayDetail(dateStr) {
-      const records = Object.values(attendanceData).filter(a => a.date === dateStr);
-      const el      = document.getElementById('dayDetail');
+      const records = Object.values(state.attendanceData).filter(a => a.date === dateStr);
+      const el = DOM.dayDetail;
       if (!records.length) {
         el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
       } else {
         const grouped = {};
-        records.forEach(r => { if (!grouped[r.activity]) grouped[r.activity]=[]; grouped[r.activity].push(r); });
+        records.forEach(r => { (grouped[r.activity || 'عام'] ||= []).push(r); });
         let html = `<div class="day-detail-header">${dateStr}</div>`;
         Object.entries(grouped).forEach(([act, recs]) => {
-          html += `<div class="day-activity"><b>${act}</b>: ${recs.filter(r=>r.status==='حاضر').length} حاضر من ${recs.length}</div>`;
+          html += `<div class="day-activity"><b>${esc(act)}</b>: ${recs.filter(r=>r.status==='حاضر').length} حاضر من ${recs.length}</div>`;
         });
         el.innerHTML = html;
       }
-      el.classList.remove('hidden');
+      el.classList.add('show');
     }
 
-    document.getElementById('calPrev').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); });
-    document.getElementById('calNext').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); });
+    DOM.calPrev.addEventListener('click', () => {
+      state.calendarDate.setMonth(state.calendarDate.getMonth()-1);
+      renderCalendar();
+    });
+    DOM.calNext.addEventListener('click', () => {
+      state.calendarDate.setMonth(state.calendarDate.getMonth()+1);
+      renderCalendar();
+    });
 
     // ============================================================
     // STATS PAGE
     // ============================================================
     function renderStats() {
-      const monthInput = document.getElementById('statsMonth');
-      if (!monthInput.value) monthInput.value = getMonthStr(new Date());
-      const month    = monthInput.value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
+      const month = DOM.statsMonth.value || DateUtil.getMonthStr();
+      if (!DOM.statsMonth.value) DOM.statsMonth.value = month;
+      const monthAtt = Object.values(state.attendanceData).filter(a => a.date?.startsWith(month));
 
       const totalSessions = new Set(monthAtt.map(a => a.date+'_'+a.activity)).size;
-      const presents      = monthAtt.filter(a => a.status==='حاضر').length;
-      const absents       = monthAtt.filter(a => a.status==='غائب').length;
-      const ratings       = monthAtt.filter(a => a.rating>0).map(a => a.rating);
-      const avgRating     = ratings.length ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '-';
+      const presents = monthAtt.filter(a => a.status === 'حاضر').length;
+      const absents  = monthAtt.filter(a => a.status === 'غائب').length;
+      const ratings  = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
+      const avgRating = ratings.length ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '-';
 
-      document.getElementById('bigStatsGrid').innerHTML = `
-        <div class="big-stat-card"><div class="big-num">${girls.length}</div><div>المخدومات</div></div>
+      DOM.bigStatsGrid.innerHTML = `
+        <div class="big-stat-card"><div class="big-num">${state.girls.length}</div><div>المخدومات</div></div>
         <div class="big-stat-card"><div class="big-num">${totalSessions}</div><div>جلسات مسجلة</div></div>
         <div class="big-stat-card green-card"><div class="big-num">${presents}</div><div>إجمالي الحضور</div></div>
         <div class="big-stat-card red-card"><div class="big-num">${absents}</div><div>إجمالي الغياب</div></div>
         <div class="big-stat-card"><div class="big-num">${avgRating}</div><div>متوسط التقييم</div></div>
-        <div class="big-stat-card orange-card"><div class="big-num">${girls.filter(g=>{return monthAtt.filter(a=>a.girlId===g.id&&a.status==='غائب').length>=2;}).length}</div><div>تحتاج متابعة</div></div>
-      `;
+        <div class="big-stat-card orange-card"><div class="big-num">${
+          state.girls.filter(g => monthAtt.filter(a => a.girlId===g.id && a.status==='غائب').length >= 2).length
+        }</div><div>تحتاج متابعة</div></div>`;
 
       const absenceByGirl = {};
-      girls.forEach(g => absenceByGirl[g.id]=0);
-      monthAtt.filter(a=>a.status==='غائب').forEach(a => { if(absenceByGirl[a.girlId]!==undefined) absenceByGirl[a.girlId]++; });
-      const sortedAbs = Object.entries(absenceByGirl).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      document.getElementById('absenceChart').innerHTML = sortedAbs.map(([id,count]) => {
-        const g = girls.find(x=>x.id===id);
-        if (!g||count===0) return '';
+      state.girls.forEach(g => absenceByGirl[g.id] = 0);
+      monthAtt.filter(a => a.status === 'غائب').forEach(a => {
+        if (absenceByGirl[a.girlId] !== undefined) absenceByGirl[a.girlId]++;
+      });
+      const sortedAbs = Object.entries(absenceByGirl).sort((a,b) => b[1]-a[1]).slice(0,10);
+      DOM.absenceChart.innerHTML = sortedAbs.map(([id,count]) => {
+        const g = state.girls.find(x => x.id === id);
+        if (!g || !count) return '';
         return `<div class="chart-row">
-          <span class="chart-name">${g.name}</span>
+          <span class="chart-name">${esc(g.name)}</span>
           <div class="chart-bar-wrap"><div class="chart-bar" style="width:${Math.min(100,count*20)}%"></div></div>
           <span class="chart-val">${count}</span>
         </div>`;
       }).join('') || '<div class="empty-state">لا توجد غيابات هذا الشهر 🎉</div>';
 
       const presentsByGirl = {};
-      girls.forEach(g => presentsByGirl[g.id]=0);
-      monthAtt.filter(a=>a.status==='حاضر').forEach(a => { if(presentsByGirl[a.girlId]!==undefined) presentsByGirl[a.girlId]++; });
-      document.getElementById('attendanceRanking').innerHTML = Object.entries(presentsByGirl)
-        .sort((a,b)=>b[1]-a[1]).map(([id,count],i) => {
-          const g = girls.find(x=>x.id===id);
+      state.girls.forEach(g => presentsByGirl[g.id] = 0);
+      monthAtt.filter(a => a.status === 'حاضر').forEach(a => {
+        if (presentsByGirl[a.girlId] !== undefined) presentsByGirl[a.girlId]++;
+      });
+      DOM.attendanceRanking.innerHTML = Object.entries(presentsByGirl)
+        .sort((a,b) => b[1]-a[1])
+        .map(([id,count], i) => {
+          const g = state.girls.find(x => x.id === id);
           if (!g) return '';
           return `<div class="rank-item">
             <span class="rank-num">${i+1}</span>
-            <span class="rank-name">${g.name}</span>
-            <span class="rank-grade">${g.grade}</span>
+            <span class="rank-name">${esc(g.name)}</span>
+            <span class="rank-grade">${esc(g.grade)}</span>
             <span class="rank-count">${count} يوم</span>
           </div>`;
         }).join('');
     }
 
-    document.getElementById('statsMonth').addEventListener('change', renderStats);
+    DOM.statsMonth.addEventListener('change', renderStats);
 
     // ============================================================
     // HISTORY PAGE
     // ============================================================
-    let historyOffset    = 0;
-    const HISTORY_PAGE_SIZE = 30;
-    let historyAllLogs   = [];
-
     async function renderHistory(append = false) {
-      const el       = document.getElementById('historyList');
-      const filter   = document.getElementById('historyFilter')?.value || '';
+      const el = DOM.historyList;
+      const filter = DOM.historyFilter?.value || '';
 
       if (!append) {
-        el.innerHTML   = '<div class="empty-state">جارٍ التحميل...</div>';
-        historyOffset  = 0;
-        if (idb) {
-          const logs = await idbGetAll('history');
+        el.innerHTML = '<div class="empty-state">جارٍ التحميل...</div>';
+        state.historyOffset = 0;
+        if (state.idb) {
+          const logs = await IDB.getAll('history');
           logs.sort((a,b) => b.timestamp - a.timestamp);
-          historyAllLogs = filter ? logs.filter(l => l.action.includes(filter)) : logs;
+          state.historyAllLogs = filter ? logs.filter(l => l.action.includes(filter)) : logs;
         } else {
-          historyAllLogs = [];
+          state.historyAllLogs = [];
         }
       }
 
-      if (!historyAllLogs.length) {
+      if (!state.historyAllLogs.length) {
         el.innerHTML = '<div class="empty-state">لا توجد سجلات تاريخية</div>';
-        document.getElementById('loadMoreHistory').classList.add('hidden');
+        DOM.loadMoreHistory.classList.add('hidden');
         return;
       }
 
-      const slice   = historyAllLogs.slice(historyOffset, historyOffset + HISTORY_PAGE_SIZE);
-      historyOffset += slice.length;
+      const slice = state.historyAllLogs.slice(state.historyOffset, state.historyOffset + HISTORY_PAGE_SIZE);
+      state.historyOffset += slice.length;
 
       const html = slice.map(log => `
         <div class="history-item">
           <div class="history-icon">${getHistoryIcon(log.action)}</div>
           <div class="history-info">
-            <span class="history-action">${log.action}</span>
-            <span class="history-detail">${log.detail}</span>
-            <span class="history-meta">${log.by} · ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
+            <span class="history-action">${esc(log.action)}</span>
+            <span class="history-detail">${esc(log.detail)}</span>
+            <span class="history-meta">${esc(log.by)} · ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
           </div>
         </div>`).join('');
 
       if (!append) el.innerHTML = html;
-      else         el.insertAdjacentHTML('beforeend', html);
+      else el.insertAdjacentHTML('beforeend', html);
 
-      document.getElementById('loadMoreHistory').classList.toggle('hidden', historyOffset >= historyAllLogs.length);
+      DOM.loadMoreHistory.classList.toggle('hidden', state.historyOffset >= state.historyAllLogs.length);
     }
 
-    document.getElementById('historyFilter').addEventListener('change', () => renderHistory(false));
-    document.getElementById('loadMoreHistoryBtn').addEventListener('click', () => renderHistory(true));
+    DOM.historyFilter.addEventListener('change', () => renderHistory(false));
+    DOM.loadMoreHistoryBtn.addEventListener('click', () => renderHistory(true));
 
-    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+    DOM.clearHistoryBtn.addEventListener('click', () => {
       showConfirm({
         icon: '🗑️', title: 'مسح السجل التاريخي',
         msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
         okLabel: 'مسح الكل',
         onOk: async () => {
-          if (idb) await idbClear('history');
-          historyAllLogs = [];
-          if (isOnline) {
+          if (state.idb) await IDB.clear('history');
+          state.historyAllLogs = [];
+          if (state.isOnline) {
             try {
               const snap = await getDocs(collection(db, 'history'));
               if (snap.docs.length) {
@@ -2209,14 +2332,14 @@ input[type="date"], input[type="month"] {
 
     async function logHistory(action, detail) {
       const log = {
-        id:        'log_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+        id: 'log_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
         action, detail,
-        by:        currentUser?.displayName || 'خادم',
-        byEmail:   currentUser?.email || '',
+        by: state.currentUser?.displayName || 'خادم',
+        byEmail: state.currentUser?.email || '',
         timestamp: Date.now()
       };
-      if (idb) await idbPut('history', log);
-      if (isOnline) {
+      if (state.idb) await IDB.put('history', log);
+      if (state.isOnline) {
         try { await setDoc(doc(db, 'history', log.id), log); } catch(e) {}
       }
     }
@@ -2225,32 +2348,32 @@ input[type="date"], input[type="month"] {
     // EXPORT PAGE
     // ============================================================
     function renderExport() {
-      const input = document.getElementById('exportMonth');
-      if (!input.value) input.value = getMonthStr(new Date());
+      if (!DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.getMonthStr();
     }
 
-    document.getElementById('exportCSV').addEventListener('click', () => {
-      const month    = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      let csv = 'الاسم,السنة,التاريخ,النشاط,الحضور,التقييم,ملاحظات\n';
+    DOM.exportCSV.addEventListener('click', () => {
+      const month = DOM.exportMonth.value;
+      const monthAtt = Object.values(state.attendanceData).filter(a => a.date?.startsWith(month));
+      let csv = '\uFEFFالاسم,السنة,التاريخ,النشاط,الحضور,التقييم,ملاحظات\n';
       monthAtt.forEach(a => {
-        const g = girls.find(x=>x.id===a.girlId);
+        const g = state.girls.find(x => x.id === a.girlId);
         if (g) csv += `${g.name},${g.grade},${a.date},${a.activity||''},${a.status},${a.rating||''},${a.notes||''}\n`;
       });
       downloadFile(`حضور_${month}.csv`, csv, 'text/csv;charset=utf-8;');
       showToast('تم تصدير CSV', 'success');
     });
 
-    document.getElementById('exportJSON').addEventListener('click', () => {
-      const month    = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      downloadFile(`بيانات_${month}.json`, JSON.stringify({month, girls, attendance: monthAtt, exportedAt: new Date().toISOString()}, null, 2), 'application/json');
+    DOM.exportJSON.addEventListener('click', () => {
+      const month = DOM.exportMonth.value;
+      const monthAtt = Object.values(state.attendanceData).filter(a => a.date?.startsWith(month));
+      const payload = { month, girls: state.girls, attendance: monthAtt, exportedAt: new Date().toISOString() };
+      downloadFile(`بيانات_${month}.json`, JSON.stringify(payload, null, 2), 'application/json');
       showToast('تم تصدير JSON', 'success');
     });
 
-    document.getElementById('exportPrint').addEventListener('click', () => {
-      const month    = document.getElementById('exportMonth').value;
-      const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
+    DOM.exportPrint.addEventListener('click', () => {
+      const month = DOM.exportMonth.value;
+      const monthAtt = Object.values(state.attendanceData).filter(a => a.date?.startsWith(month));
       const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
         <head><meta charset="UTF-8"><title>تقرير ${month}</title>
         <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
@@ -2260,20 +2383,23 @@ input[type="date"], input[type="month"] {
         th,td{border:1px solid #ddd;padding:8px;text-align:right}
         th{background:#1a2744;color:white}
         .present{color:green}.absent{color:red}</style></head><body>
-        <h1>تقرير متابعة المخدومات - ${formatMonth(month)}</h1>
-        <p>عدد المخدومات: ${girls.length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
+        <h1>تقرير متابعة المخدومات - ${DateUtil.formatMonth(month)}</h1>
+        <p>عدد المخدومات: ${state.girls.length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
         <table><tr><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${monthAtt.map(a=>{const g=girls.find(x=>x.id===a.girlId);if(!g)return'';
-          return`<tr><td>${g.name}</td><td>${g.grade}</td><td>${a.date}</td><td>${a.activity||''}</td>
-          <td class="${a.status==='حاضر'?'present':'absent'}">${a.status}</td>
-          <td>${'★'.repeat(a.rating||0)}</td><td>${a.notes||''}</td></tr>`;}).join('')}
+        ${monthAtt.map(a => {
+          const g = state.girls.find(x => x.id === a.girlId);
+          if (!g) return '';
+          return `<tr><td>${esc(g.name)}</td><td>${esc(g.grade)}</td><td>${a.date}</td><td>${esc(a.activity||'')}</td>
+          <td class="${a.status==='حاضر'?'present':'absent'}">${esc(a.status)}</td>
+          <td>${'★'.repeat(a.rating||0)}</td><td>${esc(a.notes||'')}</td></tr>`;
+        }).join('')}
         </table></body></html>`;
-      const w = window.open('','_blank');
+      const w = window.open('', '_blank');
       w.document.write(html); w.document.close(); w.print();
     });
 
     function downloadFile(filename, content, mimeType) {
-      const blob = new Blob(['\uFEFF'+content], { type: mimeType });
+      const blob = new Blob([content], { type: mimeType });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href = url; a.download = filename; a.click();
@@ -2283,103 +2409,126 @@ input[type="date"], input[type="month"] {
     // ============================================================
     // PENDING SYNC
     // ============================================================
-    async function addToPending(type, data) {
-      if (!idb) return;
-      await idbPut('pending', { id: 'pending_' + Date.now(), type, data });
+    async function addPending(type, data) {
+      if (!state.idb) return;
+      await IDB.put('pending', { id: 'pending_' + Date.now(), type, data });
     }
 
     // ============================================================
     // MODAL HELPERS
     // ============================================================
-    function openModal(id)  { document.getElementById(id).classList.add('show');    document.body.style.overflow = 'hidden'; }
-    function closeModal(id) { document.getElementById(id).classList.remove('show'); document.body.style.overflow = ''; }
+    function openModal(id) {
+      DOM[id].classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeModal(id) {
+      DOM[id].classList.remove('show');
+      document.body.style.overflow = '';
+    }
 
     // ============================================================
     // CONFIRM MODAL
     // ============================================================
-    let _confirmCallback = null;
+    let confirmResolve = null;
     function showConfirm({ icon='⚠️', title, msg, okLabel='تأكيد', okClass='', onOk }) {
-      document.getElementById('confirmIcon').textContent  = icon;
-      document.getElementById('confirmTitle').textContent = title;
-      document.getElementById('confirmMsg').textContent   = msg;
-      const okBtn = document.getElementById('confirmOk');
+      DOM.confirmIcon.textContent = icon;
+      DOM.confirmTitle.textContent = title;
+      DOM.confirmMsg.textContent = msg;
+      const okBtn = DOM.confirmOk;
       okBtn.textContent = okLabel;
-      okBtn.className   = 'confirm-ok' + (okClass ? ' '+okClass : '');
-      _confirmCallback  = onOk;
-      document.getElementById('confirmOverlay').classList.add('show');
+      okBtn.className = 'confirm-ok' + (okClass ? ' '+okClass : '');
+      confirmResolve = onOk;
+      DOM.confirmOverlay.classList.add('show');
     }
-    document.getElementById('confirmOk').addEventListener('click', async () => {
-      document.getElementById('confirmOverlay').classList.remove('show');
-      if (_confirmCallback) { await _confirmCallback(); _confirmCallback = null; }
+    DOM.confirmOk.addEventListener('click', async () => {
+      DOM.confirmOverlay.classList.remove('show');
+      if (confirmResolve) { await confirmResolve(); confirmResolve = null; }
     });
-    document.getElementById('confirmCancel').addEventListener('click', () => {
-      document.getElementById('confirmOverlay').classList.remove('show');
-      _confirmCallback = null;
+    DOM.confirmCancel.addEventListener('click', () => {
+      DOM.confirmOverlay.classList.remove('show');
+      confirmResolve = null;
     });
 
-    document.getElementById('closeGirlModal').addEventListener('click',       () => closeModal('girlModal'));
-    document.getElementById('cancelGirlModal').addEventListener('click',      () => closeModal('girlModal'));
-    document.getElementById('closeAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
-    document.getElementById('cancelAttendanceModal').addEventListener('click',() => closeModal('attendanceModal'));
+    DOM.closeGirlModal.addEventListener('click', () => closeModal('girlModal'));
+    DOM.cancelGirlModal.addEventListener('click', () => closeModal('girlModal'));
+    DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
+    DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 
-    document.querySelectorAll('.modal-overlay').forEach(overlay =>
-      overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); }));
+    $$('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeModal(overlay.id);
+    }));
 
     // ============================================================
-    // EVENT DELEGATION (replaces window.* globals)
+    // EVENT DELEGATION
     // ============================================================
-    function setupEventDelegation() {
-      document.getElementById('needsFollowup').addEventListener('click', e => {
+    function setupDelegation() {
+      DOM.needsFollowup.addEventListener('click', e => {
         const item = e.target.closest('.followup-item');
         if (item) showGirlProfile(item.dataset.girlId);
       });
 
-      document.getElementById('girlsList').addEventListener('click', e => {
+      DOM.girlsList.addEventListener('click', e => {
         const editBtn = e.target.closest('.edit-btn');
         if (editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; }
         const card = e.target.closest('.girl-card');
         if (card) showGirlProfile(card.dataset.girlId);
       });
 
-      document.getElementById('searchResults').addEventListener('click', e => {
+      DOM.searchResults.addEventListener('click', e => {
         const item = e.target.closest('.search-item');
         if (item) showGirlProfile(item.dataset.girlId);
       });
 
-      document.getElementById('attendanceList').addEventListener('click', e => {
+      DOM.attendanceList.addEventListener('click', e => {
         const item = e.target.closest('.att-item');
         if (item) {
-          const g = girls.find(x => x.id === item.dataset.girlId);
-          if (g) openAttendanceEntry(g.id, g.name, document.getElementById('attendanceDate').value);
+          const g = state.girls.find(x => x.id === item.dataset.girlId);
+          if (g) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
         }
       });
 
-      document.getElementById('calendarGrid').addEventListener('click', e => {
+      DOM.calendarGrid.addEventListener('click', e => {
         const day = e.target.closest('.cal-day');
         if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
       });
     }
 
-    setupEventDelegation();
+    setupDelegation();
+
+    // ============================================================
+    // BOOTSTRAP
+    // ============================================================
+    async function bootstrap() {
+      try { await IDB.open(); } catch(e) { console.error('IDB open failed:', e); }
+      initAuth();
+    }
+
+    bootstrap();
   </script>
 
   <!-- Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       const swCode = `
-        self.addEventListener('install', e => { self.skipWaiting(); });
-        self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+        const CACHE_NAME = 'makhdomat-v2';
+        const URLS_TO_CACHE = ['/', '/manifest.json'];
+        self.addEventListener('install', e => {
+          e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE)));
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', e => {
+          e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))));
+          e.waitUntil(clients.claim());
+        });
         self.addEventListener('fetch', e => {
-          e.respondWith(
-            caches.match(e.request).then(cached => {
-              return cached || fetch(e.request).then(response => {
-                if (!response || response.status !== 200 || response.type !== 'basic') return response;
-                const resClone = response.clone();
-                caches.open('makhdomat-v1').then(cache => cache.put(e.request, resClone));
-                return response;
-              }).catch(() => cached);
-            })
-          );
+          e.respondWith(caches.match(e.request).then(cached => {
+            return cached || fetch(e.request).then(response => {
+              if (!response || response.status !== 200 || response.type !== 'basic') return response;
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
+              return response;
+            }).catch(() => cached);
+          }));
         });
       `;
       const blob = new Blob([swCode], { type: 'application/javascript' });
