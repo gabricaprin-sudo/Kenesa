@@ -87,10 +87,9 @@ body::before {
   position: fixed; inset: 0; z-index: 9999;
   background: var(--ink);
   display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.6s ease;
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
-.splash.gone { display: none; }
 .splash-content { text-align: center; color: var(--text); }
 .splash-cross {
   font-size: 72px; display: block; margin-bottom: 20px;
@@ -1022,8 +1021,18 @@ select option { background: var(--ink-mid); color: var(--text); }
 </head>
 <body>
   <div id="app">
+    <!-- Splash Screen -->
+    <div id="splash" class="splash">
+      <div class="splash-content">
+        <div class="splash-cross">✝</div>
+        <h1>متابعة المخدومات</h1>
+        <p>خدمة الكنيسة القبطية</p>
+        <div class="splash-loader"><div></div></div>
+      </div>
+    </div>
+
     <!-- Login Screen -->
-    <div id="loginScreen">
+    <div id="loginScreen" class="hidden">
       <div class="login-bg">
         <div class="login-cross-bg">✝</div>
       </div>
@@ -1035,7 +1044,6 @@ select option { background: var(--ink-mid); color: var(--text); }
           <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
           تسجيل الدخول بـ Google
         </button>
-        <div id="loginError" style="display:none;margin-top:14px;padding:12px 16px;background:rgba(192,57,43,0.15);border:1px solid rgba(192,57,43,0.4);border-radius:12px;color:#e74c3c;font-size:14px;line-height:1.7;"></div>
         <p class="login-note">للخدام المعتمدين فقط</p>
       </div>
     </div>
@@ -1349,7 +1357,6 @@ select option { background: var(--ink-mid); color: var(--text); }
 
     // Init Firebase
     const app = initializeApp(firebaseConfig);
-    // Analytics اختياري — مش بيأثر على الأداء لو مش مفعّل
     isSupported().then(yes => { if (yes) getAnalytics(app); }).catch(() => {});
     const auth = getAuth(app);
     const db = getFirestore(app);
@@ -1471,29 +1478,16 @@ select option { background: var(--ink-mid); color: var(--text); }
     // AUTH
     // ============================================================
     document.getElementById('googleSignIn').addEventListener('click', async () => {
-      const btn = document.getElementById('googleSignIn');
-      const errEl = document.getElementById('loginError');
-      btn.disabled = true;
-      btn.textContent = '⏳ جارٍ تسجيل الدخول...';
-      errEl.style.display = 'none';
       try {
-        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        if (isMobile) {
+        // Try popup first (works on web), fallback to redirect (works on mobile)
+        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
           await signInWithRedirect(auth, provider);
         } else {
           await signInWithPopup(auth, provider);
         }
       } catch (e) {
         console.error(e);
-        let msg = 'فشل تسجيل الدخول.';
-        if (e.code === 'auth/popup-blocked')      msg = '⚠️ المتصفح حجب النافذة المنبثقة. فعّل الـ popups أو افتح الصفحة من سيرفر.';
-        else if (e.code === 'auth/unauthorized-domain') msg = '⚠️ هذا الـ Domain غير مسجّل في Firebase. أضفه في Firebase Console → Authentication → Authorized Domains.';
-        else if (e.code === 'auth/network-request-failed') msg = '⚠️ لا يوجد اتصال بالإنترنت.';
-        else msg = '⚠️ ' + (e.message || e.code || 'خطأ غير معروف');
-        errEl.textContent = msg;
-        errEl.style.display = 'block';
-        btn.disabled = false;
-        btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> تسجيل الدخول بـ Google`;
+        showToast('فشل تسجيل الدخول: ' + e.message, 'error');
       }
     });
 
@@ -1502,18 +1496,14 @@ select option { background: var(--ink-mid); color: var(--text); }
     });
 
     onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          currentUser = user;
-          showApp(user);
-          await loadData();
-          renderCurrentPage();
-        } else {
-          currentUser = null;
-          showLogin();
-        }
-      } catch (e) {
-        console.error('Auth state error:', e);
+      hideSplash();
+      if (user) {
+        currentUser = user;
+        showApp(user);
+        await loadData();
+        renderCurrentPage();
+      } else {
+        currentUser = null;
         showLogin();
       }
     });
@@ -1529,9 +1519,15 @@ select option { background: var(--ink-mid); color: var(--text); }
     // ============================================================
     // APP INIT
     // ============================================================
-    function hideSplash() { /* splash removed */ }
+    function hideSplash() {
+      const splash = document.getElementById('splash');
+      if (!splash) return;
+      splash.classList.add('fade-out');
+      setTimeout(() => splash.remove(), 600);
+    }
 
     function showApp(user) {
+      hideSplash();
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       const initial = user.displayName ? user.displayName[0] : 'خ';
@@ -1542,8 +1538,9 @@ select option { background: var(--ink-mid); color: var(--text); }
     }
 
     function showLogin() {
-      document.getElementById('mainApp').classList.add('hidden');
+      hideSplash();
       document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('mainApp').classList.add('hidden');
     }
 
     // ============================================================
@@ -2257,4 +2254,31 @@ select option { background: var(--ink-mid); color: var(--text); }
         <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
         <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
         h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-        ta
+        table{width:100%;border-collapse:collapse;margin-top:20px}
+        th,td{border:1px solid #ddd;padding:8px;text-align:right}
+        th{background:#1a2744;color:white}
+        .present{color:green} .absent{color:red}
+        </style></head><body>
+        <h1>تقرير متابعة المخدومات - ${formatMonth(month)}</h1>
+        <p>عدد المخدومات: ${girls.length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
+        <table><tr><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr>
+        ${monthAtt.map(a=>{const g=girls.find(x=>x.id===a.girlId);if(!g)return'';
+          return`<tr><td>${g.name}</td><td>${g.grade}</td><td>${a.date}</td><td>${a.activity||''}</td>
+          <td class="${a.status==='حاضر'?'present':'absent'}">${a.status}</td>
+          <td>${'★'.repeat(a.rating||0)}</td><td>${a.notes||''}</td></tr>`;}).join('')}
+        </table></body></html>`;
+      const w = window.open('', '_blank');
+      w.document.write(html);
+      w.document.close();
+      w.print();
+    });
+
+    function downloadFile(filename, content, mimeType) {
+      const blob = new Blob(['\uFEFF' + content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // =====
