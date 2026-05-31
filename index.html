@@ -1340,7 +1340,7 @@ select option { background: var(--ink-mid); color: var(--text); }
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, query, orderBy, where, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAnalytics } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js';
+    import { getAnalytics, isSupported } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js';
 
     // ============================================================
     // FIREBASE CONFIG
@@ -1357,7 +1357,8 @@ select option { background: var(--ink-mid); color: var(--text); }
 
     // Init Firebase
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    // Analytics اختياري — مش بيأثر على الأداء لو مش مفعّل
+    isSupported().then(yes => { if (yes) getAnalytics(app); }).catch(() => {});
     const auth = getAuth(app);
     const db = getFirestore(app);
     const provider = new GoogleAuthProvider();
@@ -2276,8 +2277,4 @@ select option { background: var(--ink-mid); color: var(--text); }
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    // ============================================================
-    // P
+    
