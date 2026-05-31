@@ -7,18 +7,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0d1220">
   <title>متابعة المخدومات</title>
-  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <style>
 /* ============================================================
-   نظام متابعة المخدومات — Redesign 2025
+   نظام متابعة المخدومات
    ============================================================ */
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Dark church palette */
   --ink:        #0d1220;
   --ink-mid:    #151d30;
   --ink-light:  #1e2c46;
@@ -34,7 +31,6 @@
   --red-soft:   rgba(192,57,43,0.15);
   --orange:     #d68910;
   --purple:     #7d3c98;
-
   --surface:    #182030;
   --surface-2:  #1e2a3e;
   --surface-3:  #243248;
@@ -43,14 +39,12 @@
   --text:       #e8e4d8;
   --text-dim:   #8a9ab8;
   --text-muted: #546280;
-
   --radius:    18px;
   --radius-sm: 12px;
   --radius-xs: 8px;
   --shadow:    0 4px 24px rgba(0,0,0,0.35);
   --shadow-lg: 0 12px 48px rgba(0,0,0,0.5);
   --shadow-gold: 0 4px 20px rgba(201,151,58,0.25);
-
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -69,7 +63,6 @@ body {
   -webkit-user-select: none;
 }
 
-/* Subtle background texture */
 body::before {
   content: '';
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
@@ -83,13 +76,13 @@ body::before {
 /* ============================================================
    SPLASH
    ============================================================ */
-.splash {
+#splashScreen {
   position: fixed; inset: 0; z-index: 9999;
   background: var(--ink);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.6s ease;
 }
-.splash.fade-out { opacity: 0; pointer-events: none; }
+#splashScreen.fade-out { opacity: 0; pointer-events: none; }
 .splash-content { text-align: center; color: var(--text); }
 .splash-cross {
   font-size: 72px; display: block; margin-bottom: 20px;
@@ -97,7 +90,7 @@ body::before {
   filter: drop-shadow(0 0 30px var(--gold-glow));
 }
 @keyframes cross-float {
-  0%,100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 20px var(--gold-glow)); }
+  0%,100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-8px) scale(1.03); filter: drop-shadow(0 0 40px rgba(201,151,58,0.6)); }
 }
 .splash-content h1 {
@@ -106,33 +99,23 @@ body::before {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
 .splash-content p { font-size: 15px; color: var(--text-dim); margin-bottom: 40px; }
-.splash-loader {
-  width: 60px; height: 2px; background: var(--border);
-  border-radius: 2px; margin: 0 auto; overflow: hidden;
-}
-.splash-loader div {
-  height: 100%; width: 40%; background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  animation: loading 1.4s ease-in-out infinite;
-}
+.splash-loader { width: 60px; height: 2px; background: var(--border); border-radius: 2px; margin: 0 auto; overflow: hidden; }
+.splash-loader div { height: 100%; width: 40%; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: loading 1.4s ease-in-out infinite; }
 @keyframes loading { 0%{transform:translateX(-150%)} 100%{transform:translateX(400%)} }
 
 /* ============================================================
    LOGIN
    ============================================================ */
-.login-bg {
-  position: fixed; inset: 0;
+#loginScreen {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; align-items: flex-end; justify-content: center;
   background: radial-gradient(ellipse 120% 80% at 50% 0%, var(--ink-light) 0%, var(--ink) 70%);
-  z-index: 0;
 }
 .login-cross-bg {
   position: absolute; top: 38%; left: 50%;
   transform: translate(-50%, -50%);
   font-size: 220px; color: rgba(201,151,58,0.04);
   pointer-events: none; line-height: 1;
-}
-#loginScreen {
-  position: fixed; inset: 0; z-index: 10;
-  display: flex; align-items: flex-end; justify-content: center;
 }
 .login-card {
   position: relative; z-index: 1;
@@ -151,10 +134,7 @@ body::before {
   border-radius: 0 0 4px 4px; opacity: 0.6;
 }
 .login-icon { font-size: 52px; margin-bottom: 16px; display: block; }
-.login-card h2 {
-  font-size: 26px; font-weight: 800; color: var(--text);
-  margin-bottom: 6px;
-}
+.login-card h2 { font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
 .login-sub { color: var(--text-dim); font-size: 15px; margin-bottom: 32px; }
 .btn-google {
   width: 100%; padding: 16px 20px;
@@ -167,7 +147,14 @@ body::before {
   box-shadow: 0 2px 12px rgba(0,0,0,0.2);
 }
 .btn-google:active { transform: scale(0.97); background: var(--surface-2); }
+.btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
 .login-note { margin-top: 16px; color: var(--text-muted); font-size: 13px; }
+.login-error-box {
+  display: none; margin-top: 16px; padding: 14px;
+  background: rgba(192,57,43,0.15); border: 1px solid #c0392b;
+  border-radius: 12px; color: #e74c3c; font-size: 13px;
+  word-break: break-all; text-align: right; line-height: 1.8;
+}
 
 /* ============================================================
    HEADER
@@ -197,9 +184,7 @@ body::before {
   transition: all 0.2s;
 }
 .menu-btn:active { background: var(--surface-2); color: var(--gold); }
-.header-titles h1 {
-  color: var(--text); font-size: 18px; font-weight: 700; line-height: 1.2;
-}
+.header-titles h1 { color: var(--text); font-size: 18px; font-weight: 700; line-height: 1.2; }
 .page-subtitle { color: var(--text-muted); font-size: 11px; display: block; margin-top: 1px; }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .sync-indicator {
@@ -207,16 +192,17 @@ body::before {
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; transition: all 0.3s;
 }
-.sync-indicator.online { color: var(--green); animation: spin 2s linear 1; }
+.sync-indicator.online { color: var(--green); }
 .sync-indicator.offline { color: var(--orange); }
-@keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
 .avatar {
   width: 38px; height: 38px; border-radius: 50%;
   background: linear-gradient(135deg, var(--gold), var(--gold-light));
   color: var(--ink); font-weight: 800; font-size: 15px;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 0 0 2px rgba(201,151,58,0.3);
+  overflow: hidden;
 }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 /* ============================================================
    DRAWER
@@ -254,7 +240,9 @@ body::before {
   color: var(--ink); font-weight: 800; font-size: 22px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; box-shadow: 0 0 0 3px rgba(201,151,58,0.25);
+  overflow: hidden;
 }
+.drawer-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .drawer-user-info { display: flex; flex-direction: column; gap: 3px; }
 .drawer-user-info span { font-size: 16px; font-weight: 700; color: var(--text); }
 .drawer-email { font-size: 12px !important; font-weight: 400 !important; color: var(--text-muted) !important; }
@@ -266,11 +254,7 @@ body::before {
   transition: all 0.2s; cursor: pointer; border-right: 3px solid transparent;
 }
 .menu-item span { font-size: 19px; }
-.menu-item.active {
-  color: var(--gold); background: var(--gold-dim);
-  border-right-color: var(--gold);
-  font-weight: 700;
-}
+.menu-item.active { color: var(--gold); background: var(--gold-dim); border-right-color: var(--gold); font-weight: 700; }
 .menu-item:active { background: var(--surface-3); }
 .menu-item.sign-out { color: var(--red); }
 .drawer-divider { height: 1px; background: var(--border-soft); margin: 8px 20px; }
@@ -360,14 +344,12 @@ body::before {
   border-radius: var(--radius); padding: 20px;
   color: var(--text); display: flex; justify-content: space-between;
   align-items: center; margin-bottom: 16px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
   position: relative; overflow: hidden;
 }
 .today-card::before {
   content: '✝'; position: absolute; left: -8px; bottom: -16px;
-  font-size: 96px; color: rgba(201,151,58,0.05); pointer-events: none;
-  line-height: 1;
+  font-size: 96px; color: rgba(201,151,58,0.05); pointer-events: none; line-height: 1;
 }
 .today-label { font-size: 12px; color: var(--text-muted); display: block; }
 .today-day { font-size: 26px; font-weight: 800; display: block; color: var(--text); }
@@ -378,10 +360,8 @@ body::before {
   text-align: center; color: var(--text-muted); border: 1px solid var(--border-soft);
 }
 .service-badge.active {
-  background: var(--gold-dim);
-  color: var(--gold-light);
-  border-color: var(--gold);
-  box-shadow: 0 0 12px var(--gold-dim);
+  background: var(--gold-dim); color: var(--gold-light);
+  border-color: var(--gold); box-shadow: 0 0 12px var(--gold-dim);
 }
 
 .stats-grid {
@@ -392,8 +372,7 @@ body::before {
   background: var(--surface); border-radius: var(--radius);
   padding: 16px; text-align: center;
   border: 1px solid var(--border-soft);
-  position: relative; overflow: hidden;
-  transition: transform 0.2s;
+  position: relative; overflow: hidden; transition: transform 0.2s;
 }
 .stat-card::after {
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
@@ -403,33 +382,25 @@ body::before {
 .stat-card.green::after { background: var(--green); }
 .stat-card.orange::after { background: var(--orange); }
 .stat-card.purple::after { background: var(--purple); }
-.stat-num {
-  font-size: 34px; font-weight: 900; color: var(--text);
-  line-height: 1.1; display: block;
-}
+.stat-num { font-size: 34px; font-weight: 900; color: var(--text); line-height: 1.1; display: block; }
 .stat-card.blue .stat-num { color: var(--gold-light); }
 .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
 .section-title {
   font-size: 15px; font-weight: 700; color: var(--gold);
   margin: 16px 0 10px; padding-right: 12px;
-  border-right: 3px solid var(--gold);
-  letter-spacing: 0.3px;
+  border-right: 3px solid var(--gold); letter-spacing: 0.3px;
 }
 
 .top-list, .followup-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .top-item {
   background: var(--surface); border-radius: var(--radius-sm); padding: 12px 16px;
-  display: flex; align-items: center; gap: 12px;
-  border: 1px solid var(--border-soft);
+  display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-soft);
 }
 .top-rank {
   width: 28px; height: 28px; border-radius: 50%;
-  background: var(--gold-dim); color: var(--gold);
-  border: 1px solid var(--gold);
-  font-size: 12px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold);
+  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .top-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
 .top-count { font-size: 14px; color: var(--green); font-weight: 700; }
@@ -437,8 +408,7 @@ body::before {
 .followup-item {
   background: var(--surface); border-radius: var(--radius-sm); padding: 12px 16px;
   display: flex; align-items: center; justify-content: space-between;
-  border: 1px solid var(--border-soft);
-  border-right: 3px solid var(--red); cursor: pointer;
+  border: 1px solid var(--border-soft); border-right: 3px solid var(--red); cursor: pointer;
 }
 .followup-name { font-size: 15px; font-weight: 600; color: var(--text); }
 .followup-badge {
@@ -446,10 +416,7 @@ body::before {
   border-radius: var(--radius-xs); padding: 4px 10px; font-size: 13px; font-weight: 700;
 }
 
-.empty-state {
-  text-align: center; color: var(--text-muted); padding: 28px;
-  font-size: 15px; line-height: 1.7;
-}
+.empty-state { text-align: center; color: var(--text-muted); padding: 28px; font-size: 15px; line-height: 1.7; }
 
 /* ============================================================
    ATTENDANCE PAGE
@@ -463,9 +430,7 @@ body::before {
 }
 .day-btn.active {
   background: var(--gold-dim); color: var(--gold-light);
-  border-color: var(--gold);
-  box-shadow: 0 0 12px var(--gold-dim);
-  font-weight: 800;
+  border-color: var(--gold); box-shadow: 0 0 12px var(--gold-dim); font-weight: 800;
 }
 
 .date-input-wrap {
@@ -476,8 +441,7 @@ body::before {
 .date-input-wrap label { font-size: 14px; font-weight: 600; color: var(--gold); }
 .date-input {
   flex: 1; border: none; outline: none; background: transparent;
-  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left;
-  color: var(--text);
+  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left; color: var(--text);
 }
 
 .activities-tabs {
@@ -508,10 +472,8 @@ body::before {
 .attendance-list { display: flex; flex-direction: column; gap: 8px; padding-bottom: 90px; }
 .att-item {
   background: var(--surface); border-radius: var(--radius-sm); padding: 14px 16px;
-  display: flex; align-items: center; gap: 12px;
-  border: 1px solid var(--border-soft);
-  cursor: pointer; transition: all 0.15s;
-  border-right: 3px solid var(--border-soft);
+  display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-soft);
+  cursor: pointer; transition: all 0.15s; border-right: 3px solid var(--border-soft);
 }
 .att-item:active { transform: scale(0.98); background: var(--surface-2); }
 .att-item.present { border-right-color: var(--green); }
@@ -551,8 +513,7 @@ body::before {
 .filter-select {
   flex: 1; padding: 12px 14px; background: var(--surface);
   border: 1.5px solid var(--border-soft); border-radius: var(--radius-sm);
-  font-family: 'Tajawal', sans-serif; font-size: 14px;
-  color: var(--text); outline: none;
+  font-family: 'Tajawal', sans-serif; font-size: 14px; color: var(--text); outline: none;
 }
 .filter-select:focus { border-color: var(--gold); }
 .btn-add-girl {
@@ -565,8 +526,7 @@ body::before {
 .girls-list { display: flex; flex-direction: column; gap: 10px; }
 .girl-card {
   background: var(--surface); border-radius: var(--radius); padding: 16px;
-  display: flex; align-items: center; gap: 14px;
-  border: 1px solid var(--border-soft);
+  display: flex; align-items: center; gap: 14px; border: 1px solid var(--border-soft);
   cursor: pointer; transition: all 0.15s;
 }
 .girl-card:active { transform: scale(0.98); background: var(--surface-2); }
@@ -597,47 +557,33 @@ body::before {
 .calendar-nav {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--surface); color: var(--text); border-radius: var(--radius);
-  padding: 16px 20px; margin-bottom: 12px;
-  border: 1px solid var(--border);
+  padding: 16px 20px; margin-bottom: 12px; border: 1px solid var(--border);
 }
 .cal-month-title { font-size: 18px; font-weight: 800; color: var(--gold); }
 .cal-nav-btn {
   background: var(--surface-3); border: 1px solid var(--border-soft); color: var(--text-dim);
   width: 40px; height: 40px; border-radius: var(--radius-xs); cursor: pointer;
-  font-size: 16px; display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
+  font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .cal-nav-btn:active { color: var(--gold); border-color: var(--gold); }
 
-.calendar-grid {
-  background: var(--surface); border-radius: var(--radius);
-  overflow: hidden; border: 1px solid var(--border-soft);
-}
+.calendar-grid { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border-soft); }
 .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--surface-3); }
-.cal-wday {
-  text-align: center; padding: 10px 0; font-size: 11px;
-  font-weight: 700; color: var(--text-muted);
-}
+.cal-wday { text-align: center; padding: 10px 0; font-size: 11px; font-weight: 700; color: var(--text-muted); }
 .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); }
 .cal-day {
   aspect-ratio: 1; display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  border: 1px solid var(--border-soft);
-  cursor: pointer; position: relative; font-size: 14px;
+  border: 1px solid var(--border-soft); cursor: pointer;
+  position: relative; font-size: 14px;
   transition: background 0.15s; font-weight: 500; color: var(--text-dim);
 }
 .cal-day:active { background: var(--surface-3); }
 .cal-day.empty { background: transparent; cursor: default; }
 .cal-day.service-day { color: var(--gold); font-weight: 800; }
 .cal-day.has-data { background: rgba(201,151,58,0.06); }
-.cal-day.today {
-  background: linear-gradient(135deg, var(--gold), var(--gold-light));
-  color: var(--ink); font-weight: 900;
-}
-.service-dot {
-  position: absolute; bottom: 4px;
-  width: 5px; height: 5px; border-radius: 50%; background: var(--gold);
-}
+.cal-day.today { background: linear-gradient(135deg, var(--gold), var(--gold-light)); color: var(--ink); font-weight: 900; }
+.service-dot { position: absolute; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--gold); }
 .today .service-dot { background: var(--ink); }
 
 .day-detail {
@@ -660,21 +606,15 @@ body::before {
 .stats-month-selector label { font-size: 15px; font-weight: 700; color: var(--gold); }
 .month-input {
   flex: 1; border: none; outline: none; background: transparent;
-  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left;
-  color: var(--text);
+  font-family: 'Tajawal', sans-serif; font-size: 15px; text-align: left; color: var(--text);
 }
 
 .big-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
 .big-stat-card {
   background: var(--surface); border-radius: var(--radius);
-  padding: 20px; text-align: center; border: 1px solid var(--border-soft);
-  position: relative; overflow: hidden;
+  padding: 20px; text-align: center; border: 1px solid var(--border-soft); position: relative; overflow: hidden;
 }
-.big-stat-card::after {
-  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-  height: 3px;
-}
-.big-stat-card::after { background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
+.big-stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); }
 .big-stat-card.green-card::after { background: var(--green); }
 .big-stat-card.red-card::after { background: var(--red); }
 .big-stat-card.orange-card::after { background: var(--orange); }
@@ -692,18 +632,12 @@ body::before {
 .chart-val { font-size: 13px; font-weight: 700; color: var(--red); min-width: 20px; }
 
 .ranking-list { background: var(--surface); border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border-soft); }
-.rank-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px; border-bottom: 1px solid var(--border-soft);
-}
+.rank-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border-soft); }
 .rank-item:last-child { border-bottom: none; }
 .rank-num {
   width: 28px; height: 28px; border-radius: 50%;
-  background: var(--gold-dim); color: var(--gold);
-  border: 1px solid var(--gold);
-  font-size: 12px; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  background: var(--gold-dim); color: var(--gold); border: 1px solid var(--gold);
+  font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .rank-name { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); }
 .rank-grade { font-size: 12px; color: var(--text-muted); }
@@ -715,8 +649,7 @@ body::before {
 .history-list { display: flex; flex-direction: column; gap: 8px; }
 .history-item {
   background: var(--surface); border-radius: var(--radius-sm); padding: 14px 16px;
-  display: flex; gap: 12px; align-items: flex-start;
-  border: 1px solid var(--border-soft);
+  display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--border-soft);
 }
 .history-icon { font-size: 22px; flex-shrink: 0; }
 .history-info { flex: 1; }
@@ -729,8 +662,7 @@ body::before {
    ============================================================ */
 .export-card {
   background: var(--surface); border-radius: var(--radius);
-  padding: 28px 20px; text-align: center;
-  border: 1px solid var(--border-soft);
+  padding: 28px 20px; text-align: center; border: 1px solid var(--border-soft);
 }
 .export-icon { font-size: 48px; margin-bottom: 12px; }
 .export-card h3 { font-size: 22px; font-weight: 800; color: var(--gold); margin-bottom: 20px; }
@@ -769,12 +701,12 @@ body::before {
   border-radius: 28px 28px 0 0;
   overflow: hidden; display: flex; flex-direction: column;
   transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--border); position: relative;
 }
 .modal::before {
   content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
   width: 36px; height: 3px; background: var(--gold);
-  border-radius: 0 0 3px 3px; opacity: 0.6;
+  border-radius: 0 0 3px 3px; opacity: 0.6; z-index: 1;
 }
 .modal-overlay.show .modal { transform: translateY(0); }
 .modal-large { max-height: 85vh; }
@@ -789,28 +721,24 @@ body::before {
   background: var(--surface-3); border: 1px solid var(--border-soft); color: var(--text-dim);
   width: 36px; height: 36px; border-radius: var(--radius-xs);
   font-size: 17px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
 }
 .modal-close:active { color: var(--gold); }
 .modal-body { flex: 1; overflow-y: auto; padding: 20px; background: var(--surface); }
 .modal-footer {
   padding: 16px 20px; display: flex; gap: 10px;
-  border-top: 1px solid var(--border-soft); flex-shrink: 0;
-  background: var(--surface);
+  border-top: 1px solid var(--border-soft); flex-shrink: 0; background: var(--surface);
 }
 
 .form-group { margin-bottom: 16px; }
 .form-group label {
-  display: block; font-size: 13px; font-weight: 700;
-  color: var(--gold); margin-bottom: 7px; text-transform: uppercase;
-  letter-spacing: 0.5px; font-size: 12px;
+  display: block; font-size: 12px; font-weight: 700;
+  color: var(--gold); margin-bottom: 7px; text-transform: uppercase; letter-spacing: 0.5px;
 }
 .form-input {
   width: 100%; padding: 13px 16px; border: 1.5px solid var(--border-soft);
   border-radius: var(--radius-sm); font-family: 'Tajawal', sans-serif; font-size: 15px;
-  outline: none; transition: border-color 0.2s; background: var(--surface-3);
-  color: var(--text);
+  outline: none; transition: border-color 0.2s; background: var(--surface-3); color: var(--text);
 }
 .form-input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-dim); }
 textarea.form-input { resize: none; }
@@ -819,8 +747,7 @@ textarea.form-input { resize: none; }
 .btn-cancel {
   flex: 1; padding: 14px; background: var(--surface-3); border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm); font-family: 'Tajawal', sans-serif;
-  font-size: 15px; font-weight: 600; color: var(--text-muted); cursor: pointer;
-  transition: all 0.2s;
+  font-size: 15px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s;
 }
 .btn-primary {
   flex: 2; padding: 14px;
@@ -831,7 +758,6 @@ textarea.form-input { resize: none; }
 }
 .btn-primary:active { transform: scale(0.97); }
 
-/* Attendance Modal */
 .modal-girl-name { font-size: 18px; font-weight: 800; color: var(--gold); text-align: center; margin-bottom: 16px; }
 .attend-options { display: flex; gap: 12px; margin-bottom: 20px; }
 .attend-btn {
@@ -850,7 +776,6 @@ textarea.form-input { resize: none; }
 .star { font-size: 32px; color: var(--surface-3); cursor: pointer; transition: all 0.15s; }
 .star.active { color: var(--gold); filter: drop-shadow(0 0 6px var(--gold-glow)); }
 
-/* Profile Modal */
 .profile-info {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border-soft);
@@ -886,10 +811,8 @@ textarea.form-input { resize: none; }
   left: 50%; transform: translateX(-50%);
   background: var(--surface-2); color: var(--text);
   border-radius: var(--radius-sm); padding: 12px 22px;
-  font-size: 14px; font-weight: 700;
-  z-index: 500; white-space: nowrap;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border);
+  font-size: 14px; font-weight: 700; z-index: 500; white-space: nowrap;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
   transition: opacity 0.3s, transform 0.3s;
 }
 .toast.hidden { display: none; }
@@ -903,111 +826,6 @@ textarea.form-input { resize: none; }
 .toast.warning { background: var(--orange); color: white; border-color: transparent; }
 
 /* ============================================================
-   NOTIFICATIONS PAGE
-   ============================================================ */
-.notif-card {
-  background: var(--surface); border-radius: var(--radius);
-  padding: 24px; text-align: center;
-  border: 1px solid var(--border-soft); margin-bottom: 16px;
-}
-.notif-header-icon { font-size: 48px; margin-bottom: 12px; }
-.notif-card h3 { font-size: 22px; font-weight: 800; color: var(--gold); margin-bottom: 8px; }
-.notif-desc { color: var(--text-dim); font-size: 15px; margin-bottom: 20px; }
-.notif-permission-banner {
-  background: rgba(214,137,16,0.12); color: var(--orange);
-  border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px;
-  font-size: 14px; display: flex; gap: 8px; align-items: flex-start; text-align: right;
-  border: 1px solid rgba(214,137,16,0.25);
-}
-.notif-permission-banner.hidden { display: none; }
-.btn-enable-notif {
-  width: 100%; padding: 16px;
-  background: linear-gradient(135deg, var(--gold), var(--gold-light));
-  color: var(--ink); border: none; border-radius: var(--radius-sm);
-  font-family: 'Tajawal', sans-serif; font-size: 17px; font-weight: 800;
-  cursor: pointer; display: flex; align-items: center; justify-content: center;
-  gap: 10px; box-shadow: 0 4px 20px var(--gold-glow); transition: all 0.2s;
-}
-.btn-enable-notif:active { transform: scale(0.97); }
-.notif-status {
-  display: flex; align-items: center; justify-content: center;
-  gap: 10px; padding: 14px; background: var(--green-soft);
-  border-radius: var(--radius-sm); font-size: 16px; font-weight: 700;
-  color: var(--green); margin-top: 12px;
-  border: 1px solid rgba(39,174,96,0.3);
-}
-.notif-status.hidden { display: none; }
-.notif-settings-card, .notif-next-card {
-  background: var(--surface); border-radius: var(--radius);
-  padding: 20px; border: 1px solid var(--border-soft); margin-bottom: 16px;
-}
-.notif-section-title { font-size: 15px; font-weight: 700; color: var(--gold); margin-bottom: 16px; }
-.notif-setting-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; margin-bottom: 8px;
-}
-.notif-setting-info { display: flex; flex-direction: column; gap: 2px; }
-.notif-setting-label { font-size: 15px; font-weight: 600; color: var(--text); }
-.notif-setting-sub { font-size: 13px; color: var(--text-muted); }
-.notif-time-row {
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--surface-3); border-radius: var(--radius-xs);
-  padding: 10px 14px; margin-bottom: 4px; font-size: 14px; font-weight: 600;
-  color: var(--text-dim); border: 1px solid var(--border-soft);
-}
-.notif-divider { height: 1px; background: var(--border-soft); margin: 16px 0; }
-.time-input {
-  border: 1.5px solid var(--border-soft); border-radius: var(--radius-xs);
-  padding: 6px 10px; font-family: 'Tajawal', sans-serif;
-  font-size: 15px; outline: none; background: var(--surface-2); color: var(--text);
-}
-.time-input:focus { border-color: var(--gold); }
-.toggle-switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
-.toggle-slider {
-  position: absolute; cursor: pointer; inset: 0;
-  background: var(--surface-3); border-radius: 28px; transition: 0.3s;
-  border: 1px solid var(--border-soft);
-}
-.toggle-slider:before {
-  position: absolute; content: ''; height: 22px; width: 22px;
-  right: 3px; bottom: 2px; background: var(--text-muted); border-radius: 50%;
-  transition: 0.3s;
-}
-.toggle-switch input:checked + .toggle-slider { background: var(--gold-dim); border-color: var(--gold); }
-.toggle-switch input:checked + .toggle-slider:before { transform: translateX(-24px); background: var(--gold); }
-.service-days-check { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-.day-check {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-  background: var(--surface-3); padding: 9px 14px; border-radius: var(--radius-xs);
-  color: var(--text-dim); border: 1px solid var(--border-soft); transition: all 0.2s;
-}
-.day-check input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--gold); }
-.day-check:has(input:checked) { color: var(--gold); border-color: var(--gold); background: var(--gold-dim); }
-.btn-save-notif {
-  width: 100%; padding: 14px;
-  background: linear-gradient(135deg, var(--gold), var(--gold-light));
-  color: var(--ink); border: none; border-radius: var(--radius-sm);
-  font-family: 'Tajawal', sans-serif; font-size: 16px; font-weight: 800;
-  cursor: pointer; margin-bottom: 10px; transition: all 0.2s;
-  box-shadow: 0 4px 16px var(--gold-glow);
-}
-.btn-save-notif:active { transform: scale(0.97); }
-.btn-test-notif {
-  width: 100%; padding: 12px; background: var(--surface-3);
-  color: var(--gold); border: 1.5px solid var(--gold); border-radius: var(--radius-sm);
-  font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s;
-}
-.btn-test-notif:active { background: var(--gold-dim); }
-.next-notif-info {
-  background: var(--surface-3); border-radius: var(--radius-sm); padding: 16px;
-  font-size: 15px; font-weight: 600; color: var(--gold);
-  line-height: 1.9; text-align: center; border: 1px solid var(--border);
-}
-
-/* ============================================================
    UTILS
    ============================================================ */
 .hidden { display: none !important; }
@@ -1016,25 +834,38 @@ textarea.form-input { resize: none; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 input[type="date"], input[type="month"] { -webkit-appearance: none; color-scheme: dark; }
 select option { background: var(--ink-mid); color: var(--text); }
-
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- Login Screen - يظهر على طول، يتخفى لو المستخدم متسجل -->
-    <div id="loginScreen">
-      <div class="login-bg">
-        <div class="login-cross-bg">✝</div>
+
+    <!-- Splash -->
+    <div id="splashScreen">
+      <div class="splash-content">
+        <span class="splash-cross">✝</span>
+        <h1>متابعة المخدومات</h1>
+        <p>نظام الكنيسة</p>
+        <div class="splash-loader"><div></div></div>
       </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="hidden">
+      <div class="login-cross-bg">✝</div>
       <div class="login-card">
         <div class="login-icon">⛪</div>
         <h2>أهلاً بك</h2>
         <p class="login-sub">نظام متابعة المخدومات</p>
         <button id="googleSignIn" class="btn-google">
-          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
           تسجيل الدخول بـ Google
         </button>
-        <div id="loginErrorBox" style="display:none;margin-top:16px;padding:14px;background:rgba(192,57,43,0.15);border:1px solid #c0392b;border-radius:12px;color:#e74c3c;font-size:13px;word-break:break-all;text-align:right;line-height:1.8;"></div>
+        <div id="loginErrorBox" class="login-error-box"></div>
         <p class="login-note">للخدام المعتمدين فقط</p>
       </div>
     </div>
@@ -1051,9 +882,7 @@ select option { background: var(--ink-mid); color: var(--text); }
           </div>
         </div>
         <div class="header-left">
-          <div class="sync-indicator" id="syncIndicator" title="المزامنة">
-            <span class="sync-icon">⟳</span>
-          </div>
+          <div class="sync-indicator" id="syncIndicator">⟳</div>
           <div class="avatar" id="userAvatar">خ</div>
         </div>
       </header>
@@ -1079,9 +908,7 @@ select option { background: var(--ink-mid); color: var(--text); }
           <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>🚪</span> تسجيل الخروج</a></li>
         </ul>
-        <div class="offline-badge" id="offlineBadge">
-          <span>📴</span> وضع عدم الاتصال
-        </div>
+        <div class="offline-badge" id="offlineBadge">📴 وضع عدم الاتصال</div>
       </nav>
 
       <!-- Page Content -->
@@ -1147,9 +974,9 @@ select option { background: var(--ink-mid); color: var(--text); }
             <button class="act-tab" data-activity="ألحان">ألحان</button>
           </div>
           <div class="attendance-summary" id="attendanceSummary">
-            <span class="summ-item green-text">✓ <span id="presentCount">0</span> حاضر</span>
-            <span class="summ-item red-text">✗ <span id="absentCount">0</span> غائب</span>
-            <span class="summ-item gray-text">○ <span id="pendingCount">0</span> لم يُسجَّل</span>
+            <span class="green-text">✓ <span id="presentCount">0</span> حاضر</span>
+            <span class="red-text">✗ <span id="absentCount">0</span> غائب</span>
+            <span class="gray-text">○ <span id="pendingCount">0</span> لم يُسجَّل</span>
           </div>
           <div id="attendanceList" class="attendance-list"></div>
           <button class="fab-save" id="saveAttendanceBtn">💾 حفظ الحضور</button>
@@ -1210,17 +1037,17 @@ select option { background: var(--ink-mid); color: var(--text); }
               <input type="month" id="exportMonth" class="month-input">
             </div>
             <div class="export-btns">
-              <button class="export-btn csv" id="exportCSV">
+              <button class="export-btn" id="exportCSV">
                 <span>📄</span>
                 <div><b>تصدير CSV</b><small>ملف إكسل</small></div>
               </button>
-              <button class="export-btn json" id="exportJSON">
+              <button class="export-btn" id="exportJSON">
                 <span>💾</span>
                 <div><b>تصدير JSON</b><small>بيانات كاملة</small></div>
               </button>
-              <button class="export-btn print" id="exportPrint">
+              <button class="export-btn" id="exportPrint">
                 <span>🖨️</span>
-                <div><b>تقرير للطباعة</b><small>PDF قابل للطباعة</small></div>
+                <div><b>تقرير للطباعة</b><small>قابل للطباعة</small></div>
               </button>
             </div>
           </div>
@@ -1282,8 +1109,7 @@ select option { background: var(--ink-mid); color: var(--text); }
           <h3 id="profileName">ملف المخدومة</h3>
           <button class="modal-close" id="closeProfileModal">✕</button>
         </div>
-        <div class="modal-body" id="profileBody">
-        </div>
+        <div class="modal-body" id="profileBody"></div>
       </div>
     </div>
 
@@ -1300,14 +1126,14 @@ select option { background: var(--ink-mid); color: var(--text); }
             <button class="attend-btn present" data-status="حاضر">✓ حاضر</button>
             <button class="attend-btn absent" data-status="غائب">✗ غائب</button>
           </div>
-          <div id="ratingSection" class="rating-section">
+          <div id="ratingSection" class="rating-section hidden">
             <label>التقييم:</label>
             <div class="stars-input" id="starsInput">
-              <span class="star" data-val="1">★</span>
-              <span class="star" data-val="2">★</span>
-              <span class="star" data-val="3">★</span>
-              <span class="star" data-val="4">★</span>
               <span class="star" data-val="5">★</span>
+              <span class="star" data-val="4">★</span>
+              <span class="star" data-val="3">★</span>
+              <span class="star" data-val="2">★</span>
+              <span class="star" data-val="1">★</span>
             </div>
           </div>
           <div class="form-group">
@@ -1326,12 +1152,29 @@ select option { background: var(--ink-mid); color: var(--text); }
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-    import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, query, orderBy, where, onSnapshot, serverTimestamp, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-    import { getAnalytics, isSupported } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js';
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signInWithRedirect,
+      getRedirectResult,
+      onAuthStateChanged,
+      signOut
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc,
+      getDocs,
+      query,
+      orderBy,
+      onSnapshot,
+      serverTimestamp
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
     // ============================================================
     // FIREBASE CONFIG
@@ -1342,52 +1185,45 @@ select option { background: var(--ink-mid); color: var(--text); }
       projectId: "kenesa-e5efd",
       storageBucket: "kenesa-e5efd.firebasestorage.app",
       messagingSenderId: "227273753184",
-      appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
-      measurementId: "G-6HS8KNW1GZ"
+      appId: "1:227273753184:web:ecdf258142ad55ed5cf905"
     };
 
-    // Init Firebase
-    const app = initializeApp(firebaseConfig);
-    isSupported().then(yes => { if (yes) getAnalytics(app); }).catch(() => {});
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const fbApp = initializeApp(firebaseConfig);
+    const auth  = getAuth(fbApp);
+    const db    = getFirestore(fbApp);
     const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
 
     // ============================================================
-    // APP STATE
+    // STATE
     // ============================================================
-    let currentUser = null;
-    let girls = [];
-    let attendanceData = {};
-    let currentPage = 'home';
-    let selectedDay = 'السبت';
+    let currentUser   = null;
+    let girls         = [];
+    let attendanceData= {};
+    let currentPage   = 'home';
+    let selectedDay   = 'السبت';
     let selectedActivity = 'دراسي';
     let currentAttendanceGirlId = null;
     let currentAttendanceRating = 0;
     let editingGirlId = null;
-    let calendarDate = new Date();
-    let isOnline = navigator.onLine;
-
-    const SERVICE_DAYS = ['السبت', 'الاثنين', 'الاربعاء'];
-    const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
-    const GRADES = ['أولى إعدادي', 'تانية إعدادي', 'تالتة إعدادي'];
+    let calendarDate  = new Date();
+    let isOnline      = navigator.onLine;
 
     // ============================================================
-    // INDEXEDDB - LOCAL STORAGE
+    // INDEXEDDB
     // ============================================================
     let idb;
     function openIDB() {
       return new Promise((resolve, reject) => {
-        const req = indexedDB.open('MakhdomatDB', 2);
+        const req = indexedDB.open('MakhdomatDB', 3);
         req.onupgradeneeded = e => {
           const d = e.target.result;
-          if (!d.objectStoreNames.contains('girls')) d.createObjectStore('girls', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('attendance')) d.createObjectStore('attendance', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('history')) d.createObjectStore('history', { keyPath: 'id' });
-          if (!d.objectStoreNames.contains('pending')) d.createObjectStore('pending', { keyPath: 'id' });
+          ['girls','attendance','history','pending'].forEach(s => {
+            if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' });
+          });
         };
         req.onsuccess = e => { idb = e.target.result; resolve(idb); };
-        req.onerror = () => reject(req.error);
+        req.onerror   = () => reject(req.error);
       });
     }
 
@@ -1396,17 +1232,30 @@ select option { background: var(--ink-mid); color: var(--text); }
         const tx = idb.transaction(store, 'readwrite');
         tx.objectStore(store).put(data);
         tx.oncomplete = () => res();
-        tx.onerror = () => rej(tx.error);
+        tx.onerror    = () => rej(tx.error);
       });
     }
 
     function idbGetAll(store) {
       return new Promise((res, rej) => {
-        const tx = idb.transaction(store, 'readonly');
+        const tx  = idb.transaction(store, 'readonly');
         const req = tx.objectStore(store).getAll();
         req.onsuccess = () => res(req.result);
-        req.onerror = () => rej(req.error);
+        req.onerror   = () => rej(req.error);
       });
+    }
+
+    function idbDelete(store, id) {
+      return new Promise((res, rej) => {
+        const tx = idb.transaction(store, 'readwrite');
+        tx.objectStore(store).delete(id);
+        tx.oncomplete = () => res();
+        tx.onerror    = () => rej(tx.error);
+      });
+    }
+
+    async function addToPending(type, data) {
+      await idbPut('pending', { id: 'pend_' + Date.now() + '_' + Math.random().toString(36).substr(2,5), type, data });
     }
 
     // ============================================================
@@ -1416,118 +1265,97 @@ select option { background: var(--ink-mid); color: var(--text); }
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.className = `toast show ${type}`;
-      setTimeout(() => t.className = 'toast hidden', 3000);
+      setTimeout(() => { t.className = 'toast hidden'; }, 3000);
     }
 
     // ============================================================
-    // ONLINE/OFFLINE
+    // ONLINE / OFFLINE
     // ============================================================
-    window.addEventListener('online', () => {
-      isOnline = true;
-      updateSyncIndicator();
-      syncPendingData();
-      showToast('تم الاتصال بالإنترنت - جارٍ المزامنة', 'success');
-    });
-    window.addEventListener('offline', () => {
-      isOnline = false;
-      updateSyncIndicator();
-      showToast('أنت في وضع عدم الاتصال - سيتم الحفظ محلياً', 'warning');
-    });
+    window.addEventListener('online',  () => { isOnline = true;  updateSyncUI(); syncPending(); showToast('تم الاتصال — جارٍ المزامنة', 'success'); });
+    window.addEventListener('offline', () => { isOnline = false; updateSyncUI(); showToast('وضع عدم الاتصال — الحفظ محلي', 'warning'); });
 
-    function updateSyncIndicator() {
+    function updateSyncUI() {
       const ind = document.getElementById('syncIndicator');
       const badge = document.getElementById('offlineBadge');
       if (isOnline) {
-        ind.classList.remove('offline');
-        ind.classList.add('online');
-        if (badge) badge.classList.remove('show');
+        ind.className = 'sync-indicator online'; ind.textContent = '⟳';
+        badge?.classList.remove('show');
       } else {
-        ind.classList.remove('online');
-        ind.classList.add('offline');
-        if (badge) badge.classList.add('show');
+        ind.className = 'sync-indicator offline'; ind.textContent = '⊗';
+        badge?.classList.add('show');
       }
     }
 
-    async function syncPendingData() {
+    async function syncPending() {
       try {
         const pending = await idbGetAll('pending');
         for (const item of pending) {
-          if (item.type === 'girl') {
-            await setDoc(doc(db, 'girls', item.data.id), item.data);
-          } else if (item.type === 'attendance') {
-            await setDoc(doc(db, 'attendance', item.data.id), item.data);
-          }
-          // Remove from pending
-          const tx = idb.transaction('pending', 'readwrite');
-          tx.objectStore('pending').delete(item.id);
+          if      (item.type === 'girl')       await setDoc(doc(db, 'girls', item.data.id), item.data);
+          else if (item.type === 'attendance') await setDoc(doc(db, 'attendance', item.data.id), item.data);
+          else if (item.type === 'history')    await setDoc(doc(db, 'history', item.data.id), item.data);
+          await idbDelete('pending', item.id);
         }
-        if (pending.length > 0) showToast(`تمت مزامنة ${pending.length} سجل`, 'success');
-      } catch(e) { console.error('Sync error:', e); }
+        if (pending.length) showToast(`تمت مزامنة ${pending.length} سجل ✓`, 'success');
+      } catch(e) { console.error('syncPending:', e); }
     }
 
     // ============================================================
-    // AUTH
+    // SPLASH → AUTH
     // ============================================================
-    function showLoginError(msg) {
-      const el = document.getElementById('loginErrorBox');
-      el.textContent = msg;
-      el.style.display = 'block';
-    }
+    async function boot() {
+      await openIDB();
+      updateSyncUI();
 
-    document.getElementById('googleSignIn').addEventListener('click', async () => {
-      const btn = document.getElementById('googleSignIn');
-      document.getElementById('loginErrorBox').style.display = 'none';
-      btn.textContent = '⏳ جارٍ التحويل لـ Google...';
-      btn.disabled = true;
+      // Check redirect result first (mobile auth)
       try {
-        await signInWithRedirect(auth, provider);
-      } catch (e) {
-        console.error(e);
-        btn.disabled = false;
-        btn.textContent = 'تسجيل الدخول بـ Google';
-        showLoginError('❌ ' + (e.code || e.message));
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          // user signed in via redirect
+        }
+      } catch(e) {
+        console.error('getRedirectResult:', e);
+        showLoginError(formatAuthError(e));
       }
-    });
 
-    getRedirectResult(auth).then(result => {
-      if (result?.user) {
-        currentUser = result.user;
-        showApp(result.user);
-        loadData().then(() => renderCurrentPage());
-      }
-    }).catch(e => {
-      console.error('Redirect error:', e);
-      showLoginError('❌ خطأ في تسجيل الدخول: ' + (e.code || e.message));
-    });
+      // Auth state observer
+      onAuthStateChanged(auth, async (user) => {
+        hideSplash();
+        if (user) {
+          currentUser = user;
+          showApp(user);
+          await loadData();
+          renderCurrentPage();
+        } else {
+          currentUser = null;
+          showLogin();
+        }
+      });
+    }
 
-    document.getElementById('signOutBtn').addEventListener('click', async () => {
-      await signOut(auth);
-    });
+    boot();
 
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        currentUser = user;
-        showApp(user);
-        await loadData();
-        renderCurrentPage();
-      } else {
-        currentUser = null;
-        showLogin();
-      }
-    });
-
-    // ============================================================
-    // APP INIT
-    // ============================================================
-    function hideSplash() { /* no splash */ }
+    function hideSplash() {
+      const s = document.getElementById('splashScreen');
+      s.classList.add('fade-out');
+      setTimeout(() => s.style.display = 'none', 700);
+    }
 
     function showApp(user) {
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
-      const initial = user.displayName ? user.displayName[0] : 'خ';
-      document.getElementById('userAvatar').textContent = initial;
-      document.getElementById('drawerAvatar').textContent = initial;
-      document.getElementById('drawerUserName').textContent = user.displayName || 'الخادم';
+
+      // Avatar: photo or initial
+      const avatarEl = document.getElementById('userAvatar');
+      const drawerAvatarEl = document.getElementById('drawerAvatar');
+      if (user.photoURL) {
+        avatarEl.innerHTML    = `<img src="${user.photoURL}" alt="">`;
+        drawerAvatarEl.innerHTML = `<img src="${user.photoURL}" alt="">`;
+      } else {
+        const initial = (user.displayName || 'خ')[0];
+        avatarEl.textContent    = initial;
+        drawerAvatarEl.textContent = initial;
+      }
+      document.getElementById('drawerUserName').textContent  = user.displayName || 'الخادم';
       document.getElementById('drawerUserEmail').textContent = user.email || '';
     }
 
@@ -1536,66 +1364,123 @@ select option { background: var(--ink-mid); color: var(--text); }
       document.getElementById('mainApp').classList.add('hidden');
     }
 
+    function showLoginError(msg) {
+      const el = document.getElementById('loginErrorBox');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function formatAuthError(e) {
+      const map = {
+        'auth/popup-blocked':         '⚠️ المتصفح حجب نافذة تسجيل الدخول. يرجى السماح بالنوافذ المنبثقة.',
+        'auth/popup-closed-by-user':  'تم إغلاق نافذة تسجيل الدخول. حاول مجدداً.',
+        'auth/cancelled-popup-request': 'طلب تسجيل دخول قديم. حاول مجدداً.',
+        'auth/network-request-failed': '❌ خطأ في الشبكة. تحقق من الإنترنت.',
+        'auth/unauthorized-domain':    '❌ النطاق غير مصرح به في Firebase. تحقق من إعدادات Authorized Domains.'
+      };
+      return map[e.code] || `❌ ${e.message || e.code}`;
+    }
+
+    // ============================================================
+    // GOOGLE SIGN-IN — popup with redirect fallback
+    // ============================================================
+    document.getElementById('googleSignIn').addEventListener('click', async () => {
+      const btn = document.getElementById('googleSignIn');
+      document.getElementById('loginErrorBox').style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = '⏳ جارٍ تسجيل الدخول...';
+
+      try {
+        // Try popup first (works on desktop + most mobile browsers)
+        await signInWithPopup(auth, provider);
+        // onAuthStateChanged handles the rest
+      } catch(popupErr) {
+        console.warn('popup failed:', popupErr.code);
+
+        if (
+          popupErr.code === 'auth/popup-blocked' ||
+          popupErr.code === 'auth/popup-closed-by-user' ||
+          popupErr.code === 'auth/cancelled-popup-request'
+        ) {
+          // Fall back to redirect (mobile browsers that block popups)
+          try {
+            btn.textContent = '⏳ جارٍ التحويل...';
+            await signInWithRedirect(auth, provider);
+            // page will reload; onAuthStateChanged + getRedirectResult handle it
+          } catch(redirectErr) {
+            console.error('redirect failed:', redirectErr);
+            btn.disabled = false;
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> تسجيل الدخول بـ Google`;
+            showLoginError(formatAuthError(redirectErr));
+          }
+        } else {
+          btn.disabled = false;
+          btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> تسجيل الدخول بـ Google`;
+          showLoginError(formatAuthError(popupErr));
+        }
+      }
+    });
+
+    // ============================================================
+    // SIGN OUT
+    // ============================================================
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await signOut(auth);
+      showToast('تم تسجيل الخروج', 'info');
+    });
+
     // ============================================================
     // LOAD DATA
     // ============================================================
     async function loadData() {
-      try {
-        // Load from IDB first (instant)
-        const localGirls = await idbGetAll('girls');
-        if (localGirls.length > 0) { girls = localGirls; renderCurrentPage(); }
-        const localAtt = await idbGetAll('attendance');
-        if (localAtt.length > 0) {
-          localAtt.forEach(a => { attendanceData[a.id] = a; });
-        }
+      // Load locally first (instant)
+      const localGirls = await idbGetAll('girls');
+      if (localGirls.length) { girls = localGirls; renderCurrentPage(); }
+      const localAtt = await idbGetAll('attendance');
+      localAtt.forEach(a => { attendanceData[a.id] = a; });
+      if (localAtt.length) renderCurrentPage();
 
-        if (!isOnline) return;
+      if (!isOnline) return;
 
-        // Live sync from Firestore
-        const girlsQ = query(collection(db, 'girls'), orderBy('name'));
-        onSnapshot(girlsQ, async snap => {
-          girls = snap.docs.map(d => ({id: d.id, ...d.data()}));
-          for (const g of girls) await idbPut('girls', g);
-          renderCurrentPage();
-        });
+      // Live Firestore sync
+      const girlsQ = query(collection(db, 'girls'), orderBy('name'));
+      onSnapshot(girlsQ, async snap => {
+        girls = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        for (const g of girls) await idbPut('girls', g);
+        renderCurrentPage();
+      }, err => console.error('girls snapshot:', err));
 
-        const attQ = query(collection(db, 'attendance'), orderBy('date', 'desc'));
-        onSnapshot(attQ, async snap => {
-          snap.docs.forEach(d => { attendanceData[d.id] = {id: d.id, ...d.data()}; });
-          for (const a of Object.values(attendanceData)) await idbPut('attendance', a);
-          renderCurrentPage();
-        });
-
-      } catch(e) { console.error('Load error:', e); }
+      const attQ = query(collection(db, 'attendance'), orderBy('date', 'desc'));
+      onSnapshot(attQ, async snap => {
+        snap.docs.forEach(d => { attendanceData[d.id] = { id: d.id, ...d.data() }; });
+        for (const a of Object.values(attendanceData)) await idbPut('attendance', a);
+        renderCurrentPage();
+      }, err => console.error('attendance snapshot:', err));
     }
 
     // ============================================================
     // NAVIGATION
     // ============================================================
+    const PAGE_TITLES = {
+      home:       ['الرئيسية',        ''],
+      attendance: ['الحضور اليومي',   'تسجيل وإدارة الحضور'],
+      girls:      ['المخدومات',        'قائمة المخدومات'],
+      calendar:   ['التقويم الشهري',  'أيام الخدمة'],
+      stats:      ['الإحصائيات',       'تحليلات وتقارير'],
+      history:    ['السجل التاريخي',   'سجل التعديلات'],
+      export:     ['التصدير',          'تصدير البيانات']
+    };
+
     function navigateTo(page) {
-      document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => { p.classList.add('hidden'); p.classList.remove('active'); });
       const pg = document.getElementById('page-' + page);
       if (pg) { pg.classList.remove('hidden'); pg.classList.add('active'); }
 
-      document.querySelectorAll('.nav-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.page === page);
-      });
-      document.querySelectorAll('.menu-item').forEach(b => {
-        b.classList.toggle('active', b.dataset.page === page);
-      });
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+      document.querySelectorAll('.menu-item[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
 
-      const titles = {
-        home: ['الرئيسية', ''],
-        attendance: ['الحضور اليومي', 'تسجيل وإدارة الحضور'],
-        girls: ['المخدومات', 'قائمة المخدومات'],
-        calendar: ['التقويم الشهري', 'أيام الخدمة'],
-        stats: ['الإحصائيات', 'تحليلات وتقارير'],
-        history: ['السجل التاريخي', 'سجل التعديلات'],
-        export: ['التصدير', 'تصدير البيانات']
-      };
-      document.getElementById('pageTitle').textContent = titles[page]?.[0] || page;
-      document.getElementById('pageSubtitle').textContent = titles[page]?.[1] || '';
+      document.getElementById('pageTitle').textContent    = PAGE_TITLES[page]?.[0] || page;
+      document.getElementById('pageSubtitle').textContent = PAGE_TITLES[page]?.[1] || '';
 
       currentPage = page;
       renderCurrentPage();
@@ -1604,34 +1489,58 @@ select option { background: var(--ink-mid); color: var(--text); }
 
     function renderCurrentPage() {
       switch(currentPage) {
-        case 'home': renderHome(); break;
+        case 'home':       renderHome(); break;
         case 'attendance': renderAttendancePage(); break;
-        case 'girls': renderGirlsList(); break;
-        case 'calendar': renderCalendar(); break;
-        case 'stats': renderStats(); break;
-        case 'history': renderHistory(); break;
-        case 'export': renderExport(); break;
+        case 'girls':      renderGirlsList(); break;
+        case 'calendar':   renderCalendar(); break;
+        case 'stats':      renderStats(); break;
+        case 'history':    renderHistory(); break;
+        case 'export':     renderExport(); break;
       }
     }
 
-    // Bottom nav
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => navigateTo(btn.dataset.page));
     });
     document.querySelectorAll('.menu-item[data-page]').forEach(item => {
-      item.addEventListener('click', (e) => { e.preventDefault(); navigateTo(item.dataset.page); });
+      item.addEventListener('click', e => { e.preventDefault(); navigateTo(item.dataset.page); });
     });
 
     // Drawer
     document.getElementById('menuBtn').addEventListener('click', openDrawer);
     document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
-    function openDrawer() {
-      document.getElementById('drawer').classList.add('open');
-      document.getElementById('drawerOverlay').classList.add('show');
+    function openDrawer()  { document.getElementById('drawer').classList.add('open'); document.getElementById('drawerOverlay').classList.add('show'); }
+    function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerOverlay').classList.remove('show'); }
+
+    // ============================================================
+    // MODALS
+    // ============================================================
+    function openModal(id)  { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    document.getElementById('closeGirlModal').addEventListener('click',       () => closeModal('girlModal'));
+    document.getElementById('cancelGirlModal').addEventListener('click',      () => closeModal('girlModal'));
+    document.getElementById('closeProfileModal').addEventListener('click',    () => closeModal('girlProfileModal'));
+    document.getElementById('closeAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
+    document.getElementById('cancelAttendanceModal').addEventListener('click',() => closeModal('attendanceModal'));
+
+    // ============================================================
+    // HELPERS
+    // ============================================================
+    function getMonthStr(date) {
+      return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
     }
-    function closeDrawer() {
-      document.getElementById('drawer').classList.remove('open');
-      document.getElementById('drawerOverlay').classList.remove('show');
+
+    function formatMonth(monthStr) {
+      if (!monthStr) return '';
+      const [y, m] = monthStr.split('-');
+      const names = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+      return `${names[parseInt(m)-1]} ${y}`;
+    }
+
+    function normalizeDay(day) {
+      const map = { 'الأربعاء': 'الاربعاء', 'الإثنين': 'الاثنين' };
+      return map[day] || day;
     }
 
     // ============================================================
@@ -1639,37 +1548,36 @@ select option { background: var(--ink-mid); color: var(--text); }
     // ============================================================
     function renderHome() {
       const now = new Date();
-      const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-      const dayName = days[now.getDay()];
-      document.getElementById('todayDay').textContent = dayName;
+      const dayNames = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+      const dayName = dayNames[now.getDay()];
+      document.getElementById('todayDay').textContent  = dayName;
       document.getElementById('todayDate').textContent = now.toLocaleDateString('ar-EG', {year:'numeric', month:'long', day:'numeric'});
 
-      const serviceMap = {'السبت': 'يوم خدمة ✓', 'الاثنين': 'يوم خدمة ✓', 'الاربعاء': 'يوم خدمة ✓'};
-      const todayBadge = document.getElementById('todayServiceBadge');
       const normalizedDay = normalizeDay(dayName);
+      const serviceMap = { 'السبت': 'يوم خدمة ✓', 'الاثنين': 'يوم خدمة ✓', 'الاربعاء': 'يوم خدمة ✓' };
+      const todayBadge = document.getElementById('todayServiceBadge');
       if (serviceMap[normalizedDay]) {
         todayBadge.textContent = serviceMap[normalizedDay];
         todayBadge.classList.add('active');
       } else {
-        todayBadge.textContent = 'لا توجد خدمة اليوم';
+        todayBadge.textContent = 'لا توجد خدمة';
         todayBadge.classList.remove('active');
       }
 
       document.getElementById('statTotal').textContent = girls.length;
 
-      const todayStr = now.toISOString().split('T')[0];
+      const todayStr  = now.toISOString().split('T')[0];
       let presentToday = 0, absentToday = 0;
       Object.values(attendanceData).forEach(a => {
         if (a.date === todayStr) {
-          if (a.status === 'حاضر') presentToday++;
+          if      (a.status === 'حاضر') presentToday++;
           else if (a.status === 'غائب') absentToday++;
         }
       });
       document.getElementById('statPresentToday').textContent = presentToday;
-      document.getElementById('statAbsentToday').textContent = absentToday;
+      document.getElementById('statAbsentToday').textContent  = absentToday;
 
-      // Avg rating this month
-      const monthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const monthStr = getMonthStr(now);
       let totalRating = 0, ratingCount = 0;
       Object.values(attendanceData).forEach(a => {
         if (a.date?.startsWith(monthStr) && a.rating > 0) { totalRating += a.rating; ratingCount++; }
@@ -1677,46 +1585,40 @@ select option { background: var(--ink-mid); color: var(--text); }
       document.getElementById('statAvgRating').textContent = ratingCount > 0 ? (totalRating/ratingCount).toFixed(1) : '-';
 
       // Top attendees
-      const attendanceCounts = {};
-      girls.forEach(g => attendanceCounts[g.id] = 0);
+      const counts = {};
+      girls.forEach(g => counts[g.id] = 0);
       Object.values(attendanceData).forEach(a => {
-        if (a.date?.startsWith(monthStr) && a.status === 'حاضر') {
-          if (attendanceCounts[a.girlId] !== undefined) attendanceCounts[a.girlId]++;
-        }
+        if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && counts[a.girlId] !== undefined) counts[a.girlId]++;
       });
-      const sorted = Object.entries(attendanceCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,5);
       const topEl = document.getElementById('topAttendees');
-      if (sorted.length === 0 || sorted[0][1] === 0) {
-        topEl.innerHTML = '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>';
-      } else {
-        topEl.innerHTML = sorted.map(([id, count], i) => {
-          const g = girls.find(x => x.id === id);
-          if (!g || count === 0) return '';
-          return `<div class="top-item">
-            <span class="top-rank">${i+1}</span>
-            <span class="top-name">${g.name}</span>
-            <span class="top-count">${count} يوم</span>
-          </div>`;
-        }).join('');
-      }
+      const nonZero = sorted.filter(([,c]) => c > 0);
+      topEl.innerHTML = nonZero.length === 0
+        ? '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>'
+        : nonZero.map(([id, count], i) => {
+            const g = girls.find(x => x.id === id);
+            if (!g) return '';
+            return `<div class="top-item">
+              <span class="top-rank">${i+1}</span>
+              <span class="top-name">${g.name}</span>
+              <span class="top-count">${count} يوم</span>
+            </div>`;
+          }).join('');
 
-      // Needs followup
+      // Needs follow-up (2+ absences)
       const needsEl = document.getElementById('needsFollowup');
       const needsList = girls.filter(g => {
-        const absences = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return absences >= 2;
+        return Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length >= 2;
       });
-      if (needsList.length === 0) {
-        needsEl.innerHTML = '<div class="empty-state">لا توجد حالات تحتاج متابعة</div>';
-      } else {
-        needsEl.innerHTML = needsList.map(g => {
-          const abs = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-          return `<div class="followup-item" onclick="showGirlProfile('${g.id}')">
-            <span class="followup-name">${g.name}</span>
-            <span class="followup-badge">${abs} غياب</span>
-          </div>`;
-        }).join('');
-      }
+      needsEl.innerHTML = needsList.length === 0
+        ? '<div class="empty-state">لا توجد حالات تحتاج متابعة 🎉</div>'
+        : needsList.map(g => {
+            const abs = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
+            return `<div class="followup-item" onclick="APP.showGirlProfile('${g.id}')">
+              <span class="followup-name">${g.name}</span>
+              <span class="followup-badge">${abs} غياب</span>
+            </div>`;
+          }).join('');
     }
 
     // ============================================================
@@ -1727,16 +1629,12 @@ select option { background: var(--ink-mid); color: var(--text); }
       const resultsEl = document.getElementById('searchResults');
       if (!q) { resultsEl.classList.add('hidden'); resultsEl.innerHTML = ''; return; }
       const matches = girls.filter(g => g.name.includes(q));
-      if (matches.length === 0) {
-        resultsEl.innerHTML = '<div class="search-item">لا توجد نتائج</div>';
-      } else {
-        resultsEl.innerHTML = matches.map(g =>
-          `<div class="search-item" onclick="showGirlProfile('${g.id}')">
+      resultsEl.innerHTML = matches.length === 0
+        ? '<div class="search-item">لا توجد نتائج</div>'
+        : matches.map(g => `<div class="search-item" onclick="APP.showGirlProfile('${g.id}')">
             <span>${g.name}</span>
             <span class="grade-badge">${g.grade}</span>
-          </div>`
-        ).join('');
-      }
+          </div>`).join('');
       resultsEl.classList.remove('hidden');
     });
 
@@ -1744,28 +1642,28 @@ select option { background: var(--ink-mid); color: var(--text); }
     // GIRLS PAGE
     // ============================================================
     function renderGirlsList() {
-      const filter = document.getElementById('gradeFilter').value;
+      const filter   = document.getElementById('gradeFilter').value;
       const filtered = filter ? girls.filter(g => g.grade === filter) : girls;
       const el = document.getElementById('girlsList');
       if (filtered.length === 0) {
         el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
         return;
       }
+      const monthStr = getMonthStr(new Date());
       el.innerHTML = filtered.map(g => {
-        const monthStr = getMonthStr(new Date());
         const presents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر').length;
-        const absents = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
-        return `<div class="girl-card" onclick="showGirlProfile('${g.id}')">
+        const absents  = Object.values(attendanceData).filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب').length;
+        return `<div class="girl-card" onclick="APP.showGirlProfile('${g.id}')">
           <div class="girl-avatar">${g.name[0]}</div>
           <div class="girl-info">
             <span class="girl-name">${g.name}</span>
             <span class="girl-grade">${g.grade}</span>
             <div class="girl-stats">
-              <span class="green-text">✓${presents}</span>
-              <span class="red-text">✗${absents}</span>
+              <span class="green-text">✓ ${presents}</span>
+              <span class="red-text">✗ ${absents}</span>
             </div>
           </div>
-          <button class="edit-btn" onclick="event.stopPropagation(); editGirl('${g.id}')">✏️</button>
+          <button class="edit-btn" onclick="event.stopPropagation(); APP.editGirl('${g.id}')">✏️</button>
         </div>`;
       }).join('');
     }
@@ -1775,60 +1673,37 @@ select option { background: var(--ink-mid); color: var(--text); }
     document.getElementById('addGirlBtn').addEventListener('click', () => {
       editingGirlId = null;
       document.getElementById('girlModalTitle').textContent = 'إضافة مخدومة';
-      document.getElementById('girlName').value = '';
-      document.getElementById('girlPhone').value = '';
+      ['girlName','girlPhone','girlNotes'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('girlGrade').value = '';
-      document.getElementById('girlNotes').value = '';
       openModal('girlModal');
     });
 
-    window.editGirl = function(id) {
-      const g = girls.find(x => x.id === id);
-      if (!g) return;
-      editingGirlId = id;
-      document.getElementById('girlModalTitle').textContent = 'تعديل بيانات المخدومة';
-      document.getElementById('girlName').value = g.name;
-      document.getElementById('girlPhone').value = g.phone || '';
-      document.getElementById('girlGrade').value = g.grade;
-      document.getElementById('girlNotes').value = g.notes || '';
-      openModal('girlModal');
-    };
-
     document.getElementById('saveGirlBtn').addEventListener('click', async () => {
-      const name = document.getElementById('girlName').value.trim();
+      const name  = document.getElementById('girlName').value.trim();
       const phone = document.getElementById('girlPhone').value.trim();
       const grade = document.getElementById('girlGrade').value;
       const notes = document.getElementById('girlNotes').value.trim();
 
-      if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
+      if (!name)  { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
       if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
 
-      // Check duplicate
       const dup = girls.find(g => g.name === name && g.id !== editingGirlId);
       if (dup) { showToast('هذه المخدومة موجودة بالفعل', 'error'); return; }
 
       const id = editingGirlId || 'girl_' + Date.now();
       const girlData = {
         id, name, phone, grade, notes,
-        createdAt: editingGirlId ? (girls.find(g=>g.id===editingGirlId)?.createdAt || Date.now()) : Date.now(),
-        updatedAt: Date.now(),
-        updatedBy: currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || '',
-        isDeleted: false
+        createdAt:     editingGirlId ? (girls.find(g => g.id === editingGirlId)?.createdAt || Date.now()) : Date.now(),
+        updatedAt:     Date.now(),
+        updatedBy:     currentUser?.displayName || 'خادم',
+        updatedByEmail:currentUser?.email || ''
       };
 
-      // Save locally first
       await idbPut('girls', girlData);
-      if (editingGirlId) {
-        girls = girls.map(g => g.id === id ? girlData : g);
-      } else {
-        girls.push(girlData);
-      }
+      girls = editingGirlId ? girls.map(g => g.id === id ? girlData : g) : [...girls, girlData];
 
-      // Log history
-      await logHistory(editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
+      await logHistory(editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} — ${grade}`);
 
-      // Sync to Firebase
       if (isOnline) {
         try { await setDoc(doc(db, 'girls', id), girlData); }
         catch(e) { await addToPending('girl', girlData); }
@@ -1837,28 +1712,25 @@ select option { background: var(--ink-mid); color: var(--text); }
       }
 
       closeModal('girlModal');
-      showToast(editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
+      showToast(editingGirlId ? 'تم تعديل البيانات ✓' : 'تمت إضافة المخدومة ✓', 'success');
       renderCurrentPage();
     });
 
     // ============================================================
     // GIRL PROFILE
     // ============================================================
-    window.showGirlProfile = function(id) {
+    function showGirlProfile(id) {
       const g = girls.find(x => x.id === id);
       if (!g) return;
       document.getElementById('profileName').textContent = g.name;
-      const body = document.getElementById('profileBody');
 
-      // Get all attendance for this girl grouped by month
       const girlAtt = Object.values(attendanceData).filter(a => a.girlId === id);
-      girlAtt.sort((a,b) => b.date?.localeCompare(a.date));
+      girlAtt.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 
       const months = {};
       girlAtt.forEach(a => {
         const m = a.date?.substring(0,7);
-        if (!months[m]) months[m] = [];
-        months[m].push(a);
+        if (m) { if (!months[m]) months[m] = []; months[m].push(a); }
       });
 
       let html = `<div class="profile-info">
@@ -1872,7 +1744,7 @@ select option { background: var(--ink-mid); color: var(--text); }
       } else {
         Object.entries(months).sort((a,b) => b[0].localeCompare(a[0])).forEach(([month, records]) => {
           const presents = records.filter(r => r.status === 'حاضر').length;
-          const absents = records.filter(r => r.status === 'غائب').length;
+          const absents  = records.filter(r => r.status === 'غائب').length;
           html += `<div class="profile-month">
             <div class="profile-month-header">
               <span>${formatMonth(month)}</span>
@@ -1881,7 +1753,7 @@ select option { background: var(--ink-mid); color: var(--text); }
             </div>
             <div class="profile-records">
               ${records.map(r => `<div class="profile-record">
-                <span class="rec-date">${r.date}</span>
+                <span class="rec-date">${r.date || ''}</span>
                 <span class="rec-activity">${r.activity || ''}</span>
                 <span class="rec-status ${r.status === 'حاضر' ? 'present' : 'absent'}">${r.status}</span>
                 ${r.rating ? `<span class="rec-rating">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>` : ''}
@@ -1892,11 +1764,9 @@ select option { background: var(--ink-mid); color: var(--text); }
         });
       }
 
-      body.innerHTML = html;
+      document.getElementById('profileBody').innerHTML = html;
       openModal('girlProfileModal');
-    };
-
-    document.getElementById('closeProfileModal').addEventListener('click', () => closeModal('girlProfileModal'));
+    }
 
     // ============================================================
     // ATTENDANCE PAGE
@@ -1929,7 +1799,7 @@ select option { background: var(--ink-mid); color: var(--text); }
 
     function renderAttendanceList() {
       const date = document.getElementById('attendanceDate').value;
-      const el = document.getElementById('attendanceList');
+      const el   = document.getElementById('attendanceList');
       if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
 
       let present = 0, absent = 0, pending = 0;
@@ -1937,12 +1807,12 @@ select option { background: var(--ink-mid); color: var(--text); }
         const key = `${g.id}_${date}_${selectedActivity}`;
         const rec = attendanceData[key];
         let statusClass = 'pending', statusIcon = '○', statusText = 'لم يُسجَّل';
-        if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '✓'; statusText = 'حاضر'; present++; }
-        else if (rec?.status === 'غائب') { statusClass = 'absent'; statusIcon = '✗'; statusText = 'غائب'; absent++; }
+        if (rec?.status === 'حاضر')      { statusClass = 'present'; statusIcon = '✓'; statusText = 'حاضر'; present++; }
+        else if (rec?.status === 'غائب') { statusClass = 'absent';  statusIcon = '✗'; statusText = 'غائب'; absent++; }
         else pending++;
 
         const stars = rec?.rating ? '★'.repeat(rec.rating) + '☆'.repeat(5-rec.rating) : '';
-        return `<div class="att-item ${statusClass}" onclick="openAttendanceEntry('${g.id}', '${g.name}', '${date}')">
+        return `<div class="att-item ${statusClass}" onclick="APP.openAttendanceEntry('${g.id}', '${g.name}', '${date}')">
           <div class="att-icon">${statusIcon}</div>
           <div class="att-info">
             <span class="att-name">${g.name}</span>
@@ -1954,17 +1824,24 @@ select option { background: var(--ink-mid); color: var(--text); }
         </div>`;
       }).join('');
 
+      if (girls.length === 0) {
+        el.innerHTML = '<div class="empty-state">لا توجد مخدومات. أضفهن أولاً من صفحة المخدومات.</div>';
+      }
+
       document.getElementById('presentCount').textContent = present;
-      document.getElementById('absentCount').textContent = absent;
-      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('absentCount').textContent  = absent;
+      document.getElementById('pendingCount').textContent  = pending;
     }
 
-    window.openAttendanceEntry = function(girlId, girlName, date) {
+    function openAttendanceEntry(girlId, girlName, date) {
       currentAttendanceGirlId = girlId;
       currentAttendanceRating = 0;
-      document.getElementById('attendanceModalTitle').textContent = `${selectedActivity} - ${date}`;
+      document.getElementById('attendanceModalTitle').textContent = `${selectedActivity} — ${date}`;
       document.getElementById('modalGirlName').textContent = girlName;
       document.getElementById('attendanceNotes').value = '';
+      document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
+      setRating(0);
+      document.getElementById('ratingSection').classList.add('hidden');
 
       const key = `${girlId}_${date}_${selectedActivity}`;
       const existing = attendanceData[key];
@@ -1973,13 +1850,9 @@ select option { background: var(--ink-mid); color: var(--text); }
         setRating(existing.rating || 0);
         document.getElementById('attendanceNotes').value = existing.notes || '';
         document.getElementById('ratingSection').classList.toggle('hidden', existing.status !== 'حاضر');
-      } else {
-        document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
-        setRating(0);
-        document.getElementById('ratingSection').classList.add('hidden');
       }
       openModal('attendanceModal');
-    };
+    }
 
     document.querySelectorAll('.attend-btn').forEach(b => {
       b.addEventListener('click', () => {
@@ -1989,10 +1862,10 @@ select option { background: var(--ink-mid); color: var(--text); }
       });
     });
 
-    // Stars
     document.querySelectorAll('.star').forEach(s => {
       s.addEventListener('click', () => setRating(parseInt(s.dataset.val)));
     });
+
     function setRating(val) {
       currentAttendanceRating = val;
       document.querySelectorAll('.star').forEach(s => {
@@ -2001,23 +1874,23 @@ select option { background: var(--ink-mid); color: var(--text); }
     }
 
     document.getElementById('saveAttendanceEntry').addEventListener('click', async () => {
-      const date = document.getElementById('attendanceDate').value;
+      const date      = document.getElementById('attendanceDate').value;
       const statusBtn = document.querySelector('.attend-btn.selected');
       if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
 
       const key = `${currentAttendanceGirlId}_${date}_${selectedActivity}`;
       const rec = {
-        id: key,
-        girlId: currentAttendanceGirlId,
+        id:            key,
+        girlId:        currentAttendanceGirlId,
         date,
-        day: selectedDay,
-        activity: selectedActivity,
-        status: statusBtn.dataset.status,
-        rating: statusBtn.dataset.status === 'حاضر' ? currentAttendanceRating : 0,
-        notes: document.getElementById('attendanceNotes').value.trim(),
-        updatedAt: Date.now(),
-        updatedBy: currentUser?.displayName || 'خادم',
-        updatedByEmail: currentUser?.email || ''
+        day:           selectedDay,
+        activity:      selectedActivity,
+        status:        statusBtn.dataset.status,
+        rating:        statusBtn.dataset.status === 'حاضر' ? currentAttendanceRating : 0,
+        notes:         document.getElementById('attendanceNotes').value.trim(),
+        updatedAt:     Date.now(),
+        updatedBy:     currentUser?.displayName || 'خادم',
+        updatedByEmail:currentUser?.email || ''
       };
 
       await idbPut('attendance', rec);
@@ -2030,28 +1903,30 @@ select option { background: var(--ink-mid); color: var(--text); }
         await addToPending('attendance', rec);
       }
 
-      await logHistory('تسجيل حضور', `${girls.find(g=>g.id===currentAttendanceGirlId)?.name} - ${selectedActivity} - ${date} - ${rec.status}`);
+      const girlName = girls.find(g => g.id === currentAttendanceGirlId)?.name || '';
+      await logHistory('تسجيل حضور', `${girlName} — ${selectedActivity} — ${date} — ${rec.status}`);
 
       closeModal('attendanceModal');
-      showToast('تم الحفظ', 'success');
+      showToast('تم الحفظ ✓', 'success');
       renderAttendanceList();
     });
 
     document.getElementById('saveAttendanceBtn').addEventListener('click', () => {
-      showToast('جميع البيانات محفوظة', 'success');
+      showToast('جميع البيانات محفوظة ✓', 'success');
     });
 
     // ============================================================
     // CALENDAR PAGE
     // ============================================================
     function renderCalendar() {
-      const year = calendarDate.getFullYear();
+      const year  = calendarDate.getFullYear();
       const month = calendarDate.getMonth();
       document.getElementById('calMonthYear').textContent =
-        calendarDate.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
+        calendarDate.toLocaleDateString('ar-EG', { year:'numeric', month:'long' });
 
-      const firstDay = new Date(year, month, 1).getDay();
+      const firstDay    = new Date(year, month, 1).getDay();
       const daysInMonth = new Date(year, month+1, 0).getDate();
+      const todayStr    = new Date().toISOString().split('T')[0];
 
       let html = '<div class="cal-weekdays">';
       ['أح','إث','ثل','أر','خم','جم','سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
@@ -2061,33 +1936,29 @@ select option { background: var(--ink-mid); color: var(--text); }
 
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const dayOfWeek = new Date(year, month, d).getDay();
-        // 0=Sun, 1=Mon, 3=Wed, 6=Sat
-        const isServiceDay = [1, 3, 6].includes(dayOfWeek);
-        const hasData = Object.values(attendanceData).some(a => a.date === dateStr);
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const dow = new Date(year, month, d).getDay(); // 0=Sun,1=Mon,3=Wed,6=Sat
+        const isService = [1, 3, 6].includes(dow);
+        const hasData   = Object.values(attendanceData).some(a => a.date === dateStr);
+        const isToday   = dateStr === todayStr;
 
-        html += `<div class="cal-day ${isServiceDay ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}"
-          onclick="showDayDetail('${dateStr}')">
+        html += `<div class="cal-day ${isService?'service-day':''} ${hasData?'has-data':''} ${isToday?'today':''}"
+          onclick="APP.showDayDetail('${dateStr}')">
           <span>${d}</span>
-          ${isServiceDay ? '<div class="service-dot"></div>' : ''}
+          ${isService ? '<div class="service-dot"></div>' : ''}
         </div>`;
       }
       html += '</div>';
       document.getElementById('calendarGrid').innerHTML = html;
     }
 
-    window.showDayDetail = function(dateStr) {
+    function showDayDetail(dateStr) {
       const records = Object.values(attendanceData).filter(a => a.date === dateStr);
       const el = document.getElementById('dayDetail');
       if (records.length === 0) {
         el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
       } else {
         const grouped = {};
-        records.forEach(r => {
-          if (!grouped[r.activity]) grouped[r.activity] = [];
-          grouped[r.activity].push(r);
-        });
+        records.forEach(r => { if (!grouped[r.activity]) grouped[r.activity] = []; grouped[r.activity].push(r); });
         let html = `<div class="day-detail-header">${dateStr}</div>`;
         Object.entries(grouped).forEach(([act, recs]) => {
           const presents = recs.filter(r => r.status === 'حاضر').length;
@@ -2096,16 +1967,10 @@ select option { background: var(--ink-mid); color: var(--text); }
         el.innerHTML = html;
       }
       el.classList.remove('hidden');
-    };
+    }
 
-    document.getElementById('calPrev').addEventListener('click', () => {
-      calendarDate.setMonth(calendarDate.getMonth() - 1);
-      renderCalendar();
-    });
-    document.getElementById('calNext').addEventListener('click', () => {
-      calendarDate.setMonth(calendarDate.getMonth() + 1);
-      renderCalendar();
-    });
+    document.getElementById('calPrev').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()-1); renderCalendar(); });
+    document.getElementById('calNext').addEventListener('click', () => { calendarDate.setMonth(calendarDate.getMonth()+1); renderCalendar(); });
 
     // ============================================================
     // STATS PAGE
@@ -2114,13 +1979,14 @@ select option { background: var(--ink-mid); color: var(--text); }
       const monthInput = document.getElementById('statsMonth');
       if (!monthInput.value) monthInput.value = getMonthStr(new Date());
       const month = monthInput.value;
-
       const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
+
       const totalSessions = new Set(monthAtt.map(a => a.date + '_' + a.activity)).size;
-      const presents = monthAtt.filter(a => a.status === 'حاضر').length;
-      const absents = monthAtt.filter(a => a.status === 'غائب').length;
-      const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
+      const presents  = monthAtt.filter(a => a.status === 'حاضر').length;
+      const absents   = monthAtt.filter(a => a.status === 'غائب').length;
+      const ratings   = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
       const avgRating = ratings.length > 0 ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : '-';
+      const needsFollowup = girls.filter(g => monthAtt.filter(a => a.girlId === g.id && a.status === 'غائب').length >= 2).length;
 
       document.getElementById('bigStatsGrid').innerHTML = `
         <div class="big-stat-card"><div class="big-num">${girls.length}</div><div>المخدومات</div></div>
@@ -2128,17 +1994,17 @@ select option { background: var(--ink-mid); color: var(--text); }
         <div class="big-stat-card green-card"><div class="big-num">${presents}</div><div>إجمالي الحضور</div></div>
         <div class="big-stat-card red-card"><div class="big-num">${absents}</div><div>إجمالي الغياب</div></div>
         <div class="big-stat-card"><div class="big-num">${avgRating}</div><div>متوسط التقييم</div></div>
-        <div class="big-stat-card orange-card"><div class="big-num">${girls.filter(g=>{const abs=monthAtt.filter(a=>a.girlId===g.id&&a.status==='غائب').length;return abs>=2;}).length}</div><div>تحتاج متابعة</div></div>
+        <div class="big-stat-card orange-card"><div class="big-num">${needsFollowup}</div><div>تحتاج متابعة</div></div>
       `;
 
       // Absence chart
-      const absenceByGirl = {};
-      girls.forEach(g => absenceByGirl[g.id] = 0);
-      monthAtt.filter(a => a.status === 'غائب').forEach(a => { if(absenceByGirl[a.girlId]!==undefined) absenceByGirl[a.girlId]++; });
-      const sortedAbs = Object.entries(absenceByGirl).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      document.getElementById('absenceChart').innerHTML = sortedAbs.map(([id, count]) => {
+      const absCount = {};
+      girls.forEach(g => absCount[g.id] = 0);
+      monthAtt.filter(a => a.status === 'غائب').forEach(a => { if (absCount[a.girlId] !== undefined) absCount[a.girlId]++; });
+      const sortedAbs = Object.entries(absCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      document.getElementById('absenceChart').innerHTML = sortedAbs.filter(([,c])=>c>0).map(([id, count]) => {
         const g = girls.find(x=>x.id===id);
-        if (!g || count === 0) return '';
+        if (!g) return '';
         const pct = Math.min(100, count * 20);
         return `<div class="chart-row">
           <span class="chart-name">${g.name}</span>
@@ -2148,20 +2014,22 @@ select option { background: var(--ink-mid); color: var(--text); }
       }).join('') || '<div class="empty-state">لا توجد غيابات هذا الشهر 🎉</div>';
 
       // Ranking
-      const presentsByGirl = {};
-      girls.forEach(g => presentsByGirl[g.id] = 0);
-      monthAtt.filter(a => a.status === 'حاضر').forEach(a => { if(presentsByGirl[a.girlId]!==undefined) presentsByGirl[a.girlId]++; });
-      const ranking = Object.entries(presentsByGirl).sort((a,b)=>b[1]-a[1]);
-      document.getElementById('attendanceRanking').innerHTML = ranking.map(([id, count], i) => {
-        const g = girls.find(x=>x.id===id);
-        if (!g) return '';
-        return `<div class="rank-item">
-          <span class="rank-num">${i+1}</span>
-          <span class="rank-name">${g.name}</span>
-          <span class="rank-grade">${g.grade}</span>
-          <span class="rank-count">${count} يوم</span>
-        </div>`;
-      }).join('');
+      const presCount = {};
+      girls.forEach(g => presCount[g.id] = 0);
+      monthAtt.filter(a => a.status === 'حاضر').forEach(a => { if (presCount[a.girlId] !== undefined) presCount[a.girlId]++; });
+      const ranking = Object.entries(presCount).sort((a,b)=>b[1]-a[1]);
+      document.getElementById('attendanceRanking').innerHTML = ranking.length === 0
+        ? '<div class="empty-state">لا توجد بيانات</div>'
+        : ranking.map(([id, count], i) => {
+            const g = girls.find(x=>x.id===id);
+            if (!g) return '';
+            return `<div class="rank-item">
+              <span class="rank-num">${i+1}</span>
+              <span class="rank-name">${g.name}</span>
+              <span class="rank-grade">${g.grade}</span>
+              <span class="rank-count">${count} يوم</span>
+            </div>`;
+          }).join('');
     }
 
     document.getElementById('statsMonth').addEventListener('change', renderStats);
@@ -2170,10 +2038,9 @@ select option { background: var(--ink-mid); color: var(--text); }
     // HISTORY PAGE
     // ============================================================
     async function renderHistory() {
-      const el = document.getElementById('historyList');
+      const el   = document.getElementById('historyList');
       const logs = await idbGetAll('history');
       logs.sort((a,b) => b.timestamp - a.timestamp);
-
       if (logs.length === 0) {
         el.innerHTML = '<div class="empty-state">لا توجد سجلات تاريخية</div>';
         return;
@@ -2184,7 +2051,7 @@ select option { background: var(--ink-mid); color: var(--text); }
           <div class="history-info">
             <span class="history-action">${log.action}</span>
             <span class="history-detail">${log.detail}</span>
-            <span class="history-meta">${log.by} · ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
+            <span class="history-meta">${log.by || ''} · ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
           </div>
         </div>
       `).join('');
@@ -2199,15 +2066,18 @@ select option { background: var(--ink-mid); color: var(--text); }
 
     async function logHistory(action, detail) {
       const log = {
-        id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
+        id:        'log_' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
         action, detail,
-        by: currentUser?.displayName || 'خادم',
-        byEmail: currentUser?.email || '',
+        by:        currentUser?.displayName || 'خادم',
+        byEmail:   currentUser?.email || '',
         timestamp: Date.now()
       };
       await idbPut('history', log);
       if (isOnline) {
-        try { await setDoc(doc(db, 'history', log.id), log); } catch(e) {}
+        try { await setDoc(doc(db, 'history', log.id), log); }
+        catch(e) { await addToPending('history', log); }
+      } else {
+        await addToPending('history', log);
       }
     }
 
@@ -2220,53 +2090,82 @@ select option { background: var(--ink-mid); color: var(--text); }
     }
 
     document.getElementById('exportCSV').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
+      const month    = document.getElementById('exportMonth').value;
       const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
       let csv = 'الاسم,السنة,التاريخ,النشاط,الحضور,التقييم,ملاحظات\n';
       monthAtt.forEach(a => {
-        const g = girls.find(x=>x.id===a.girlId);
-        if (g) csv += `${g.name},${g.grade},${a.date},${a.activity||''},${a.status},${a.rating||''},${a.notes||''}\n`;
+        const g = girls.find(x => x.id === a.girlId);
+        if (g) csv += `"${g.name}","${g.grade}","${a.date}","${a.activity||''}","${a.status}","${a.rating||''}","${a.notes||''}"\n`;
       });
       downloadFile(`حضور_${month}.csv`, csv, 'text/csv;charset=utf-8;');
-      showToast('تم تصدير CSV', 'success');
+      showToast('تم تصدير CSV ✓', 'success');
     });
 
     document.getElementById('exportJSON').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
+      const month    = document.getElementById('exportMonth').value;
       const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      const data = { month, girls, attendance: monthAtt, exportedAt: new Date().toISOString() };
+      const data = { month, girls, attendance: monthAtt, exportedAt: new Date().toISOString(), exportedBy: currentUser?.displayName };
       downloadFile(`بيانات_${month}.json`, JSON.stringify(data, null, 2), 'application/json');
-      showToast('تم تصدير JSON', 'success');
+      showToast('تم تصدير JSON ✓', 'success');
     });
 
     document.getElementById('exportPrint').addEventListener('click', () => {
-      const month = document.getElementById('exportMonth').value;
+      const month    = document.getElementById('exportMonth').value;
       const monthAtt = Object.values(attendanceData).filter(a => a.date?.startsWith(month));
-      let html = `<!DOCTYPE html><html lang="ar" dir="rtl">
+      const rows = monthAtt.map(a => {
+        const g = girls.find(x => x.id === a.girlId);
+        if (!g) return '';
+        return `<tr>
+          <td>${g.name}</td><td>${g.grade}</td><td>${a.date}</td><td>${a.activity||''}</td>
+          <td class="${a.status==='حاضر'?'present':'absent'}">${a.status}</td>
+          <td>${'★'.repeat(a.rating||0)}</td><td>${a.notes||''}</td>
+        </tr>`;
+      }).join('');
+
+      const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
         <head><meta charset="UTF-8"><title>تقرير ${month}</title>
         <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
-        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-        table{width:100%;border-collapse:collapse;margin-top:20px}
-        th,td{border:1px solid #ddd;padding:8px;text-align:right}
-        th{background:#1a2744;color:white}
-        .present{color:green} .absent{color:red}
+        <style>
+          body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px;color:#1a1a1a}
+          h1{color:#1a2744;border-bottom:2px solid #c9973a;padding-bottom:10px}
+          p{color:#555;margin-bottom:20px}
+          table{width:100%;border-collapse:collapse;margin-top:20px}
+          th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
+          th{background:#1a2744;color:white}
+          tr:nth-child(even){background:#f9f7f2}
+          .present{color:green;font-weight:700} .absent{color:red;font-weight:700}
+          @media print{body{padding:10px}}
         </style></head><body>
-        <h1>تقرير متابعة المخدومات - ${formatMonth(month)}</h1>
-        <p>عدد المخدومات: ${girls.length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
-        <table><tr><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${monthAtt.map(a=>{const g=girls.find(x=>x.id===a.girlId);if(!g)return'';
-          return`<tr><td>${g.name}</td><td>${g.grade}</td><td>${a.date}</td><td>${a.activity||''}</td>
-          <td class="${a.status==='حاضر'?'present':'absent'}">${a.status}</td>
-          <td>${'★'.repeat(a.rating||0)}</td><td>${a.notes||''}</td></tr>`;}).join('')}
-        </table></body></html>`;
+        <h1>تقرير متابعة المخدومات — ${formatMonth(month)}</h1>
+        <p>عدد المخدومات: ${girls.length} | إجمالي الحضور: ${monthAtt.filter(a=>a.status==='حاضر').length} | تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')}</p>
+        <table><thead><tr><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr></thead>
+        <tbody>${rows}</tbody></table></body></html>`;
+
       const w = window.open('', '_blank');
-      w.document.write(html);
-      w.document.close();
-      w.print();
+      if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 500); }
+      else showToast('يرجى السماح بالنوافذ المنبثقة', 'warning');
     });
 
     function downloadFile(filename, content, mimeType) {
       const blob = new Blob(['\uFEFF' + content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.cr
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================
+    // PUBLIC API (called from inline onclick)
+    // ============================================================
+    window.APP = {
+      showGirlProfile,
+      editGirl(id) {
+        const g = girls.find(x => x.id === id);
+        if (!g) return;
+        editingGirlId = id;
+        document.getElementById('girlModalTitle').textContent = 'تعديل بيانات المخدومة';
+        document.getElementById('girlName').valu
