@@ -1469,12 +1469,7 @@ select option { background: var(--ink-mid); color: var(--text); }
     // ============================================================
     document.getElementById('googleSignIn').addEventListener('click', async () => {
       try {
-        // Try popup first (works on web), fallback to redirect (works on mobile)
-        if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
-          await signInWithRedirect(auth, provider);
-        } else {
-          await signInWithPopup(auth, provider);
-        }
+        await signInWithRedirect(auth, provider);
       } catch (e) {
         console.error(e);
         showToast('فشل تسجيل الدخول: ' + e.message, 'error');
@@ -1498,13 +1493,17 @@ select option { background: var(--ink-mid); color: var(--text); }
       }
     });
 
-    // Check redirect result
+    // بعد الـ redirect، Firebase بيرجع هنا — لازم نستقبل النتيجة
     getRedirectResult(auth).then(result => {
       if (result?.user) {
         currentUser = result.user;
         showApp(result.user);
+        loadData().then(() => renderCurrentPage());
       }
-    }).catch(e => console.error(e));
+    }).catch(e => {
+      console.error('Redirect error:', e);
+      showToast('خطأ في تسجيل الدخول: ' + e.message, 'error');
+    });
 
     // ============================================================
     // APP INIT
@@ -2274,4 +2273,5 @@ select option { background: var(--ink-mid); color: var(--text); }
     function formatMonth(monthStr) {
       if (!monthStr) return '';
       const [y, m] = monthStr.split('-');
-      return new Date(parseInt(y), parseInt(m)-1,
+      return new Date(parseInt(y), parseInt(m)-1, 1)
+        .toLocaleDateString('ar-EG
