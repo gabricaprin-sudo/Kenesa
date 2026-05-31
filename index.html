@@ -87,9 +87,10 @@ body::before {
   position: fixed; inset: 0; z-index: 9999;
   background: var(--ink);
   display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.6s ease, visibility 0.6s ease;
+  transition: opacity 0.4s ease;
 }
-.splash.fade-out { opacity: 0; pointer-events: none; visibility: hidden; }
+.splash.fade-out { opacity: 0; pointer-events: none; }
+.splash.gone { display: none; }
 .splash-content { text-align: center; color: var(--text); }
 .splash-cross {
   font-size: 72px; display: block; margin-bottom: 20px;
@@ -1032,7 +1033,7 @@ select option { background: var(--ink-mid); color: var(--text); }
     </div>
 
     <!-- Login Screen -->
-    <div id="loginScreen" class="hidden">
+    <div id="loginScreen">
       <div class="login-bg">
         <div class="login-cross-bg">✝</div>
       </div>
@@ -1526,15 +1527,17 @@ select option { background: var(--ink-mid); color: var(--text); }
     // ============================================================
     function hideSplash() {
       const splash = document.getElementById('splash');
-      if (!splash) return;
+      if (!splash || splash.classList.contains('gone')) return;
       splash.classList.add('fade-out');
-      setTimeout(() => { if (splash.parentNode) splash.remove(); }, 600);
+      setTimeout(() => {
+        splash.classList.add('gone');
+      }, 400);
     }
 
     function showApp(user) {
-      hideSplash();
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
+      hideSplash();
       const initial = user.displayName ? user.displayName[0] : 'خ';
       document.getElementById('userAvatar').textContent = initial;
       document.getElementById('drawerAvatar').textContent = initial;
@@ -1543,9 +1546,9 @@ select option { background: var(--ink-mid); color: var(--text); }
     }
 
     function showLogin() {
-      hideSplash();
-      document.getElementById('loginScreen').classList.remove('hidden');
       document.getElementById('mainApp').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      hideSplash();
     }
 
     // ============================================================
@@ -2279,4 +2282,4 @@ select option { background: var(--ink-mid); color: var(--text); }
     });
 
     function downloadFile(filename, content, mimeType) {
-      const blob = new Blob(['\
+      const blo
