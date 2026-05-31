@@ -335,6 +335,14 @@ body {
 .stat-num { font-size: 32px; font-weight: 800; color: var(--primary); }
 .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
 
+/* Featured stat cards */
+.stat-card.gold { border-color: #d4a017; }
+.stat-card.teal { border-color: #16a085; }
+.stat-card.rose { border-color: #e91e63; }
+.stat-icon { font-size: 28px; margin-bottom: 4px; }
+.stat-value { font-size: 20px; font-weight: 800; color: var(--primary); line-height: 1.2; }
+.stat-sublabel { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
 .section-title {
   font-size: 17px; font-weight: 700; color: var(--primary);
   margin: 16px 0 10px; padding-right: 12px;
@@ -1072,6 +1080,25 @@ input[type="date"], input[type="month"] {
             </div>
           </div>
 
+          <div class="section-title">إحصائيات مميزة</div>
+          <div class="stats-grid">
+            <div class="stat-card gold">
+              <div class="stat-icon">🏆</div>
+              <div class="stat-value" id="bestGrade">-</div>
+              <div class="stat-sublabel" id="bestGradePercent">أفضل سنة دراسية</div>
+            </div>
+            <div class="stat-card teal">
+              <div class="stat-icon">📚</div>
+              <div class="stat-value" id="topActivityName">-</div>
+              <div class="stat-sublabel" id="topActivityCount">أكثر نشاط حضورًا</div>
+            </div>
+            <div class="stat-card rose">
+              <div class="stat-icon">⭐</div>
+              <div class="stat-value" id="mostRegularGirl">-</div>
+              <div class="stat-sublabel" id="mostRegularPercent">أكثر مخدومة انتظامًا</div>
+            </div>
+          </div>
+
           <div class="section-title">الأكثر حضورًا هذا الشهر</div>
           <div id="topAttendees" class="top-list"></div>
 
@@ -1348,6 +1375,9 @@ input[type="date"], input[type="month"] {
       todayDay: $('todayDay'), todayDate: $('todayDate'), todayServiceBadge: $('todayServiceBadge'),
       statTotal: $('statTotal'), statPresentToday: $('statPresentToday'),
       statAbsentToday: $('statAbsentToday'), statAvgRating: $('statAvgRating'),
+      bestGrade: $('bestGrade'), bestGradePercent: $('bestGradePercent'),
+      topActivityName: $('topActivityName'), topActivityCount: $('topActivityCount'),
+      mostRegularGirl: $('mostRegularGirl'), mostRegularPercent: $('mostRegularPercent'),
       topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
       attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
       presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'),
@@ -1791,6 +1821,79 @@ input[type="date"], input[type="month"] {
 
 
     // ============================================================
+    // SMART STATS — Best grade, top activity, most regular girl
+    // ============================================================
+    function getBestGrade(monthStr) {
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const gradeStats = {};
+      // Initialize all grades that have girls
+      activeGirls.forEach(g => {
+        if (!gradeStats[g.grade]) gradeStats[g.grade] = { totalGirls: 0, totalPresent: 0, totalRecords: 0 };
+        gradeStats[g.grade].totalGirls++;
+      });
+      // Count present records per grade for this month
+      Object.values(state.attendanceData).forEach(a => {
+        if (!a.date?.startsWith(monthStr)) return;
+        const girl = activeGirls.find(g => g.id === a.girlId);
+        if (!girl || !gradeStats[girl.grade]) return;
+        gradeStats[girl.grade].totalRecords++;
+        if (a.status === 'حاضر') gradeStats[girl.grade].totalPresent++;
+      });
+      let best = null;
+      Object.entries(gradeStats).forEach(([grade, data]) => {
+        // Percent = present count / total girls (each girl can attend multiple times)
+        const percent = data.totalRecords > 0 ? (data.totalPresent / data.totalRecords) * 100 : 0;
+        if (!best || percent > best.percent) best = { grade, percent };
+      });
+      return best;
+    }
+
+    function getTopActivity(monthStr) {
+      const counts = {};
+      ACTIVITIES.forEach(a => counts[a] = 0);
+      Object.values(state.attendanceData).forEach(a => {
+        if (!a.date?.startsWith(monthStr)) return;
+        if (a.status === 'حاضر' && counts[a.activity] !== undefined) counts[a.activity]++;
+      });
+      let topName = ACTIVITIES[0];
+      let topValue = 0;
+      Object.entries(counts).forEach(([name, count]) => {
+        if (count > topValue) { topName = name; topValue = count; }
+      });
+      return topValue > 0 ? { name: topName, count: topValue } : null;
+    }
+
+    function getMostRegularGirl(monthStr) {
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      if (!activeGirls.length) return null;
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      // Count total service days this month (unique dates with any activity)
+      const serviceDates = new Set();
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.date?.startsWith(monthStr) && activeGirlIds.has(a.girlId)) serviceDates.add(a.date);
+      });
+      const totalServiceDays = serviceDates.size || 1;
+      // Count present days per girl
+      const presentCounts = {};
+      activeGirls.forEach(g => presentCounts[g.id] = 0);
+      Object.values(state.attendanceData).forEach(a => {
+        if (!a.date?.startsWith(monthStr)) return;
+        if (a.status === 'حاضر' && presentCounts[a.girlId] !== undefined) presentCounts[a.girlId]++;
+      });
+      let best = null;
+      Object.entries(presentCounts).forEach(([girlId, count]) => {
+        if (count === 0) return;
+        const percent = (count / totalServiceDays) * 100;
+        const girl = activeGirls.find(g => g.id === girlId);
+        if (!girl) return;
+        if (!best || percent > best.percent || (percent === best.percent && count > best.count)) {
+          best = { name: girl.name, count, percent };
+        }
+      });
+      return best;
+    }
+
+    // ============================================================
     // HOME PAGE — Enhanced with accurate stats
     // ============================================================
     function renderHome() {
@@ -1831,6 +1934,34 @@ input[type="date"], input[type="month"] {
         }
       });
       DOM.statAvgRating.textContent = ratingCount ? (totalRating/ratingCount).toFixed(1) : '-';
+
+      // Featured smart stats cards
+      const bestGrade = getBestGrade(monthStr);
+      if (bestGrade && bestGrade.percent > 0) {
+        DOM.bestGrade.textContent = bestGrade.grade;
+        DOM.bestGradePercent.textContent = `${Math.round(bestGrade.percent)}% حضور`;
+      } else {
+        DOM.bestGrade.textContent = '-';
+        DOM.bestGradePercent.textContent = 'أفضل سنة دراسية';
+      }
+
+      const topActivity = getTopActivity(monthStr);
+      if (topActivity) {
+        DOM.topActivityName.textContent = topActivity.name;
+        DOM.topActivityCount.textContent = `${topActivity.count} حضور`;
+      } else {
+        DOM.topActivityName.textContent = '-';
+        DOM.topActivityCount.textContent = 'أكثر نشاط حضورًا';
+      }
+
+      const mostRegular = getMostRegularGirl(monthStr);
+      if (mostRegular) {
+        DOM.mostRegularGirl.textContent = mostRegular.name;
+        DOM.mostRegularPercent.textContent = `${mostRegular.count} يوم · ${Math.round(mostRegular.percent)}%`;
+      } else {
+        DOM.mostRegularGirl.textContent = '-';
+        DOM.mostRegularPercent.textContent = 'أكثر مخدومة انتظامًا';
+      }
 
       // Top attendees — computed for active girls only
       const counts = {};
