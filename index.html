@@ -578,7 +578,7 @@ body {
 
 .absence-chart { background: white; border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 16px; }
 .chart-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.chart-name { min-width: 70px; font-size: 13px; font-weight: 600; text-align: right; }
+.chart-name { width: 90px; flex-shrink: 0; font-size: 12px; font-weight: 600; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .chart-bar-wrap { flex: 1; height: 10px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .chart-bar { height: 100%; background: var(--red); border-radius: 5px; transition: width 0.5s; }
 .chart-val { font-size: 13px; font-weight: 700; color: var(--red); min-width: 20px; }
@@ -603,6 +603,26 @@ body {
 /* ============================================================
    HISTORY PAGE
    ============================================================ */
+.history-controls {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.history-controls .filter-select { flex: 1; }
+.btn-clear-history {
+  padding: 10px 14px; border: none; border-radius: 10px;
+  background: rgba(231,76,60,0.1); color: var(--red);
+  font-family: 'Tajawal', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: background 0.2s;
+}
+.btn-clear-history:active { background: rgba(231,76,60,0.25); }
+.load-more-wrap { text-align: center; margin-top: 16px; padding-bottom: 8px; }
+.btn-load-more {
+  padding: 12px 36px; border: 2px solid var(--border);
+  background: white; border-radius: 14px;
+  font-family: 'Tajawal', sans-serif; font-size: 15px; font-weight: 600;
+  color: var(--primary); cursor: pointer; transition: all 0.2s;
+}
+.btn-load-more:active { background: var(--bg); }
 .history-list { display: flex; flex-direction: column; gap: 8px; }
 .history-item {
   background: white; border-radius: 14px; padding: 14px 16px;
@@ -614,6 +634,47 @@ body {
 .history-action { font-size: 15px; font-weight: 700; display: block; color: var(--primary); }
 .history-detail { font-size: 13px; color: var(--text); display: block; margin: 2px 0; }
 .history-meta { font-size: 12px; color: var(--text-muted); display: block; }
+
+/* Delete girl button inside modal */
+.btn-danger {
+  flex: 1; padding: 14px; background: rgba(231,76,60,0.1); border: none;
+  border-radius: 12px; font-family: 'Tajawal', sans-serif;
+  font-size: 15px; font-weight: 600; color: var(--red); cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-danger:active { background: rgba(231,76,60,0.25); }
+
+/* Confirm modal overlay (shared) */
+.confirm-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.confirm-overlay.show { opacity: 1; pointer-events: all; }
+.confirm-box {
+  background: white; border-radius: 20px; padding: 28px 24px;
+  width: 100%; max-width: 360px; text-align: center;
+  box-shadow: var(--shadow-lg);
+  transform: scale(0.9); transition: transform 0.2s;
+}
+.confirm-overlay.show .confirm-box { transform: scale(1); }
+.confirm-icon { font-size: 48px; margin-bottom: 12px; }
+.confirm-title { font-size: 20px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+.confirm-msg { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+.confirm-actions { display: flex; gap: 10px; }
+.confirm-cancel {
+  flex: 1; padding: 13px; background: var(--bg); border: none;
+  border-radius: 12px; font-family: 'Tajawal', sans-serif;
+  font-size: 16px; font-weight: 600; color: var(--text-muted); cursor: pointer;
+}
+.confirm-ok {
+  flex: 1; padding: 13px; border: none; border-radius: 12px;
+  font-family: 'Tajawal', sans-serif; font-size: 16px; font-weight: 700;
+  color: white; cursor: pointer; background: var(--red);
+}
+.confirm-ok.blue { background: var(--primary); }
 
 /* ============================================================
    EXPORT PAGE
@@ -974,8 +1035,21 @@ input[type="date"], input[type="month"] {
 
         <!-- HISTORY PAGE -->
         <div id="page-history" class="page hidden">
+          <div class="history-controls">
+            <select id="historyFilter" class="filter-select">
+              <option value="">كل الأحداث</option>
+              <option value="إضافة">➕ إضافة مخدومة</option>
+              <option value="تعديل">✏️ تعديل مخدومة</option>
+              <option value="حذف">🗑️ حذف مخدومة</option>
+              <option value="حضور">📋 تسجيل حضور</option>
+            </select>
+            <button id="clearHistoryBtn" class="btn-clear-history">🗑️ مسح السجل</button>
+          </div>
           <div id="historyList" class="history-list">
             <div class="empty-state">جارٍ التحميل...</div>
+          </div>
+          <div id="loadMoreHistory" class="load-more-wrap hidden">
+            <button id="loadMoreHistoryBtn" class="btn-load-more">⬇ تحميل المزيد</button>
           </div>
         </div>
 
@@ -1048,8 +1122,22 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
         <div class="modal-footer">
+          <button class="btn-danger hidden" id="deleteGirlBtn">🗑️ حذف</button>
           <button class="btn-cancel" id="cancelGirlModal">إلغاء</button>
           <button class="btn-primary" id="saveGirlBtn">حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="confirm-overlay" id="confirmOverlay">
+      <div class="confirm-box">
+        <div class="confirm-icon" id="confirmIcon">⚠️</div>
+        <div class="confirm-title" id="confirmTitle">تأكيد</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">إلغاء</button>
+          <button class="confirm-ok" id="confirmOk">تأكيد</button>
         </div>
       </div>
     </div>
@@ -1185,6 +1273,24 @@ input[type="date"], input[type="month"] {
         const req = tx.objectStore(store).getAll();
         req.onsuccess = () => res(req.result);
         req.onerror = () => rej(req.error);
+      });
+    }
+
+    function idbDelete(store, id) {
+      return new Promise((res, rej) => {
+        const tx = idb.transaction(store, 'readwrite');
+        tx.objectStore(store).delete(id);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+    }
+
+    function idbClear(store) {
+      return new Promise((res, rej) => {
+        const tx = idb.transaction(store, 'readwrite');
+        tx.objectStore(store).clear();
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
       });
     }
 
@@ -1329,7 +1435,7 @@ input[type="date"], input[type="month"] {
       try {
         // Load from IDB first (instant)
         const localGirls = await idbGetAll('girls');
-        if (localGirls.length > 0) { girls = localGirls; renderCurrentPage(); }
+        if (localGirls.length > 0) { girls = localGirls.filter(g => !g.isDeleted); renderCurrentPage(); }
         const localAtt = await idbGetAll('attendance');
         if (localAtt.length > 0) {
           localAtt.forEach(a => { attendanceData[a.id] = a; });
@@ -1337,18 +1443,46 @@ input[type="date"], input[type="month"] {
 
         if (!isOnline) return;
 
+        // Sync history from Firestore (load once, not live)
+        try {
+          const histQ = query(collection(db, 'history'), orderBy('timestamp', 'desc'));
+          const histSnap = await getDocs(histQ);
+          for (const d of histSnap.docs) {
+            await idbPut('history', {id: d.id, ...d.data()});
+          }
+        } catch(e) { console.error('History sync error:', e); }
+
         // Live sync from Firestore
         const girlsQ = query(collection(db, 'girls'), orderBy('name'));
         onSnapshot(girlsQ, async snap => {
-          girls = snap.docs.map(d => ({id: d.id, ...d.data()}));
-          for (const g of girls) await idbPut('girls', g);
+          // Only process changed documents (performance fix)
+          for (const change of snap.docChanges()) {
+            const g = {id: change.doc.id, ...change.doc.data()};
+            if (change.type === 'removed' || g.isDeleted) {
+              girls = girls.filter(x => x.id !== g.id);
+              await idbDelete('girls', g.id);
+            } else {
+              await idbPut('girls', g);
+              const idx = girls.findIndex(x => x.id === g.id);
+              if (idx >= 0) girls[idx] = g; else girls.push(g);
+            }
+          }
+          girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
           renderCurrentPage();
         });
 
         const attQ = query(collection(db, 'attendance'), orderBy('date', 'desc'));
         onSnapshot(attQ, async snap => {
-          snap.docs.forEach(d => { attendanceData[d.id] = {id: d.id, ...d.data()}; });
-          for (const a of Object.values(attendanceData)) await idbPut('attendance', a);
+          // Only process changed records (performance fix)
+          for (const change of snap.docChanges()) {
+            const a = {id: change.doc.id, ...change.doc.data()};
+            if (change.type === 'removed') {
+              delete attendanceData[a.id];
+            } else {
+              attendanceData[a.id] = a;
+              await idbPut('attendance', a);
+            }
+          }
           renderCurrentPage();
         });
 
@@ -1565,6 +1699,7 @@ input[type="date"], input[type="month"] {
       document.getElementById('girlPhone').value = '';
       document.getElementById('girlGrade').value = '';
       document.getElementById('girlNotes').value = '';
+      document.getElementById('deleteGirlBtn').classList.add('hidden');
       openModal('girlModal');
     });
 
@@ -1577,8 +1712,40 @@ input[type="date"], input[type="month"] {
       document.getElementById('girlPhone').value = g.phone || '';
       document.getElementById('girlGrade').value = g.grade;
       document.getElementById('girlNotes').value = g.notes || '';
+      document.getElementById('deleteGirlBtn').classList.remove('hidden');
       openModal('girlModal');
     };
+
+    document.getElementById('deleteGirlBtn').addEventListener('click', () => {
+      if (!editingGirlId) return;
+      const g = girls.find(x => x.id === editingGirlId);
+      if (!g) return;
+      closeModal('girlModal');
+      showConfirm({
+        icon: '🗑️',
+        title: 'حذف مخدومة',
+        msg: `هل أنت متأكد من حذف "${g.name}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
+        okLabel: 'حذف',
+        onOk: async () => {
+          const id = editingGirlId;
+          // Remove from local state
+          girls = girls.filter(x => x.id !== id);
+          await idbDelete('girls', id);
+
+          // Sync deletion to Firestore (soft delete)
+          if (isOnline) {
+            try {
+              await setDoc(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' }, { merge: true });
+            } catch(e) { console.error('Delete girl Firestore error:', e); }
+          }
+
+          await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
+          closeModal('girlModal');
+          showToast(`تم حذف ${g.name}`, 'success');
+          renderCurrentPage();
+        }
+      });
+    });
 
     document.getElementById('saveGirlBtn').addEventListener('click', async () => {
       const name = document.getElementById('girlName').value.trim();
@@ -1955,16 +2122,34 @@ input[type="date"], input[type="month"] {
     // ============================================================
     // HISTORY PAGE
     // ============================================================
-    async function renderHistory() {
-      const el = document.getElementById('historyList');
-      const logs = await idbGetAll('history');
-      logs.sort((a,b) => b.timestamp - a.timestamp);
+    let historyOffset = 0;
+    const HISTORY_PAGE_SIZE = 30;
+    let historyAllLogs = [];
 
-      if (logs.length === 0) {
+    async function renderHistory(append = false) {
+      const el = document.getElementById('historyList');
+      const filterEl = document.getElementById('historyFilter');
+      const filter = filterEl ? filterEl.value : '';
+
+      if (!append) {
+        el.innerHTML = '<div class="empty-state">جارٍ التحميل...</div>';
+        historyOffset = 0;
+        // Reload from IDB each time filter changes
+        const logs = await idbGetAll('history');
+        logs.sort((a,b) => b.timestamp - a.timestamp);
+        historyAllLogs = filter ? logs.filter(l => l.action.includes(filter)) : logs;
+      }
+
+      if (historyAllLogs.length === 0) {
         el.innerHTML = '<div class="empty-state">لا توجد سجلات تاريخية</div>';
+        document.getElementById('loadMoreHistory').classList.add('hidden');
         return;
       }
-      el.innerHTML = logs.slice(0, 100).map(log => `
+
+      const slice = historyAllLogs.slice(historyOffset, historyOffset + HISTORY_PAGE_SIZE);
+      historyOffset += slice.length;
+
+      const html = slice.map(log => `
         <div class="history-item">
           <div class="history-icon">${getHistoryIcon(log.action)}</div>
           <div class="history-info">
@@ -1974,11 +2159,47 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
       `).join('');
+
+      if (!append) { el.innerHTML = html; }
+      else { el.insertAdjacentHTML('beforeend', html); }
+
+      document.getElementById('loadMoreHistory').classList.toggle('hidden', historyOffset >= historyAllLogs.length);
     }
+
+    document.getElementById('historyFilter').addEventListener('change', () => renderHistory(false));
+
+    document.getElementById('loadMoreHistoryBtn').addEventListener('click', () => renderHistory(true));
+
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+      showConfirm({
+        icon: '🗑️',
+        title: 'مسح السجل التاريخي',
+        msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
+        okLabel: 'مسح الكل',
+        okClass: '',
+        onOk: async () => {
+          await idbClear('history');
+          historyAllLogs = [];
+          if (isOnline) {
+            try {
+              const snap = await getDocs(collection(db, 'history'));
+              if (snap.docs.length > 0) {
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+              }
+            } catch(e) { console.error('Firestore clear history error:', e); }
+          }
+          showToast('تم مسح السجل التاريخي', 'success');
+          renderHistory(false);
+        }
+      });
+    });
 
     function getHistoryIcon(action) {
       if (action.includes('إضافة')) return '➕';
       if (action.includes('تعديل')) return '✏️';
+      if (action.includes('حذف'))  return '🗑️';
       if (action.includes('حضور')) return '📋';
       return '📝';
     }
@@ -2079,6 +2300,29 @@ input[type="date"], input[type="month"] {
       document.body.style.overflow = '';
     }
 
+    // ============================================================
+    // CONFIRM MODAL
+    // ============================================================
+    let _confirmCallback = null;
+    function showConfirm({ icon = '⚠️', title, msg, okLabel = 'تأكيد', okClass = '', onOk }) {
+      document.getElementById('confirmIcon').textContent = icon;
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMsg').textContent = msg;
+      const okBtn = document.getElementById('confirmOk');
+      okBtn.textContent = okLabel;
+      okBtn.className = 'confirm-ok' + (okClass ? ' ' + okClass : '');
+      _confirmCallback = onOk;
+      document.getElementById('confirmOverlay').classList.add('show');
+    }
+    document.getElementById('confirmOk').addEventListener('click', async () => {
+      document.getElementById('confirmOverlay').classList.remove('show');
+      if (_confirmCallback) { await _confirmCallback(); _confirmCallback = null; }
+    });
+    document.getElementById('confirmCancel').addEventListener('click', () => {
+      document.getElementById('confirmOverlay').classList.remove('show');
+      _confirmCallback = null;
+    });
+
     document.getElementById('closeGirlModal').addEventListener('click', () => closeModal('girlModal'));
     document.getElementById('cancelGirlModal').addEventListener('click', () => closeModal('girlModal'));
     document.getElementById('closeAttendanceModal').addEventListener('click', () => closeModal('attendanceModal'));
@@ -2109,67 +2353,4 @@ input[type="date"], input[type="month"] {
       return d.toLocaleDateString('ar-EG', {year:'numeric', month:'long'});
     }
 
-    // ============================================================
-    // INIT
-    // ============================================================
-    openIDB().then(() => {
-      updateSyncIndicator();
-      // Init page
-      const todayInput = document.getElementById('attendanceDate');
-      if (todayInput) todayInput.value = new Date().toISOString().split('T')[0];
-    });
-
-
-    // ============================================================
-    // SERVICE WORKER - INLINE (no external sw.js needed)
-    // ============================================================
-    if ('serviceWorker' in navigator) {
-      const swCode = `
-// Service Worker - نظام متابعة المخدومات
-const CACHE_NAME = 'makhdomatv1';
-const ASSETS = ['/'];
-
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', e => {
-  if (e.request.url.includes('firebase') || e.request.url.includes('identitytoolkit') || e.request.url.includes('googleapis.com/identitytoolkit')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
-    return;
-  }
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === 'GET') {
-          const cloned = res.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, cloned));
-        }
-        return res;
-      }).catch(() => cached);
-    })
-  );
-});
-`;
-      const blob = new Blob([swCode], { type: 'application/javascript' });
-      const swUrl = URL.createObjectURL(blob);
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register(swUrl)
-          .then(reg => console.log('Service Worker registered'))
-          .catch(err => console.error('SW failed:', err));
-      });
-    }
-  </script>
-</body>
-</html>
+    // ============
