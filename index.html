@@ -87,9 +87,9 @@ body::before {
   position: fixed; inset: 0; z-index: 9999;
   background: var(--ink);
   display: flex; align-items: center; justify-content: center;
-  transition: opacity 0.6s ease;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
 }
-.splash.fade-out { opacity: 0; pointer-events: none; }
+.splash.fade-out { opacity: 0; pointer-events: none; visibility: hidden; }
 .splash-content { text-align: center; color: var(--text); }
 .splash-cross {
   font-size: 72px; display: block; margin-bottom: 20px;
@@ -1497,14 +1497,18 @@ select option { background: var(--ink-mid); color: var(--text); }
     });
 
     onAuthStateChanged(auth, async (user) => {
-      hideSplash();
-      if (user) {
-        currentUser = user;
-        showApp(user);
-        await loadData();
-        renderCurrentPage();
-      } else {
-        currentUser = null;
+      try {
+        if (user) {
+          currentUser = user;
+          showApp(user);
+          await loadData();
+          renderCurrentPage();
+        } else {
+          currentUser = null;
+          showLogin();
+        }
+      } catch (e) {
+        console.error('Auth state error:', e);
         showLogin();
       }
     });
@@ -1521,13 +1525,14 @@ select option { background: var(--ink-mid); color: var(--text); }
     // APP INIT
     // ============================================================
     function hideSplash() {
-      setTimeout(() => {
-        const splash = document.getElementById('splash');
-        if (splash) { splash.classList.add('fade-out'); setTimeout(() => splash.remove(), 500); }
-      }, 1200);
+      const splash = document.getElementById('splash');
+      if (!splash) return;
+      splash.classList.add('fade-out');
+      setTimeout(() => { if (splash.parentNode) splash.remove(); }, 600);
     }
 
     function showApp(user) {
+      hideSplash();
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       const initial = user.displayName ? user.displayName[0] : 'خ';
@@ -1538,6 +1543,7 @@ select option { background: var(--ink-mid); color: var(--text); }
     }
 
     function showLogin() {
+      hideSplash();
       document.getElementById('loginScreen').classList.remove('hidden');
       document.getElementById('mainApp').classList.add('hidden');
     }
@@ -2273,8 +2279,4 @@ select option { background: var(--ink-mid); color: var(--text); }
     });
 
     function downloadFile(filename, content, mimeType) {
-      const blob = new Blob(['\uFEFF' + content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-    
+      const blob = new Blob(['\
