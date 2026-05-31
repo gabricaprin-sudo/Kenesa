@@ -1706,11 +1706,45 @@ input[type="date"], input[type="month"] {
         msg: `هل أنت متأكد من حذف "${g.name}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
         okLabel: 'حذف',
         onOk: async () => {
-          const id = editingGirlId;
-          girls = girls.filter(x => x.id !== id);
-          if (idb) await idbDelete('girls', id);
-          if (isOnline) {
-            try { await setDoc(doc(db, 'girls', id), { isDeleted: true, deletedAt: Date.now(), deletedBy: currentUser?.email || '' }, { merge: true }); }
+  const id = editingGirlId;
+  
+  // ① امسح المخدومة نفسها
+  girls = girls.filter(x => x.id !== id);
+  if (idb) await idbDelete('girls', id);
+  if (isOnline) {
+    try { 
+      await setDoc(doc(db, 'girls', id), { 
+        isDeleted: true, 
+        deletedAt: Date.now(), 
+        deletedBy: currentUser?.email || '' 
+      }, { merge: true }); 
+    } catch(e) { console.error('Delete girl Firestore error:', e); }
+  }
+
+  // ② امسح كل سجلات حضورها من attendanceData
+  const keysToDelete = Object.keys(attendanceData).filter(k => k.startsWith(id));
+  keysToDelete.forEach(k => delete attendanceData[k]);
+
+  // ③ امسحهم من IDB
+  if (idb) {
+    for (const k of keysToDelete) {
+      await idbDelete('attendance', k);
+    }
+  }
+
+  // ④ امسحهم من Firestore
+  if (isOnline && keysToDelete.length) {
+    try {
+      const batch = writeBatch(db);
+      keysToDelete.forEach(k => batch.delete(doc(db, 'attendance', k)));
+      await batch.commit();
+    } catch(e) { console.error('Delete attendance Firestore error:', e); }
+  }
+
+  await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
+  showToast(`تم حذف ${g.name}`, 'success');
+  renderCurrentPage();
+}
             catch(e) { console.error('Delete girl Firestore error:', e); }
           }
           await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
