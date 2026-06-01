@@ -545,6 +545,65 @@ body {
   background: rgba(26,39,68,0.1); color: var(--primary);
   border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 600;
 }
+/* Grade Filter Buttons */
+.grade-filter-btns {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.grade-filter-btn {
+  padding: 10px 16px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.grade-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(26,39,68,0.25);
+}
+.grade-filter-btn:active {
+  transform: scale(0.97);
+}
+.grade-filter-btn .count {
+  background: rgba(26,39,68,0.1);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 22px;
+  text-align: center;
+}
+.grade-filter-btn.active .count {
+  background: rgba(255,255,255,0.25);
+  color: white;
+}
+/* Girls page filter layout */
+.girls-filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.girls-filter-row .grade-filter-btns {
+  flex: 1;
+  margin-bottom: 0;
+}
+
 
 /* ============================================================
    CALENDAR PAGE
@@ -1061,6 +1120,13 @@ input[type="date"], input[type="month"] {
             <div id="todayServiceBadge" class="service-badge"></div>
           </div>
 
+          <div class="grade-filter-btns" id="homeGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="homeFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="homeFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="homeFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="homeFilterCount3">0</span></button>
+          </div>
+
           <div class="stats-grid">
             <div class="stat-card blue">
               <div class="stat-num" id="statTotal">0</div>
@@ -1134,14 +1200,14 @@ input[type="date"], input[type="month"] {
 
         <!-- GIRLS PAGE -->
         <div id="page-girls" class="page">
-          <div class="filter-bar">
-            <select id="gradeFilter" class="filter-select">
-              <option value="">كل السنوات</option>
-              <option value="أولى إعدادي">أولى إعدادي</option>
-              <option value="تانية إعدادي">تانية إعدادي</option>
-              <option value="تالتة إعدادي">تالتة إعدادي</option>
-            </select>
-            <button class="btn-add-girl" id="addGirlBtn">+ إضافة مخدومة</button>
+          <div class="girls-filter-row">
+            <div class="grade-filter-btns" id="girlsGradeFilters">
+              <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="girlsFilterCount1">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="girlsFilterCount2">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
+            </div>
+            <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
           </div>
           <div id="girlsList" class="girls-list"></div>
         </div>
@@ -1177,10 +1243,10 @@ input[type="date"], input[type="month"] {
               <option value="">كل الأحداث</option>
               <option value="إضافة">&#10133; إضافة مخدومة</option>
               <option value="تعديل">&#9999; تعديل مخدومة</option>
-              <option value="حذف">&#128465; حذف مخدومة</option>
+              <option value="حذف">&#10060; حذف مخدومة</option>
               <option value="حضور">&#128203; تسجيل حضور</option>
             </select>
-            <button id="clearHistoryBtn" class="btn-clear-history">&#128465; مسح السجل</button>
+            <button id="clearHistoryBtn" class="btn-clear-history">&#10060; مسح السجل</button>
           </div>
           <div id="historyList" class="history-list">
             <div class="empty-state">جارٍ التحميل...</div>
@@ -1259,7 +1325,7 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-danger hidden" id="deleteGirlBtn">&#128465; حذف</button>
+          <button class="btn-danger hidden" id="deleteGirlBtn">حذف</button>
           <button class="btn-cancel" id="cancelGirlModal">إلغاء</button>
           <button class="btn-primary" id="saveGirlBtn">حفظ</button>
         </div>
@@ -1394,6 +1460,7 @@ input[type="date"], input[type="month"] {
       girlModal: $('girlModal'), girlModalTitle: $('girlModalTitle'),
       girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
       girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
+      homeGradeFilters: $('homeGradeFilters'), girlsGradeFilters: $('girlsGradeFilters'),
       closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
       saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
       profileName: $('profileName'), profileBody: $('profileBody'),
@@ -1431,7 +1498,9 @@ input[type="date"], input[type="month"] {
       historyOffset: 0,
       historyAllLogs: [],
       dirtyFlags: new Set(),
-      deleteInProgress: false
+      deleteInProgress: false,
+      homeGradeFilter: '',
+      girlsGradeFilter: ''
     };
 
     const HISTORY_PAGE_SIZE = 30;
@@ -1893,8 +1962,86 @@ input[type="date"], input[type="month"] {
       return best;
     }
 
+
     // ============================================================
-    // HOME PAGE — Enhanced with accurate stats
+    // FILTERED SMART STATS — by grade
+    // ============================================================
+    function getBestGradeFiltered(monthStr, gradeFilter) {
+      let activeGirls = state.girls.filter(g => !g.isDeleted);
+      if (gradeFilter) {
+        // If a specific grade is selected, show that grade's stats vs others
+        const gradeStats = {};
+        activeGirls.forEach(g => {
+          if (!gradeStats[g.grade]) gradeStats[g.grade] = { totalGirls: 0, totalPresent: 0, totalRecords: 0 };
+          gradeStats[g.grade].totalGirls++;
+        });
+        Object.values(state.attendanceData).forEach(a => {
+          if (!a.date?.startsWith(monthStr)) return;
+          const girl = activeGirls.find(g => g.id === a.girlId);
+          if (!girl || !gradeStats[girl.grade]) return;
+          gradeStats[girl.grade].totalRecords++;
+          if (a.status === 'حاضر') gradeStats[girl.grade].totalPresent++;
+        });
+        let best = null;
+        Object.entries(gradeStats).forEach(([grade, data]) => {
+          const percent = data.totalRecords > 0 ? (data.totalPresent / data.totalRecords) * 100 : 0;
+          if (!best || percent > best.percent) best = { grade, percent };
+        });
+        return best;
+      }
+      // No filter — same as before
+      return getBestGrade(monthStr);
+    }
+
+    function getTopActivityFiltered(monthStr, gradeFilter) {
+      let activeGirls = state.girls.filter(g => !g.isDeleted);
+      const activeGirlIds = gradeFilter ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id)) : new Set(activeGirls.map(g => g.id));
+      const counts = {};
+      ACTIVITIES.forEach(a => counts[a] = 0);
+      Object.values(state.attendanceData).forEach(a => {
+        if (!a.date?.startsWith(monthStr)) return;
+        if (!activeGirlIds.has(a.girlId)) return;
+        if (a.status === 'حاضر' && counts[a.activity] !== undefined) counts[a.activity]++;
+      });
+      let topName = ACTIVITIES[0];
+      let topValue = 0;
+      Object.entries(counts).forEach(([name, count]) => {
+        if (count > topValue) { topName = name; topValue = count; }
+      });
+      return topValue > 0 ? { name: topName, count: topValue } : null;
+    }
+
+    function getMostRegularGirlFiltered(monthStr, gradeFilter) {
+      let activeGirls = state.girls.filter(g => !g.isDeleted);
+      if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
+      if (!activeGirls.length) return null;
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      const serviceDates = new Set();
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.date?.startsWith(monthStr) && activeGirlIds.has(a.girlId)) serviceDates.add(a.date);
+      });
+      const totalServiceDays = serviceDates.size || 1;
+      const presentCounts = {};
+      activeGirls.forEach(g => presentCounts[g.id] = 0);
+      Object.values(state.attendanceData).forEach(a => {
+        if (!a.date?.startsWith(monthStr)) return;
+        if (a.status === 'حاضر' && presentCounts[a.girlId] !== undefined) presentCounts[a.girlId]++;
+      });
+      let best = null;
+      Object.entries(presentCounts).forEach(([girlId, count]) => {
+        if (count === 0) return;
+        const percent = (count / totalServiceDays) * 100;
+        const girl = activeGirls.find(g => g.id === girlId);
+        if (!girl) return;
+        if (!best || percent > best.percent || (percent === best.percent && count > best.count)) {
+          best = { name: girl.name, count, percent };
+        }
+      });
+      return best;
+    }
+
+        // ============================================================
+    // HOME PAGE — Enhanced with grade filter support
     // ============================================================
     function renderHome() {
       const now = new Date();
@@ -1907,26 +2054,42 @@ input[type="date"], input[type="month"] {
       DOM.todayServiceBadge.textContent = isService ? 'يوم خدمة ✓' : 'لا توجد خدمة اليوم';
       DOM.todayServiceBadge.classList.toggle('active', isService);
 
-      // Total girls: count active (non-deleted) girls only
-      const activeGirls = state.girls.filter(g => !g.isDeleted);
-      DOM.statTotal.textContent = activeGirls.length;
-
       const todayStr = DateUtil.toStr(now);
       const monthStr = DateUtil.getMonthStr(now);
 
-      // Present/Absent today — count only for active girls
+      // Apply grade filter
+      const gradeFilter = state.homeGradeFilter;
+      let activeGirls = state.girls.filter(g => !g.isDeleted);
+      if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
       const activeGirlIds = new Set(activeGirls.map(g => g.id));
+
+      // Update filter button counts
+      const allActive = state.girls.filter(g => !g.isDeleted);
+      document.getElementById('homeFilterCountAll').textContent = allActive.length;
+      document.getElementById('homeFilterCount1').textContent = allActive.filter(g => g.grade === 'أولى إعدادي').length;
+      document.getElementById('homeFilterCount2').textContent = allActive.filter(g => g.grade === 'تانية إعدادي').length;
+      document.getElementById('homeFilterCount3').textContent = allActive.filter(g => g.grade === 'تالتة إعدادي').length;
+
+      // Update filter button active state
+      $$('#homeGradeFilters .grade-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
+      });
+
+      // Total girls (filtered)
+      DOM.statTotal.textContent = activeGirls.length;
+
+      // Present/Absent today — filtered
       let presentToday = 0, absentToday = 0;
       Object.values(state.attendanceData).forEach(a => {
         if (a.date !== todayStr) return;
-        if (!activeGirlIds.has(a.girlId)) return; // skip deleted girls
+        if (!activeGirlIds.has(a.girlId)) return;
         if (a.status === 'حاضر') presentToday++;
         else if (a.status === 'غائب') absentToday++;
       });
       DOM.statPresentToday.textContent = presentToday;
       DOM.statAbsentToday.textContent = absentToday;
 
-      // Average rating — only for active girls in current month
+      // Average rating — filtered
       let totalRating = 0, ratingCount = 0;
       Object.values(state.attendanceData).forEach(a => {
         if (a.date?.startsWith(monthStr) && a.rating > 0 && activeGirlIds.has(a.girlId)) {
@@ -1935,17 +2098,17 @@ input[type="date"], input[type="month"] {
       });
       DOM.statAvgRating.textContent = ratingCount ? (totalRating/ratingCount).toFixed(1) : '-';
 
-      // Featured smart stats cards
-      const bestGrade = getBestGrade(monthStr);
+      // Featured smart stats — filtered by grade
+      const bestGrade = getBestGradeFiltered(monthStr, gradeFilter);
       if (bestGrade && bestGrade.percent > 0) {
         DOM.bestGrade.textContent = bestGrade.grade;
         DOM.bestGradePercent.textContent = `${Math.round(bestGrade.percent)}% حضور`;
       } else {
-        DOM.bestGrade.textContent = '-';
-        DOM.bestGradePercent.textContent = 'أفضل سنة دراسية';
+        DOM.bestGrade.textContent = gradeFilter || '-';
+        DOM.bestGradePercent.textContent = gradeFilter ? 'لا توجد بيانات' : 'أفضل سنة دراسية';
       }
 
-      const topActivity = getTopActivity(monthStr);
+      const topActivity = getTopActivityFiltered(monthStr, gradeFilter);
       if (topActivity) {
         DOM.topActivityName.textContent = topActivity.name;
         DOM.topActivityCount.textContent = `${topActivity.count} حضور`;
@@ -1954,7 +2117,7 @@ input[type="date"], input[type="month"] {
         DOM.topActivityCount.textContent = 'أكثر نشاط حضورًا';
       }
 
-      const mostRegular = getMostRegularGirl(monthStr);
+      const mostRegular = getMostRegularGirlFiltered(monthStr, gradeFilter);
       if (mostRegular) {
         DOM.mostRegularGirl.textContent = mostRegular.name;
         DOM.mostRegularPercent.textContent = `${mostRegular.count} يوم · ${Math.round(mostRegular.percent)}%`;
@@ -1963,7 +2126,7 @@ input[type="date"], input[type="month"] {
         DOM.mostRegularPercent.textContent = 'أكثر مخدومة انتظامًا';
       }
 
-      // Top attendees — computed for active girls only
+      // Top attendees — filtered
       const counts = {};
       activeGirls.forEach(g => counts[g.id] = 0);
       Object.values(state.attendanceData).forEach(a => {
@@ -1991,7 +2154,7 @@ input[type="date"], input[type="month"] {
         topEl.appendChild(frag);
       }
 
-      // Needs followup — active girls with 2+ absences this month
+      // Needs followup — filtered girls with 2+ absences
       const needs = activeGirls.filter(g => {
         const abs = Object.values(state.attendanceData).filter(a =>
           a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
@@ -2034,13 +2197,25 @@ input[type="date"], input[type="month"] {
     });
 
     // ============================================================
-    // GIRLS PAGE — with working delete
+    // GIRLS PAGE — with working delete and button filters
     // ============================================================
     function renderGirlsList() {
-      const filter = DOM.gradeFilter.value;
+      const filter = state.girlsGradeFilter;
       const activeGirls = state.girls.filter(g => !g.isDeleted);
       const filtered = filter ? activeGirls.filter(g => g.grade === filter) : activeGirls;
       const el = DOM.girlsList;
+
+      // Update filter button counts
+      document.getElementById('girlsFilterCountAll').textContent = activeGirls.length;
+      document.getElementById('girlsFilterCount1').textContent = activeGirls.filter(g => g.grade === 'أولى إعدادي').length;
+      document.getElementById('girlsFilterCount2').textContent = activeGirls.filter(g => g.grade === 'تانية إعدادي').length;
+      document.getElementById('girlsFilterCount3').textContent = activeGirls.filter(g => g.grade === 'تالتة إعدادي').length;
+
+      // Update active state
+      $$('#girlsGradeFilters .grade-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.grade === filter);
+      });
+
       if (!filtered.length) {
         el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
         return;
@@ -2070,8 +2245,6 @@ input[type="date"], input[type="month"] {
       el.innerHTML = '';
       el.appendChild(frag);
     }
-
-    DOM.gradeFilter.addEventListener('change', renderGirlsList);
 
     DOM.addGirlBtn.addEventListener('click', () => {
       state.editingGirlId = null;
@@ -2106,7 +2279,7 @@ input[type="date"], input[type="month"] {
       closeModal('girlModal');
 
       showConfirm({
-        icon: '&#128465;', title: 'حذف مخدومة',
+        icon: '&#9888;', title: 'حذف مخدومة',
         msg: `هل أنت متأكد من حذف "${esc(g.name)}"؟ سيتم حذف جميع بيانات الحضور الخاصة بها أيضاً.`,
         okLabel: 'حذف',
         okClass: 'confirm-delete',
@@ -2353,7 +2526,7 @@ input[type="date"], input[type="month"] {
             ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
           </div>
           <span class="att-status-text ${statusClass}">${statusText}</span>
-          ${rec ? `<button class="att-delete-btn" data-att-key="${esc(key)}" title="حذف السجل">&#128465;</button>` : ''}`;
+          ${rec ? `<button class="att-delete-btn" data-att-key="${esc(key)}" title="حذف السجل">&#10060;</button>` : ''}`;
         frag.appendChild(div);
       });
 
@@ -2373,7 +2546,7 @@ input[type="date"], input[type="month"] {
       const gName = g ? g.name : 'مخدومة';
 
       showConfirm({
-        icon: '&#128465;', title: 'حذف سجل الحضور',
+        icon: '&#9888;', title: 'حذف سجل الحضور',
         msg: `هل أنت متأكد من حذف سجل ${esc(gName)} ليوم ${esc(rec.date)}؟`,
         okLabel: 'حذف',
         onOk: async () => {
@@ -2673,7 +2846,7 @@ input[type="date"], input[type="month"] {
 
     DOM.clearHistoryBtn.addEventListener('click', () => {
       showConfirm({
-        icon: '&#128465;', title: 'مسح السجل التاريخي',
+        icon: '&#9888;', title: 'مسح السجل التاريخي',
         msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
         okLabel: 'مسح الكل',
         onOk: async () => {
@@ -2698,7 +2871,7 @@ input[type="date"], input[type="month"] {
     function getHistoryIcon(action) {
       if (action.includes('إضافة')) return '&#10133;';
       if (action.includes('تعديل')) return '&#9999;';
-      if (action.includes('حذف'))   return '&#128465;';
+      if (action.includes('حذف'))   return '&#10060;';
       if (action.includes('حضور'))  return '&#128203;';
       return '&#128221;';
     }
@@ -2924,6 +3097,21 @@ input[type="date"], input[type="month"] {
         if (day && !day.classList.contains('empty')) showDayDetail(day.dataset.date);
       });
     }
+
+    // Grade filter button handlers
+    DOM.homeGradeFilters.addEventListener('click', e => {
+      const btn = e.target.closest('.grade-filter-btn');
+      if (!btn) return;
+      state.homeGradeFilter = btn.dataset.grade;
+      renderHome();
+    });
+
+    DOM.girlsGradeFilters.addEventListener('click', e => {
+      const btn = e.target.closest('.grade-filter-btn');
+      if (!btn) return;
+      state.girlsGradeFilter = btn.dataset.grade;
+      renderGirlsList();
+    });
 
     setupDelegation();
 
