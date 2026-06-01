@@ -497,71 +497,6 @@ body {
 /* ============================================================
    GIRLS PAGE
    ============================================================ */
-/* ---- Girls Search Bar ---- */
-.girls-search-wrap {
-  margin-bottom: 12px;
-  position: relative;
-}
-.girls-search-wrap::before {
-  content: "🔍";
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  opacity: 0.5;
-  pointer-events: none;
-}
-.girls-search-input {
-  width: 100%;
-  padding: 13px 42px 13px 40px;
-  background: white;
-  border: 2px solid var(--border);
-  border-radius: 14px;
-  font-family: 'Tajawal', sans-serif;
-  font-size: 15px;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-shadow: var(--shadow);
-}
-.girls-search-input:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(26,39,68,0.08);
-}
-.girls-search-input::placeholder {
-  color: var(--text-muted);
-}
-.girls-search-clear {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: var(--bg);
-  border: none;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-.girls-search-clear.show { display: flex; }
-.girls-search-clear:active {
-  background: var(--border);
-  color: var(--text);
-}
-.girls-search-count {
-  font-size: 13px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  padding: 0 4px;
-}
-
 .filter-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 .filter-select {
   flex: 1; padding: 12px 14px; background: white;
@@ -937,9 +872,7 @@ textarea.form-input { resize: none; }
   transition: transform 0.2s, box-shadow 0.2s;
   min-height: var(--tap-target);
   touch-action: manipulation;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   gap: 6px;
 }
 .btn-danger:active { transform: scale(0.97); }
@@ -1024,8 +957,7 @@ textarea.form-input { resize: none; }
   margin-bottom: 24px; line-height: 1.6;
 }
 .confirm-actions {
-  display: flex;
-  gap: 10px;
+  display: flex; gap: 10px;
 }
 .confirm-cancel {
   flex: 1; padding: 14px; background: var(--bg); border: none;
@@ -1257,6 +1189,9 @@ input[type="date"], input[type="month"] {
             <button class="act-tab" data-activity="قبطي">قبطي</button>
             <button class="act-tab" data-activity="ألحان">ألحان</button>
           </div>
+          <div class="search-bar-wrap" style="margin-bottom:12px;">
+            <input type="text" id="attendanceSearch" class="search-bar" placeholder="🔍 ابحث عن مخدومة في الحضور..." autocomplete="off">
+          </div>
           <div class="attendance-summary" id="attendanceSummary">
             <span class="summ-item green-text">&#10003; <span id="presentCount">0</span> حاضر</span>
             <span class="summ-item red-text">&#10007; <span id="absentCount">0</span> غائب</span>
@@ -1266,15 +1201,8 @@ input[type="date"], input[type="month"] {
           <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
 
-        <!-- GIRLS PAGE — with search bar -->
+        <!-- GIRLS PAGE -->
         <div id="page-girls" class="page">
-          <!-- Search Bar -->
-          <div class="girls-search-wrap">
-            <input type="text" id="girlsSearchInput" class="girls-search-input" placeholder="ابحث باسم المخدومة..." autocomplete="off">
-            <button class="girls-search-clear" id="girlsSearchClear" aria-label="مسح البحث">&#10005;</button>
-          </div>
-          <div class="girls-search-count" id="girlsSearchCount"></div>
-
           <div class="girls-filter-row">
             <div class="grade-filter-btns" id="girlsGradeFilters">
               <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
@@ -1521,13 +1449,10 @@ input[type="date"], input[type="month"] {
       mostRegularGirl: $('mostRegularGirl'), mostRegularPercent: $('mostRegularPercent'),
       topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
       attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
+      attendanceSearch: $('attendanceSearch'),
       presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'),
       saveAttendanceBtn: $('saveAttendanceBtn'), gradeFilter: $('gradeFilter'),
       girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
-      // Girls page search DOM refs
-      girlsSearchInput: $('girlsSearchInput'),
-      girlsSearchClear: $('girlsSearchClear'),
-      girlsSearchCount: $('girlsSearchCount'),
       calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
       dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
       statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
@@ -1579,8 +1504,7 @@ input[type="date"], input[type="month"] {
       dirtyFlags: new Set(),
       deleteInProgress: false,
       homeGradeFilter: '',
-      girlsGradeFilter: '',
-      girlsSearchQuery: ''   // ← NEW: search query for girls page
+      girlsGradeFilter: ''
     };
 
     const HISTORY_PAGE_SIZE = 30;
@@ -2262,7 +2186,7 @@ input[type="date"], input[type="month"] {
     }
 
     // ============================================================
-    // SEARCH — Global (home page)
+    // SEARCH
     // ============================================================
     DOM.globalSearch.addEventListener('input', function() {
       const q = this.value.trim();
@@ -2277,71 +2201,32 @@ input[type="date"], input[type="month"] {
     });
 
     // ============================================================
-    // GIRLS PAGE — Search + Grade Filter
+    // GIRLS PAGE — with working delete and button filters
     // ============================================================
-
-    // Search input handler
-    DOM.girlsSearchInput.addEventListener('input', function() {
-      state.girlsSearchQuery = this.value.trim();
-      // Show/hide clear button
-      DOM.girlsSearchClear.classList.toggle('show', state.girlsSearchQuery.length > 0);
-      renderGirlsList();
-    });
-
-    // Clear search button
-    DOM.girlsSearchClear.addEventListener('click', function() {
-      DOM.girlsSearchInput.value = '';
-      state.girlsSearchQuery = '';
-      DOM.girlsSearchClear.classList.remove('show');
-      DOM.girlsSearchInput.focus();
-      renderGirlsList();
-    });
-
     function renderGirlsList() {
       const filter = state.girlsGradeFilter;
-      const searchQuery = state.girlsSearchQuery;
-      const qNorm = searchQuery ? normalizeArabic(searchQuery) : '';
-
-      let activeGirls = state.girls.filter(g => !g.isDeleted);
-
-      // Apply grade filter
-      if (filter) activeGirls = activeGirls.filter(g => g.grade === filter);
-
-      // Apply search filter
-      if (qNorm) activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
-
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const filtered = filter ? activeGirls.filter(g => g.grade === filter) : activeGirls;
       const el = DOM.girlsList;
 
-      // Update filter button counts (based on ALL active girls, before search)
-      const allActive = state.girls.filter(g => !g.isDeleted);
-      document.getElementById('girlsFilterCountAll').textContent = allActive.length;
-      document.getElementById('girlsFilterCount1').textContent = allActive.filter(g => g.grade === 'أولى إعدادي').length;
-      document.getElementById('girlsFilterCount2').textContent = allActive.filter(g => g.grade === 'تانية إعدادي').length;
-      document.getElementById('girlsFilterCount3').textContent = allActive.filter(g => g.grade === 'تالتة إعدادي').length;
+      // Update filter button counts
+      document.getElementById('girlsFilterCountAll').textContent = activeGirls.length;
+      document.getElementById('girlsFilterCount1').textContent = activeGirls.filter(g => g.grade === 'أولى إعدادي').length;
+      document.getElementById('girlsFilterCount2').textContent = activeGirls.filter(g => g.grade === 'تانية إعدادي').length;
+      document.getElementById('girlsFilterCount3').textContent = activeGirls.filter(g => g.grade === 'تالتة إعدادي').length;
 
       // Update active state
       $$('#girlsGradeFilters .grade-filter-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.grade === filter);
       });
 
-      // Show result count when searching
-      if (searchQuery) {
-        const totalMatches = state.girls.filter(g => !g.isDeleted).filter(g => normalizeArabic(g.name).includes(qNorm)).length;
-        DOM.girlsSearchCount.textContent = `نتيجة: ${activeGirls.length} من ${filter ? allActive.filter(g => g.grade === filter).length : allActive.length} مخدومة`;
-      } else {
-        DOM.girlsSearchCount.textContent = '';
-      }
-
-      if (!activeGirls.length) {
-        el.innerHTML = searchQuery
-          ? `<div class="empty-state">لا توجد نتائج لـ "${esc(searchQuery)}"<br><small>جرب كلمة بحث مختلفة</small></div>`
-          : '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
+      if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
         return;
       }
-
       const monthStr = DateUtil.getMonthStr(new Date());
       const frag = document.createDocumentFragment();
-      activeGirls.forEach(g => {
+      filtered.forEach(g => {
         const presents = Object.values(state.attendanceData).filter(a =>
           a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر'
         ).length;
@@ -2612,21 +2497,41 @@ input[type="date"], input[type="month"] {
     }));
     DOM.attendanceDate.addEventListener('change', renderAttendanceList);
 
+    // Attendance search listener
+    if (DOM.attendanceSearch) {
+      DOM.attendanceSearch.addEventListener('input', renderAttendanceList);
+    }
+
     function renderAttendanceList() {
       const date = DOM.attendanceDate.value;
       const el = DOM.attendanceList;
       if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
 
       // Only show active girls
-      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+      // Apply search filter if exists
+      const searchQuery = DOM.attendanceSearch?.value?.trim() || '';
+      if (searchQuery) {
+        const qNorm = normalizeArabic(searchQuery);
+        activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
+      }
 
       let present = 0, absent = 0, pending = 0;
       const frag = document.createDocumentFragment();
 
+      if (searchQuery && !activeGirls.length) {
+        el.innerHTML = '<div class="empty-state">لا توجد نتائج للبحث</div>';
+        DOM.presentCount.textContent = 0;
+        DOM.absentCount.textContent = 0;
+        DOM.pendingCount.textContent = 0;
+        return;
+      }
+
       activeGirls.forEach(g => {
         const key = `${g.id}_${date}_${state.selectedActivity}`;
         const rec = state.attendanceData[key];
-        let statusClass = 'pending', statusIcon = '&#9675;', statusText = 'لم يُسج\'ل';
+        let statusClass = 'pending', statusIcon = '&#9675;', statusText = 'لم يُسجَّل';
         if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '&#10003;'; statusText = 'حاضر'; present++; }
         else if (rec?.status === 'غائب') { statusClass = 'absent'; statusIcon = '&#10007;'; statusText = 'غائب'; absent++; }
         else pending++;
