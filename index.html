@@ -495,6 +495,138 @@ body {
 .fab-save:active { transform: scale(0.95); }
 
 /* ============================================================
+   QUICK ACTION BUTTONS (Attendance Page)
+   ============================================================ */
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.quick-action-btn {
+  flex: 1;
+  min-width: 100px;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  background: white;
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.quick-action-btn:active { transform: scale(0.97); }
+.quick-action-btn.all-present {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(46,204,113,0.08);
+}
+.quick-action-btn.all-present:active { background: var(--green); color: white; }
+.quick-action-btn.all-absent {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(231,76,60,0.08);
+}
+.quick-action-btn.all-absent:active { background: var(--red); color: white; }
+.quick-action-btn.reset {
+  border-color: var(--orange);
+  color: var(--orange);
+  background: rgba(243,156,18,0.08);
+}
+.quick-action-btn.reset:active { background: var(--orange); color: white; }
+
+/* Toggle click hint */
+.att-toggle-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  background: rgba(26,39,68,0.04);
+  border-radius: 8px;
+}
+
+/* ============================================================
+   ACTIVITY STATS
+   ============================================================ */
+.time-filter-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.time-filter-tabs::-webkit-scrollbar { display: none; }
+.time-filter-tab {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: white;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+}
+.time-filter-tab.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(26,39,68,0.3);
+}
+
+.activity-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.activity-stat-card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 18px 14px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  border-top: 4px solid var(--accent);
+  transition: transform 0.2s;
+}
+.activity-stat-card:nth-child(1) { border-color: #3498db; }
+.activity-stat-card:nth-child(2) { border-color: #e74c3c; }
+.activity-stat-card:nth-child(3) { border-color: #2ecc71; }
+.activity-stat-card:nth-child(4) { border-color: #9b59b6; }
+.activity-stat-rank {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.activity-stat-icon { font-size: 28px; margin-bottom: 4px; }
+.activity-stat-num {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1.1;
+}
+.activity-stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ============================================================
    GIRLS PAGE
    ============================================================ */
 .filter-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
@@ -1195,8 +1327,14 @@ input[type="date"], input[type="month"] {
           <div class="attendance-summary" id="attendanceSummary">
             <span class="summ-item green-text">&#10003; <span id="presentCount">0</span> حاضر</span>
             <span class="summ-item red-text">&#10007; <span id="absentCount">0</span> غائب</span>
-            <span class="summ-item gray-text">&#9675; <span id="pendingCount">0</span> لم يُسجَّل</span>
+            <span class="summ-item gray-text"><span id="totalCount">0</span> إجمالي</span>
           </div>
+          <div class="quick-actions" id="quickActions">
+            <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
+            <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
+            <button class="quick-action-btn reset" id="resetAttendance">&#10060; إعادة التعيين</button>
+          </div>
+          <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب · اضغط مطولاً للتفاصيل</div>
           <div id="attendanceList" class="attendance-list"></div>
           <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
@@ -1232,7 +1370,17 @@ input[type="date"], input[type="month"] {
             <label for="statsMonth">الشهر:</label>
             <input type="month" id="statsMonth" class="month-input">
           </div>
+          <div class="time-filter-tabs" id="timeFilterTabs">
+            <button class="time-filter-tab" data-period="today">اليوم</button>
+            <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
+            <button class="time-filter-tab" data-period="year">هذه السنة</button>
+            <button class="time-filter-tab" data-period="all">الكل</button>
+          </div>
           <div class="big-stats-grid" id="bigStatsGrid"></div>
+
+          <div class="section-title">الحضور حسب النشاط <span id="activityStatsPeriod" style="font-size:13px;color:var(--text-muted);font-weight:400;">(هذا الشهر)</span></div>
+          <div class="activity-stats-grid" id="activityStatsGrid"></div>
+
           <div class="section-title">توزيع الغيابات</div>
           <div id="absenceChart" class="absence-chart"></div>
           <div class="section-title">ترتيب الحضور</div>
@@ -1450,13 +1598,16 @@ input[type="date"], input[type="month"] {
       topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
       attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
       attendanceSearch: $('attendanceSearch'),
-      presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'),
+      presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'), totalCount: $('totalCount'),
+      selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'), resetAttendance: $('resetAttendance'),
+      attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
       saveAttendanceBtn: $('saveAttendanceBtn'), gradeFilter: $('gradeFilter'),
       girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
       calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
       dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
       statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
       absenceChart: $('absenceChart'), attendanceRanking: $('attendanceRanking'),
+      activityStatsGrid: $('activityStatsGrid'), timeFilterTabs: $('timeFilterTabs'), activityStatsPeriod: $('activityStatsPeriod'),
       historyList: $('historyList'), historyFilter: $('historyFilter'),
       clearHistoryBtn: $('clearHistoryBtn'), loadMoreHistory: $('loadMoreHistory'),
       loadMoreHistoryBtn: $('loadMoreHistoryBtn'), exportMonth: $('exportMonth'),
@@ -1504,7 +1655,10 @@ input[type="date"], input[type="month"] {
       dirtyFlags: new Set(),
       deleteInProgress: false,
       homeGradeFilter: '',
-      girlsGradeFilter: ''
+      girlsGradeFilter: '',
+      statsTimeFilter: 'month',
+      longPressTimer: null,
+      isLongPress: false
     };
 
     const HISTORY_PAGE_SIZE = 30;
@@ -1870,6 +2024,16 @@ input[type="date"], input[type="month"] {
       DOM.pageTitle.textContent = title;
       DOM.pageSubtitle.textContent = sub;
       state.currentPage = page;
+
+      // Reset attendance page init when entering attendance page
+      if (page === 'attendance') {
+        attendancePageInitialized = false;
+      }
+      // Close day detail when leaving calendar
+      if (page !== 'calendar') {
+        hideDayDetail();
+      }
+
       renderPage();
       closeDrawer();
     }
@@ -2471,10 +2635,26 @@ input[type="date"], input[type="month"] {
     // ============================================================
     // ATTENDANCE PAGE — with delete individual record support
     // ============================================================
+    let attendancePageInitialized = false;
+
     function renderAttendancePage() {
       if (!DOM.attendanceDate.value) DOM.attendanceDate.value = DateUtil.toStr();
       setActiveDay(state.selectedDay);
       setActiveActivity(state.selectedActivity);
+
+      // Auto-mark all as absent for this date/activity if no records exist yet
+      const date = DOM.attendanceDate.value;
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const hasAnyRecords = activeGirls.some(g => {
+        const key = `${g.id}_${date}_${state.selectedActivity}`;
+        return state.attendanceData[key];
+      });
+      if (activeGirls.length > 0 && !hasAnyRecords && !attendancePageInitialized) {
+        attendancePageInitialized = true;
+        markAllAbsent(date);
+        return;
+      }
+      attendancePageInitialized = true;
       renderAttendanceList();
     }
 
@@ -2489,17 +2669,219 @@ input[type="date"], input[type="month"] {
 
     $$('.day-btn').forEach(b => b.addEventListener('click', () => {
       setActiveDay(b.dataset.day);
-      renderAttendanceList();
+      attendancePageInitialized = false;
+      renderAttendancePage();
     }));
     $$('.act-tab').forEach(b => b.addEventListener('click', () => {
       setActiveActivity(b.dataset.activity);
-      renderAttendanceList();
+      attendancePageInitialized = false;
+      renderAttendancePage();
     }));
-    DOM.attendanceDate.addEventListener('change', renderAttendanceList);
+    DOM.attendanceDate.addEventListener('change', () => {
+      // Auto-mark all girls as absent when date changes
+      attendancePageInitialized = false;
+      const date = DOM.attendanceDate.value;
+      if (date) {
+        renderAttendancePage();
+      }
+    });
+
+    // Quick action buttons
+    DOM.selectAllPresent.addEventListener('click', () => selectAllStatus('حاضر'));
+    DOM.selectAllAbsent.addEventListener('click', () => selectAllStatus('غائب'));
+    DOM.resetAttendance.addEventListener('click', () => {
+      showConfirm({
+        icon: '&#9888;', title: 'إعادة التعيين',
+        msg: 'هل أنت متأكد من حذف جميع سجلات الحضور لهذا اليوم والنشاط؟',
+        okLabel: 'إعادة التعيين',
+        onOk: resetAllAttendance
+      });
+    });
 
     // Attendance search listener
     if (DOM.attendanceSearch) {
       DOM.attendanceSearch.addEventListener('input', renderAttendanceList);
+    }
+
+    // ============================================================
+    // ATTENDANCE TOGGLE — Quick tap to toggle present/absent
+    // ============================================================
+    async function toggleAttendanceStatus(girlId, girlName, date) {
+      const key = `${girlId}_${date}_${state.selectedActivity}`;
+      const existing = state.attendanceData[key];
+
+      // If already present -> make absent, if absent or doesn't exist -> make present
+      const newStatus = existing?.status === 'حاضر' ? 'غائب' : 'حاضر';
+
+      const rec = {
+        id: key,
+        girlId: girlId,
+        date,
+        day: state.selectedDay,
+        activity: state.selectedActivity,
+        status: newStatus,
+        rating: newStatus === 'حاضر' ? (existing?.rating || 0) : 0,
+        notes: existing?.notes || '',
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || ''
+      };
+
+      if (state.idb) await IDB.put('attendance', rec);
+      state.attendanceData[key] = rec;
+
+      if (state.isOnline) {
+        try { await setDoc(doc(db, 'attendance', key), rec); }
+        catch(e) { await addPending('attendance', rec); }
+      } else {
+        await addPending('attendance', rec);
+      }
+
+      renderAttendanceList();
+
+      // Refresh home/stats if needed
+      if (state.currentPage === 'home') renderHome();
+      if (state.currentPage === 'stats') renderStats();
+      if (state.currentPage === 'calendar') renderCalendar();
+    }
+
+    // Auto-save all girls as absent for a new date
+    async function markAllAbsent(date) {
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const batchRecords = [];
+
+      for (const g of activeGirls) {
+        const key = `${g.id}_${date}_${state.selectedActivity}`;
+        // Only mark as absent if no record exists yet
+        if (!state.attendanceData[key]) {
+          const rec = {
+            id: key,
+            girlId: g.id,
+            date,
+            day: state.selectedDay,
+            activity: state.selectedActivity,
+            status: 'غائب',
+            rating: 0,
+            notes: '',
+            updatedAt: Date.now(),
+            updatedBy: state.currentUser?.displayName || 'خادم',
+            updatedByEmail: state.currentUser?.email || ''
+          };
+          batchRecords.push(rec);
+        }
+      }
+
+      // Save all to state and IDB
+      for (const rec of batchRecords) {
+        state.attendanceData[rec.id] = rec;
+        if (state.idb) await IDB.put('attendance', rec);
+      }
+
+      // Sync to Firebase
+      if (state.isOnline && batchRecords.length > 0) {
+        try {
+          const batch = writeBatch(db);
+          for (const rec of batchRecords) {
+            batch.set(doc(db, 'attendance', rec.id), rec);
+          }
+          await batch.commit();
+        } catch(e) {
+          for (const rec of batchRecords) {
+            await addPending('attendance', rec);
+          }
+        }
+      } else if (batchRecords.length > 0) {
+        for (const rec of batchRecords) {
+          await addPending('attendance', rec);
+        }
+      }
+
+      if (batchRecords.length > 0) {
+        renderAttendanceList();
+        if (state.currentPage === 'home') renderHome();
+        if (state.currentPage === 'calendar') renderCalendar();
+      }
+    }
+
+    // Quick actions: select all present, all absent, reset
+    async function selectAllStatus(status) {
+      const date = DOM.attendanceDate.value;
+      if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
+
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const batchRecords = [];
+
+      for (const g of activeGirls) {
+        const key = `${g.id}_${date}_${state.selectedActivity}`;
+        const rec = {
+          id: key,
+          girlId: g.id,
+          date,
+          day: state.selectedDay,
+          activity: state.selectedActivity,
+          status: status,
+          rating: status === 'حاضر' ? (state.attendanceData[key]?.rating || 0) : 0,
+          notes: state.attendanceData[key]?.notes || '',
+          updatedAt: Date.now(),
+          updatedBy: state.currentUser?.displayName || 'خادم',
+          updatedByEmail: state.currentUser?.email || ''
+        };
+        batchRecords.push(rec);
+        state.attendanceData[key] = rec;
+        if (state.idb) await IDB.put('attendance', rec);
+      }
+
+      if (state.isOnline && batchRecords.length > 0) {
+        try {
+          const batch = writeBatch(db);
+          for (const rec of batchRecords) {
+            batch.set(doc(db, 'attendance', rec.id), rec);
+          }
+          await batch.commit();
+        } catch(e) {
+          for (const rec of batchRecords) {
+            await addPending('attendance', rec);
+          }
+        }
+      } else if (batchRecords.length > 0) {
+        for (const rec of batchRecords) {
+          await addPending('attendance', rec);
+        }
+      }
+
+      await logHistory('تسجيل حضور', `${status === 'حاضر' ? 'تحديد الكل حاضر' : 'تحديد الكل غائب'} - ${state.selectedActivity} - ${date}`);
+      showToast(status === 'حاضر' ? 'تم تحديد الكل حاضر' : 'تم تحديد الكل غائب', 'success');
+      renderAttendanceList();
+      if (state.currentPage === 'home') renderHome();
+      if (state.currentPage === 'stats') renderStats();
+      if (state.currentPage === 'calendar') renderCalendar();
+    }
+
+    async function resetAllAttendance() {
+      const date = DOM.attendanceDate.value;
+      if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
+
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const keysToDelete = [];
+
+      for (const g of activeGirls) {
+        const key = `${g.id}_${date}_${state.selectedActivity}`;
+        if (state.attendanceData[key]) {
+          delete state.attendanceData[key];
+          keysToDelete.push(key);
+          if (state.idb) await IDB.delete('attendance', key);
+          if (state.isOnline) {
+            try { await deleteDoc(doc(db, 'attendance', key)); }
+            catch(e) { console.error('Delete attendance Firestore error:', e); }
+          }
+        }
+      }
+
+      showToast('تم إعادة التعيين', 'success');
+      renderAttendanceList();
+      if (state.currentPage === 'home') renderHome();
+      if (state.currentPage === 'stats') renderStats();
+      if (state.currentPage === 'calendar') renderCalendar();
     }
 
     function renderAttendanceList() {
@@ -2517,30 +2899,40 @@ input[type="date"], input[type="month"] {
         activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
       }
 
-      let present = 0, absent = 0, pending = 0;
+      let present = 0, absent = 0;
       const frag = document.createDocumentFragment();
 
       if (searchQuery && !activeGirls.length) {
         el.innerHTML = '<div class="empty-state">لا توجد نتائج للبحث</div>';
         DOM.presentCount.textContent = 0;
         DOM.absentCount.textContent = 0;
-        DOM.pendingCount.textContent = 0;
+        DOM.totalCount.textContent = 0;
+        return;
+      }
+
+      if (!activeGirls.length) {
+        el.innerHTML = '<div class="empty-state">لا توجد مخدومات مسجلة<br><small>أضف مخدومات أولاً من صفحة المخدومات</small></div>';
+        DOM.presentCount.textContent = 0;
+        DOM.absentCount.textContent = 0;
+        DOM.totalCount.textContent = 0;
         return;
       }
 
       activeGirls.forEach(g => {
         const key = `${g.id}_${date}_${state.selectedActivity}`;
         const rec = state.attendanceData[key];
-        let statusClass = 'pending', statusIcon = '&#9675;', statusText = 'لم يُسجَّل';
+        // Default to absent if no record exists
+        let statusClass = 'absent', statusIcon = '&#10007;', statusText = 'غائب';
         if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '&#10003;'; statusText = 'حاضر'; present++; }
-        else if (rec?.status === 'غائب') { statusClass = 'absent'; statusIcon = '&#10007;'; statusText = 'غائب'; absent++; }
-        else pending++;
+        else { absent++; }
 
         const stars = rec?.rating ? '&#9733;'.repeat(rec.rating)+'&#9734;'.repeat(5-rec.rating) : '';
         const div = document.createElement('div');
         div.className = `att-item ${statusClass}`;
         div.dataset.girlId = g.id;
         div.dataset.attKey = key;
+        div.dataset.girlName = g.name;
+
         div.innerHTML = `
           <div class="att-icon">${statusIcon}</div>
           <div class="att-info">
@@ -2550,7 +2942,7 @@ input[type="date"], input[type="month"] {
             ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
           </div>
           <span class="att-status-text ${statusClass}">${statusText}</span>
-          ${rec ? `<button class="att-delete-btn" data-att-key="${esc(key)}" title="حذف السجل">&#10060;</button>` : ''}`;
+          <button class="att-delete-btn" data-att-key="${esc(key)}" title="حذف السجل">&#10060;</button>`;
         frag.appendChild(div);
       });
 
@@ -2558,7 +2950,7 @@ input[type="date"], input[type="month"] {
       el.appendChild(frag);
       DOM.presentCount.textContent = present;
       DOM.absentCount.textContent = absent;
-      DOM.pendingCount.textContent = pending;
+      DOM.totalCount.textContent = activeGirls.length;
     }
 
     // Delete individual attendance record
@@ -2591,9 +2983,10 @@ input[type="date"], input[type="month"] {
             showToast('تم حذف سجل الحضور', 'success');
             renderAttendanceList();
 
-            // If on stats page, refresh it
+            // Refresh other pages
             if (state.currentPage === 'stats') renderStats();
             if (state.currentPage === 'home') renderHome();
+            if (state.currentPage === 'calendar') renderCalendar();
           } catch(err) {
             console.error('Delete attendance error:', err);
             showToast('حدث خطأ أثناء الحذف', 'error');
@@ -2674,8 +3067,10 @@ input[type="date"], input[type="month"] {
       showToast('تم الحفظ', 'success');
       renderAttendanceList();
 
-      // Refresh home/stats if needed
+      // Refresh other pages if needed
       if (state.currentPage === 'home') renderHome();
+      if (state.currentPage === 'stats') renderStats();
+      if (state.currentPage === 'calendar') renderCalendar();
     });
 
     DOM.saveAttendanceBtn.addEventListener('click', () => showToast('جميع البيانات محفوظة', 'success'));
@@ -2701,7 +3096,9 @@ input[type="date"], input[type="month"] {
         const dateStr = `${year}-${DateUtil.pad(month+1)}-${DateUtil.pad(d)}`;
         const dayOfWeek = new Date(year, month, d).getDay();
         const isService = [1, 3, 6].includes(dayOfWeek);
-        const hasData = Object.values(state.attendanceData).some(a => a.date === dateStr);
+        // Only count data for active (non-deleted) girls
+        const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+        const hasData = Object.values(state.attendanceData).some(a => a.date === dateStr && activeGirlIds.has(a.girlId));
         const isToday = dateStr === todayStr;
         html += `<div class="cal-day ${isService?'service-day':''} ${hasData?'has-data':''} ${isToday?'today':''}" data-date="${dateStr}">
           <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
@@ -2709,33 +3106,137 @@ input[type="date"], input[type="month"] {
       }
       html += '</div>';
       DOM.calendarGrid.innerHTML = html;
+
+      // Refresh day detail if open
+      if (currentDayDetailDate) {
+        refreshDayDetail();
+      }
     }
 
+    let currentDayDetailDate = null;
+
     function showDayDetail(dateStr) {
+      currentDayDetailDate = dateStr;
+      refreshDayDetail();
+    }
+
+    function refreshDayDetail() {
+      if (!currentDayDetailDate) return;
+      const dateStr = currentDayDetailDate;
       const records = Object.values(state.attendanceData).filter(a => a.date === dateStr);
       const el = DOM.dayDetail;
-      if (!records.length) {
+
+      // Only show records for active (non-deleted) girls
+      const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+      const filteredRecords = records.filter(r => activeGirlIds.has(r.girlId));
+
+      if (!filteredRecords.length) {
         el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
       } else {
         const grouped = {};
-        records.forEach(r => { (grouped[r.activity || 'عام'] ||= []).push(r); });
+        filteredRecords.forEach(r => { (grouped[r.activity || 'عام'] ||= []).push(r); });
         let html = `<div class="day-detail-header">${dateStr}</div>`;
         Object.entries(grouped).forEach(([act, recs]) => {
-          html += `<div class="day-activity"><b>${esc(act)}</b>: ${recs.filter(r=>r.status==='حاضر').length} حاضر من ${recs.length}</div>`;
+          const presentCount = recs.filter(r => r.status === 'حاضر').length;
+          const absentCount = recs.filter(r => r.status === 'غائب').length;
+          html += `<div class="day-activity"><b>${esc(act)}</b>: <span class="green-text">${presentCount} حاضر</span> · <span class="red-text">${absentCount} غائب</span> من ${recs.length}</div>`;
         });
         el.innerHTML = html;
       }
       el.classList.add('show');
     }
 
+    // Close day detail when navigating months
+    function hideDayDetail() {
+      currentDayDetailDate = null;
+      DOM.dayDetail.classList.remove('show');
+    }
+
     DOM.calPrev.addEventListener('click', () => {
+      hideDayDetail();
       state.calendarDate.setMonth(state.calendarDate.getMonth()-1);
       renderCalendar();
     });
     DOM.calNext.addEventListener('click', () => {
+      hideDayDetail();
       state.calendarDate.setMonth(state.calendarDate.getMonth()+1);
       renderCalendar();
     });
+
+    // ============================================================
+    // ACTIVITY STATS with time filtering
+    // ============================================================
+    function getPeriodBounds(period) {
+      const now = new Date();
+      const todayStr = DateUtil.toStr(now);
+      switch (period) {
+        case 'today':
+          return { start: todayStr, end: todayStr };
+        case 'month':
+          const monthStr = DateUtil.getMonthStr(now);
+          return { start: monthStr + '-01', end: todayStr };
+        case 'year':
+          const yearStr = String(now.getFullYear());
+          return { start: yearStr + '-01-01', end: todayStr };
+        case 'all':
+        default:
+          return { start: '2000-01-01', end: todayStr };
+      }
+    }
+
+    function getActivityStats(period) {
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      const { start, end } = getPeriodBounds(period);
+
+      const stats = {
+        'دراسي': 0,
+        'ألحان': 0,
+        'قبطي': 0,
+        'محفوظات': 0
+      };
+
+      Object.values(state.attendanceData).forEach(a => {
+        if (a.status !== 'حاضر') return;
+        if (!activeGirlIds.has(a.girlId)) return;
+        if (a.date < start || a.date > end) return;
+        if (stats.hasOwnProperty(a.activity)) {
+          stats[a.activity]++;
+        }
+      });
+
+      // Sort from highest to lowest
+      const sorted = Object.entries(stats)
+        .filter(([, count]) => count > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+      return sorted;
+    }
+
+    function renderActivityStats(period) {
+      const stats = getActivityStats(period);
+      const el = DOM.activityStatsGrid;
+
+      if (!stats.length) {
+        el.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">لا توجد بيانات حضور للفترة المحددة</div>';
+        return;
+      }
+
+      const icons = { 'دراسي': '📖', 'ألحان': '🎵', 'قبطي': '✝️', 'محفوظات': '📝' };
+      const medals = ['🥇', '🥈', '🥉', '4️⃣'];
+
+      el.innerHTML = stats.map(([activity, count], i) => `
+        <div class="activity-stat-card">
+          <div class="activity-stat-rank">${medals[i] || (i + 1)}</div>
+          <div class="activity-stat-icon">${icons[activity] || '📊'}</div>
+          <div class="activity-stat-num">${count}</div>
+          <div class="activity-stat-label">${activity}</div>
+        </div>
+      `).join('');
+
+      const periodLabels = { today: '(اليوم)', month: '(هذا الشهر)', year: '(هذه السنة)', all: '(الكل)' };
+      DOM.activityStatsPeriod.textContent = periodLabels[period] || '';
+    }
 
     // ============================================================
     // STATS PAGE — Accurate calculations
@@ -2743,6 +3244,11 @@ input[type="date"], input[type="month"] {
     function renderStats() {
       const month = DOM.statsMonth.value || DateUtil.getMonthStr();
       if (!DOM.statsMonth.value) DOM.statsMonth.value = month;
+
+      // Update time filter tabs
+      $$('#timeFilterTabs .time-filter-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === state.statsTimeFilter);
+      });
 
       const activeGirls = state.girls.filter(g => !g.isDeleted);
       const activeGirlIds = new Set(activeGirls.map(g => g.id));
@@ -2770,6 +3276,9 @@ input[type="date"], input[type="month"] {
         <div class="big-stat-card red-card"><div class="big-num">${absents}</div><div>إجمالي الغياب</div></div>
         <div class="big-stat-card"><div class="big-num">${avgRating}</div><div>متوسط التقييم</div></div>
         <div class="big-stat-card orange-card"><div class="big-num">${followupCount}</div><div>تحتاج متابعة</div></div>`;
+
+      // Activity stats with time filter
+      renderActivityStats(state.statsTimeFilter);
 
       // Absence chart — active girls only
       const absenceByGirl = {};
@@ -2820,6 +3329,16 @@ input[type="date"], input[type="month"] {
     }
 
     DOM.statsMonth.addEventListener('change', renderStats);
+
+    // Time filter tabs for stats page
+    if (DOM.timeFilterTabs) {
+      DOM.timeFilterTabs.addEventListener('click', e => {
+        const btn = e.target.closest('.time-filter-tab');
+        if (!btn) return;
+        state.statsTimeFilter = btn.dataset.period;
+        renderStats();
+      });
+    }
 
     // ============================================================
     // HISTORY PAGE
@@ -3108,12 +3627,49 @@ input[type="date"], input[type="month"] {
           deleteAttendanceRecord(delBtn.dataset.attKey);
           return;
         }
-        // Handle attendance item click
+        // Handle attendance item click — quick toggle
         const item = e.target.closest('.att-item');
-        if (item) {
+        if (item && !state.isLongPress) {
+          const g = state.girls.find(x => x.id === item.dataset.girlId);
+          if (g) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
+        }
+        state.isLongPress = false;
+      });
+
+      // Long press to open detailed modal
+      DOM.attendanceList.addEventListener('mousedown', e => {
+        const item = e.target.closest('.att-item');
+        if (!item) return;
+        state.isLongPress = false;
+        state.longPressTimer = setTimeout(() => {
+          state.isLongPress = true;
           const g = state.girls.find(x => x.id === item.dataset.girlId);
           if (g) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
-        }
+        }, 500);
+      });
+      DOM.attendanceList.addEventListener('mouseup', () => {
+        if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+      });
+      DOM.attendanceList.addEventListener('mouseleave', () => {
+        if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+      });
+
+      // Touch events for long press on mobile
+      DOM.attendanceList.addEventListener('touchstart', e => {
+        const item = e.target.closest('.att-item');
+        if (!item) return;
+        state.isLongPress = false;
+        state.longPressTimer = setTimeout(() => {
+          state.isLongPress = true;
+          const g = state.girls.find(x => x.id === item.dataset.girlId);
+          if (g) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+        }, 500);
+      }, { passive: true });
+      DOM.attendanceList.addEventListener('touchend', () => {
+        if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
+      });
+      DOM.attendanceList.addEventListener('touchcancel', () => {
+        if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
       });
 
       DOM.calendarGrid.addEventListener('click', e => {
