@@ -1,36 +1,26 @@
 {
   "name": "متابعة المخدومات",
-  "short_name": "المخدومات",
-  "description": "نظام متابعة المخدومات للكنيسة القبطية",
+  "short_name": "متابعة المخدومات",
+  "description": "نظام متابعة حضور المخدومات - خدمة الكنيسة القبطية الأرثوذكسية",
   "start_url": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#1a2744",
   "theme_color": "#1a2744",
+  "orientation": "portrait",
   "lang": "ar",
   "dir": "rtl",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a2744' width='192' height='192' rx='24'/%3E%3Ctext x='96' y='120' font-size='100' text-anchor='middle' fill='%23e8a020' font-family='serif'%3E%26%2310013%3B%3C/text%3E%3C/svg%3E",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%231a2744' width='512' height='512' rx='48'/%3E%3Ctext x='256' y='320' font-size='260' text-anchor='middle' fill='%23e8a020' font-family='serif'%3E%26%2310013%3B%3C/text%3E%3C/svg%3E",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ],
-  "screenshots": [
-    {
-      "src": "screenshot.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
-  "categories": ["productivity", "education"],
-  "prefer_related_applications": false
+  ]
 }
