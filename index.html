@@ -535,12 +535,6 @@ body {
   background: rgba(231,76,60,0.08);
 }
 .quick-action-btn.all-absent:active { background: var(--red); color: white; }
-.quick-action-btn.reset {
-  border-color: var(--orange);
-  color: var(--orange);
-  background: rgba(243,156,18,0.08);
-}
-.quick-action-btn.reset:active { background: var(--orange); color: white; }
 
 /* Toggle click hint */
 .att-toggle-hint {
@@ -587,6 +581,7 @@ body {
   box-shadow: 0 4px 12px rgba(26,39,68,0.3);
 }
 
+/* === NEW: Clickable activity stat cards === */
 .activity-stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -600,8 +595,26 @@ body {
   text-align: center;
   box-shadow: var(--shadow);
   border-top: 4px solid var(--accent);
-  transition: transform 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
 }
+.activity-stat-card::after {
+  content: 'اضغط للتفاصيل';
+  position: absolute;
+  bottom: 4px;
+  left: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-weight: 500;
+}
+.activity-stat-card:active { transform: scale(0.97); }
+.activity-stat-card:hover::after,
+.activity-stat-card:active::after { opacity: 0.6; }
 .activity-stat-card:nth-child(1) { border-color: #3498db; }
 .activity-stat-card:nth-child(2) { border-color: #e74c3c; }
 .activity-stat-card:nth-child(3) { border-color: #2ecc71; }
@@ -624,6 +637,110 @@ body {
   color: var(--text-muted);
   margin-top: 4px;
   font-weight: 600;
+}
+
+/* ============================================================
+   ACTIVITY DETAIL MODAL — NEW
+   ============================================================ */
+.activity-detail-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 16px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 4px;
+}
+.activity-detail-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.activity-detail-tab.active {
+  background: white;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.activity-detail-tab .tab-count {
+  background: var(--bg);
+  color: var(--text-muted);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 24px;
+  text-align: center;
+}
+.activity-detail-tab.active .tab-count {
+  background: var(--primary);
+  color: white;
+}
+.activity-detail-tab.present-tab.active { color: var(--green); }
+.activity-detail-tab.present-tab.active .tab-count { background: var(--green); color: white; }
+.activity-detail-tab.absent-tab.active { color: var(--red); }
+.activity-detail-tab.absent-tab.active .tab-count { background: var(--red); color: white; }
+
+.detail-girl-list { display: flex; flex-direction: column; gap: 8px; }
+.detail-girl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 12px;
+  transition: background 0.15s;
+}
+.detail-girl-item:active { background: #e2e8f0; }
+.detail-girl-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: white; font-size: 16px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.detail-girl-info { flex: 1; }
+.detail-girl-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.detail-girl-grade { font-size: 12px; color: var(--text-muted); }
+.detail-status-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; flex-shrink: 0;
+}
+.detail-status-icon.present { background: rgba(46,204,113,0.15); color: var(--green); }
+.detail-status-icon.absent { background: rgba(231,76,60,0.15); color: var(--red); }
+
+.detail-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  border-radius: 14px;
+  color: white;
+}
+.detail-summary-bar .summary-icon { font-size: 32px; }
+.detail-summary-bar .summary-text { flex: 1; }
+.detail-summary-bar .summary-title { font-size: 16px; font-weight: 700; }
+.detail-summary-bar .summary-subtitle { font-size: 13px; opacity: 0.8; }
+.detail-summary-bar .summary-total {
+  font-size: 28px; font-weight: 900;
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 6px 14px;
 }
 
 /* ============================================================
@@ -1281,17 +1398,17 @@ input[type="date"], input[type="month"] {
           <div class="section-title">إحصائيات مميزة</div>
           <div class="stats-grid">
             <div class="stat-card gold">
-              <div class="stat-icon">🏆</div>
+              <div class="stat-icon">&#127942;</div>
               <div class="stat-value" id="bestGrade">-</div>
               <div class="stat-sublabel" id="bestGradePercent">أفضل سنة دراسية</div>
             </div>
             <div class="stat-card teal">
-              <div class="stat-icon">📚</div>
+              <div class="stat-icon">&#128218;</div>
               <div class="stat-value" id="topActivityName">-</div>
               <div class="stat-sublabel" id="topActivityCount">أكثر نشاط حضورًا</div>
             </div>
             <div class="stat-card rose">
-              <div class="stat-icon">⭐</div>
+              <div class="stat-icon">&#11088;</div>
               <div class="stat-value" id="mostRegularGirl">-</div>
               <div class="stat-sublabel" id="mostRegularPercent">أكثر مخدومة انتظامًا</div>
             </div>
@@ -1316,13 +1433,10 @@ input[type="date"], input[type="month"] {
             <input type="date" id="attendanceDate" class="date-input">
           </div>
           <div class="activities-tabs">
-            <button class="act-tab active" data-activity="دراسي">دراسي</button>
-            <button class="act-tab" data-activity="محفوظات">محفوظات</button>
-            <button class="act-tab" data-activity="قبطي">قبطي</button>
-            <button class="act-tab" data-activity="ألحان">ألحان</button>
-          </div>
-          <div class="search-bar-wrap" style="margin-bottom:12px;">
-            <input type="text" id="attendanceSearch" class="search-bar" placeholder="🔍 ابحث عن مخدومة في الحضور..." autocomplete="off">
+            <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
+            <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
+            <button class="act-tab" data-activity="قبطي">&#9961; قبطي</button>
+            <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
           </div>
           <div class="attendance-summary" id="attendanceSummary">
             <span class="summ-item green-text">&#10003; <span id="presentCount">0</span> حاضر</span>
@@ -1332,9 +1446,8 @@ input[type="date"], input[type="month"] {
           <div class="quick-actions" id="quickActions">
             <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
             <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
-            <button class="quick-action-btn reset" id="resetAttendance">&#10060; إعادة التعيين</button>
           </div>
-          <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب · اضغط مطولاً للتفاصيل</div>
+          <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب &middot; اضغط مطولاً للتفاصيل</div>
           <div id="attendanceList" class="attendance-list"></div>
           <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
         </div>
@@ -1476,9 +1589,9 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-danger hidden" id="deleteGirlBtn">حذف</button>
-          <button class="btn-cancel" id="cancelGirlModal">إلغاء</button>
-          <button class="btn-primary" id="saveGirlBtn">حفظ</button>
+          <button class="btn-danger hidden" id="deleteGirlBtn">&#128465; حذف</button>
+          <button class="btn-cancel" id="cancelGirlModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveGirlBtn">&#128190; حفظ</button>
         </div>
       </div>
     </div>
@@ -1490,8 +1603,8 @@ input[type="date"], input[type="month"] {
         <div class="confirm-title" id="confirmTitle">تأكيد</div>
         <div class="confirm-msg" id="confirmMsg"></div>
         <div class="confirm-actions">
-          <button class="confirm-cancel" id="confirmCancel">إلغاء</button>
-          <button class="confirm-ok" id="confirmOk">تأكيد</button>
+          <button class="confirm-cancel" id="confirmCancel">&#10005; إلغاء</button>
+          <button class="confirm-ok" id="confirmOk">&#10003; تأكيد</button>
         </div>
       </div>
     </div>
@@ -1536,8 +1649,40 @@ input[type="date"], input[type="month"] {
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-cancel" id="cancelAttendanceModal">إلغاء</button>
-          <button class="btn-primary" id="saveAttendanceEntry">حفظ</button>
+          <button class="btn-cancel" id="cancelAttendanceModal">&#10005; إلغاء</button>
+          <button class="btn-primary" id="saveAttendanceEntry">&#128190; حفظ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Activity Detail — NEW -->
+    <div class="modal-overlay" id="activityDetailModal" role="dialog" aria-modal="true" aria-labelledby="activityDetailTitle">
+      <div class="modal modal-large">
+        <div class="modal-header">
+          <h3 id="activityDetailTitle">تفاصيل النشاط</h3>
+          <button class="modal-close" id="closeActivityDetailModal" aria-label="إغلاق">&#10005;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Summary bar -->
+          <div class="detail-summary-bar" id="activityDetailSummary">
+            <span class="summary-icon" id="activityDetailIcon">&#128216;</span>
+            <div class="summary-text">
+              <div class="summary-title" id="activityDetailName">-</div>
+              <div class="summary-subtitle" id="activityDetailPeriod">-</div>
+            </div>
+            <span class="summary-total" id="activityDetailTotal">0</span>
+          </div>
+          <!-- Tabs -->
+          <div class="activity-detail-tabs" id="activityDetailTabs">
+            <button class="activity-detail-tab present-tab active" data-tab="present">
+              &#10003; حاضروا <span class="tab-count" id="presentTabCount">0</span>
+            </button>
+            <button class="activity-detail-tab absent-tab" data-tab="absent">
+              &#10007; غائبوا <span class="tab-count" id="absentTabCount">0</span>
+            </button>
+          </div>
+          <!-- Girl lists -->
+          <div class="detail-girl-list" id="activityDetailList"></div>
         </div>
       </div>
     </div>
@@ -1545,6 +1690,7 @@ input[type="date"], input[type="month"] {
     <!-- Toast -->
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
+
 
   <!-- Firebase -->
   <script type="module">
@@ -1599,7 +1745,7 @@ input[type="date"], input[type="month"] {
       attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
       attendanceSearch: $('attendanceSearch'),
       presentCount: $('presentCount'), absentCount: $('absentCount'), pendingCount: $('pendingCount'), totalCount: $('totalCount'),
-      selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'), resetAttendance: $('resetAttendance'),
+      selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'),
       attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
       saveAttendanceBtn: $('saveAttendanceBtn'), gradeFilter: $('gradeFilter'),
       girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
@@ -1627,6 +1773,19 @@ input[type="date"], input[type="month"] {
       confirmOverlay: $('confirmOverlay'), confirmIcon: $('confirmIcon'),
       confirmTitle: $('confirmTitle'), confirmMsg: $('confirmMsg'),
       confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
+      // NEW: Activity Detail Modal DOM
+      activityDetailModal: $('activityDetailModal'),
+      activityDetailTitle: $('activityDetailTitle'),
+      closeActivityDetailModal: $('closeActivityDetailModal'),
+      activityDetailSummary: $('activityDetailSummary'),
+      activityDetailIcon: $('activityDetailIcon'),
+      activityDetailName: $('activityDetailName'),
+      activityDetailPeriod: $('activityDetailPeriod'),
+      activityDetailTotal: $('activityDetailTotal'),
+      activityDetailTabs: $('activityDetailTabs'),
+      activityDetailList: $('activityDetailList'),
+      presentTabCount: $('presentTabCount'),
+      absentTabCount: $('absentTabCount'),
       menuBtn: $('menuBtn'), signOutBtn: $('signOutBtn'), googleSignIn: $('googleSignIn')
     };
 
@@ -1658,13 +1817,18 @@ input[type="date"], input[type="month"] {
       girlsGradeFilter: '',
       statsTimeFilter: 'month',
       longPressTimer: null,
-      isLongPress: false
+      isLongPress: false,
+      // NEW: Activity detail modal state
+      activityDetailTab: 'present',
+      currentActivityDetail: null
     };
 
     const HISTORY_PAGE_SIZE = 30;
     const SERVICE_DAYS = { 'السبت': true, 'الاثنين': true, 'الاربعاء': true };
     const DAY_NAMES = ['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
     const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
+    const ACTIVITY_ICONS = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
+    const PERIOD_LABELS = { today: 'اليوم', month: 'هذا الشهر', year: 'هذه السنة', all: 'كل الفترات' };
 
     // ============================================================
     // XSS PROTECTION
@@ -2632,6 +2796,7 @@ input[type="date"], input[type="month"] {
 
     DOM.closeProfileModal.addEventListener('click', () => closeModal('girlProfileModal'));
 
+
     // ============================================================
     // ATTENDANCE PAGE — with delete individual record support
     // ============================================================
@@ -2686,17 +2851,9 @@ input[type="date"], input[type="month"] {
       }
     });
 
-    // Quick action buttons
+    // Quick action buttons — ONLY present and absent (reset removed)
     DOM.selectAllPresent.addEventListener('click', () => selectAllStatus('حاضر'));
     DOM.selectAllAbsent.addEventListener('click', () => selectAllStatus('غائب'));
-    DOM.resetAttendance.addEventListener('click', () => {
-      showConfirm({
-        icon: '&#9888;', title: 'إعادة التعيين',
-        msg: 'هل أنت متأكد من حذف جميع سجلات الحضور لهذا اليوم والنشاط؟',
-        okLabel: 'إعادة التعيين',
-        onOk: resetAllAttendance
-      });
-    });
 
     // Attendance search listener
     if (DOM.attendanceSearch) {
@@ -2803,7 +2960,7 @@ input[type="date"], input[type="month"] {
       }
     }
 
-    // Quick actions: select all present, all absent, reset
+    // Quick actions: select all present, all absent (reset removed per user request)
     async function selectAllStatus(status) {
       const date = DOM.attendanceDate.value;
       if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
@@ -2851,33 +3008,6 @@ input[type="date"], input[type="month"] {
 
       await logHistory('تسجيل حضور', `${status === 'حاضر' ? 'تحديد الكل حاضر' : 'تحديد الكل غائب'} - ${state.selectedActivity} - ${date}`);
       showToast(status === 'حاضر' ? 'تم تحديد الكل حاضر' : 'تم تحديد الكل غائب', 'success');
-      renderAttendanceList();
-      if (state.currentPage === 'home') renderHome();
-      if (state.currentPage === 'stats') renderStats();
-      if (state.currentPage === 'calendar') renderCalendar();
-    }
-
-    async function resetAllAttendance() {
-      const date = DOM.attendanceDate.value;
-      if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
-
-      const activeGirls = state.girls.filter(g => !g.isDeleted);
-      const keysToDelete = [];
-
-      for (const g of activeGirls) {
-        const key = `${g.id}_${date}_${state.selectedActivity}`;
-        if (state.attendanceData[key]) {
-          delete state.attendanceData[key];
-          keysToDelete.push(key);
-          if (state.idb) await IDB.delete('attendance', key);
-          if (state.isOnline) {
-            try { await deleteDoc(doc(db, 'attendance', key)); }
-            catch(e) { console.error('Delete attendance Firestore error:', e); }
-          }
-        }
-      }
-
-      showToast('تم إعادة التعيين', 'success');
       renderAttendanceList();
       if (state.currentPage === 'home') renderHome();
       if (state.currentPage === 'stats') renderStats();
@@ -3213,6 +3343,140 @@ input[type="date"], input[type="month"] {
       return sorted;
     }
 
+    // ============================================================
+    // ACTIVITY DETAIL MODAL — NEW FEATURE
+    // ============================================================
+    function openActivityDetailModal(activity, period) {
+      const { start, end } = getPeriodBounds(period);
+      const activeGirls = state.girls.filter(g => !g.isDeleted);
+      const activeGirlIds = new Set(activeGirls.map(g => g.id));
+      const periodLabel = PERIOD_LABELS[period] || '';
+
+      // Collect all attendance records for this activity in the period
+      const records = Object.values(state.attendanceData).filter(a => {
+        if (a.activity !== activity) return false;
+        if (!activeGirlIds.has(a.girlId)) return false;
+        if (a.date < start || a.date > end) return false;
+        return true;
+      });
+
+      // Group by girl — keep only the latest record per girl
+      const byGirl = {};
+      records.forEach(a => {
+        if (!byGirl[a.girlId]) byGirl[a.girlId] = [];
+        byGirl[a.girlId].push(a);
+      });
+
+      // Sort each girl's records by date (newest first) and get her latest status
+      const presentGirls = [];
+      const absentGirls = [];
+
+      Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
+        girlRecords.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        const latest = girlRecords[0];
+        const girl = activeGirls.find(g => g.id === girlId);
+        if (!girl) return;
+
+        const entry = {
+          girl,
+          latestRecord: latest,
+          totalRecords: girlRecords.length,
+          presentCount: girlRecords.filter(r => r.status === 'حاضر').length
+        };
+
+        if (latest.status === 'حاضر') {
+          presentGirls.push(entry);
+        } else {
+          absentGirls.push(entry);
+        }
+      });
+
+      // Sort by name
+      presentGirls.sort((a, b) => a.girl.name.localeCompare(b.girl.name, 'ar'));
+      absentGirls.sort((a, b) => a.girl.name.localeCompare(b.girl.name, 'ar'));
+
+      // Store data for tab switching
+      state.currentActivityDetail = { activity, period, presentGirls, absentGirls };
+      state.activityDetailTab = 'present';
+
+      // Update header
+      DOM.activityDetailTitle.textContent = `تفاصيل ${activity}`;
+      DOM.activityDetailIcon.innerHTML = ACTIVITY_ICONS[activity] || '&#128202;';
+      DOM.activityDetailName.textContent = activity;
+      DOM.activityDetailPeriod.textContent = periodLabel;
+      DOM.activityDetailTotal.textContent = presentGirls.length + absentGirls.length;
+
+      // Update tab counts
+      DOM.presentTabCount.textContent = presentGirls.length;
+      DOM.absentTabCount.textContent = absentGirls.length;
+
+      // Render active tab
+      renderActivityDetailTab();
+
+      openModal('activityDetailModal');
+    }
+
+    function renderActivityDetailTab() {
+      const { presentGirls, absentGirls } = state.currentActivityDetail;
+      const isPresentTab = state.activityDetailTab === 'present';
+      const list = isPresentTab ? presentGirls : absentGirls;
+
+      // Update tab active states
+      $$('#activityDetailTabs .activity-detail-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === state.activityDetailTab);
+      });
+
+      const el = DOM.activityDetailList;
+      if (!list.length) {
+        const msg = isPresentTab ? 'لا يوجد حاضرون للفترة المحددة' : 'لا يوجد غائبون للفترة المحددة';
+        el.innerHTML = `<div class="empty-state">${msg}</div>`;
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      list.forEach(({ girl, latestRecord, presentCount }) => {
+        const div = document.createElement('div');
+        div.className = 'detail-girl-item';
+        div.dataset.girlId = girl.id;
+        div.innerHTML = `
+          <div class="detail-girl-avatar">${esc(girl.name[0])}</div>
+          <div class="detail-girl-info">
+            <div class="detail-girl-name">${esc(girl.name)}</div>
+            <div class="detail-girl-grade">${esc(girl.grade)} · آخر حضور: ${esc(latestRecord.date)} · ${presentCount} حضور</div>
+          </div>
+          <div class="detail-status-icon ${isPresentTab ? 'present' : 'absent'}">
+            ${isPresentTab ? '&#10003;' : '&#10007;'}
+          </div>
+        `;
+        frag.appendChild(div);
+      });
+
+      el.innerHTML = '';
+      el.appendChild(frag);
+    }
+
+    // Activity detail tab click handler
+    DOM.activityDetailTabs.addEventListener('click', e => {
+      const tab = e.target.closest('.activity-detail-tab');
+      if (!tab) return;
+      state.activityDetailTab = tab.dataset.tab;
+      renderActivityDetailTab();
+    });
+
+    // Click on a girl in the detail list -> open her profile
+    DOM.activityDetailList.addEventListener('click', e => {
+      const item = e.target.closest('.detail-girl-item');
+      if (item && item.dataset.girlId) {
+        closeModal('activityDetailModal');
+        showGirlProfile(item.dataset.girlId);
+      }
+    });
+
+    DOM.closeActivityDetailModal.addEventListener('click', () => closeModal('activityDetailModal'));
+
+    // ============================================================
+    // ACTIVITY STAT CARDS — now clickable
+    // ============================================================
     function renderActivityStats(period) {
       const stats = getActivityStats(period);
       const el = DOM.activityStatsGrid;
@@ -3226,7 +3490,7 @@ input[type="date"], input[type="month"] {
       const medals = ['🥇', '🥈', '🥉', '4️⃣'];
 
       el.innerHTML = stats.map(([activity, count], i) => `
-        <div class="activity-stat-card">
+        <div class="activity-stat-card" data-activity="${esc(activity)}" role="button" tabindex="0" aria-label="تفاصيل ${esc(activity)}">
           <div class="activity-stat-rank">${medals[i] || (i + 1)}</div>
           <div class="activity-stat-icon">${icons[activity] || '📊'}</div>
           <div class="activity-stat-num">${count}</div>
@@ -3237,6 +3501,13 @@ input[type="date"], input[type="month"] {
       const periodLabels = { today: '(اليوم)', month: '(هذا الشهر)', year: '(هذه السنة)', all: '(الكل)' };
       DOM.activityStatsPeriod.textContent = periodLabels[period] || '';
     }
+
+    // Click handler for activity stat cards
+    DOM.activityStatsGrid.addEventListener('click', e => {
+      const card = e.target.closest('.activity-stat-card');
+      if (!card || !card.dataset.activity) return;
+      openActivityDetailModal(card.dataset.activity, state.statsTimeFilter);
+    });
 
     // ============================================================
     // STATS PAGE — Accurate calculations
