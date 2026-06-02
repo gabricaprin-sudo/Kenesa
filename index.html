@@ -1310,6 +1310,7 @@ input[type="date"], input[type="month"] {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -1585,7 +1586,7 @@ input[type="date"], input[type="month"] {
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
                 <span>&#128196;</span>
-                <div><b>تصدير Excel</b><small>ملف Excel (.xls)</small></div>
+                <div><b>تصدير Excel</b><small>ملف Excel (.xlsx)</small></div>
               </button>
               <button class="export-btn json" id="exportJSON">
                 <span>&#128190;</span>
@@ -1755,6 +1756,7 @@ input[type="date"], input[type="month"] {
     import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc,
              query, orderBy, onSnapshot, writeBatch, where }
                                         from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import * as XLSX from 'https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs';
 
     // ============================================================
     // FIREBASE CONFIG
@@ -3835,48 +3837,9 @@ input[type="date"], input[type="month"] {
         return (a.activity || '').localeCompare(b.activity || '', 'ar');
       });
 
-      // Build Excel XML
-      let xml = '<?xml version="1.0" encoding="UTF-8"?>';
-      xml += '<?mso-application progid="Excel.Sheet"?>';
-      xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
-      xml += '<Styles>';
-      xml += '<Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#1a2744" ss:Pattern="Solid"/><Font ss:Color="#ffffff" ss:Bold="1"/></Style>';
-      xml += '<Style ss:ID="title"><Font ss:Size="14" ss:Bold="1"/></Style>';
-      xml += '<Style ss:ID="stats"><Font ss:Bold="1"/><Interior ss:Color="#f0f2f8" ss:Pattern="Solid"/></Style>';
-      xml += '</Styles>';
-      xml += '<Worksheet ss:Name="' + xmlEsc(monthName) + '"><Table>';
-
-      // Column widths
-      xml += '<Column ss:Width="50"/>';
-      xml += '<Column ss:Width="180"/>';
-      xml += '<Column ss:Width="120"/>';
-      xml += '<Column ss:Width="80"/>';
-      xml += '<Column ss:Width="80"/>';
-      xml += '<Column ss:Width="80"/>';
-      xml += '<Column ss:Width="120"/>';
-      xml += '<Column ss:Width="100"/>';
-
-      // Title row
-      xml += '<Row><Cell ss:StyleID="title" ss:MergeAcross="7"><Data ss:Type="String">' + xmlEsc('تقرير حضور ' + monthName) + '</Data></Cell></Row>';
-      xml += '<Row></Row>';
-
-      // Stats rows
+      // Stats
       const totalPresent = monthAtt.filter(a => a.status === 'حاضر').length;
       const totalAbsent = monthAtt.filter(a => a.status === 'غائب').length;
-
-      xml += '<Row ss:StyleID="stats">';
-      xml += '<Cell><Data ss:Type="String">عدد المخدومات</Data></Cell>';
-      xml += '<Cell><Data ss:Type="Number">' + activeGirlIds.size + '</Data></Cell>';
-      xml += '</Row>';
-      xml += '<Row ss:StyleID="stats">';
-      xml += '<Cell><Data ss:Type="String">إجمالي الحضور</Data></Cell>';
-      xml += '<Cell><Data ss:Type="Number">' + totalPresent + '</Data></Cell>';
-      xml += '</Row>';
-      xml += '<Row ss:StyleID="stats">';
-      xml += '<Cell><Data ss:Type="String">إجمالي الغياب</Data></Cell>';
-      xml += '<Cell><Data ss:Type="Number">' + totalAbsent + '</Data></Cell>';
-      xml += '</Row>';
-      xml += '<Row></Row>';
 
       // Group by girl - one row per girl
       const grouped = {};
@@ -3903,34 +3866,82 @@ input[type="date"], input[type="month"] {
         }
       });
 
+      // Helper to format attendance cell: ✔ if all present, ✘ if all absent, else fraction
+      const fmtAtt = (act) => {
+        const total = act.present + act.absent;
+        if (total === 0) return '—';
+        if (act.present === total) return '✔';
+        if (act.present === 0) return '✘';
+        return act.present + '/' + total;
+      };
+
+      // Build worksheet data array for SheetJS
+      const wsData = [];
+
+      // Title
+      wsData.push(['تقرير حضور ' + monthName]);
+      wsData.push([]);
+
+      // Stats
+      wsData.push(['عدد المخدومات', activeGirlIds.size]);
+      wsData.push(['إجمالي الحضور', totalPresent]);
+      wsData.push(['إجمالي الغياب', totalAbsent]);
+      wsData.push([]);
+
       // Header row
-      xml += '<Row>';
-      ['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']
-        .forEach(h => {
-          xml += '<Cell ss:StyleID="header"><Data ss:Type="String">' + xmlEsc(h) + '</Data></Cell>';
-        });
-      xml += '</Row>';
+      wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']);
 
       // Data rows
       Object.values(grouped).forEach(r => {
         const total = r.totalPresent + r.totalAbsent;
         const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
-        xml += '<Row>';
-        xml += '<Cell><Data ss:Type="String">' + xmlEsc(r.name) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + xmlEsc(r.grade) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + (r['دراسي'].present + '/' + (r['دراسي'].present + r['دراسي'].absent)) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + (r['قبطي'].present + '/' + (r['قبطي'].present + r['قبطي'].absent)) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + (r['محفوظات'].present + '/' + (r['محفوظات'].present + r['محفوظات'].absent)) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + (r['ألحان'].present + '/' + (r['ألحان'].present + r['ألحان'].absent)) + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="Number">' + r.totalPresent + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="Number">' + r.totalAbsent + '</Data></Cell>';
-        xml += '<Cell><Data ss:Type="String">' + rate + '</Data></Cell>';
-        xml += '</Row>';
+        wsData.push([
+          r.name,
+          r.grade,
+          fmtAtt(r['دراسي']),
+          fmtAtt(r['قبطي']),
+          fmtAtt(r['محفوظات']),
+          fmtAtt(r['ألحان']),
+          r.totalPresent,
+          r.totalAbsent,
+          rate
+        ]);
       });
 
-      xml += '</Table></Worksheet></Workbook>';
+      // Create workbook using SheetJS
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-      downloadFile(`حضور_${month}.xls`, xml, 'application/vnd.ms-excel');
+      // Set column widths (9 columns)
+      ws['!cols'] = [
+        { wch: 28 },  // الاسم
+        { wch: 14 },  // السنة
+        { wch: 10 },  // دراسي
+        { wch: 10 },  // قبطي
+        { wch: 10 },  // محفوظات
+        { wch: 10 },  // ألحان
+        { wch: 14 },  // إجمالي الحضور
+        { wch: 12 },  // إجمالي الغياب
+        { wch: 10 }   // النسبة
+      ];
+
+      // Set RTL direction
+      ws['!dir'] = 'rtl';
+
+      XLSX.utils.book_append_sheet(wb, ws, monthName);
+
+      // Generate binary .xlsx file
+      const xlsxBlob = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([xlsxBlob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `حضور_${month}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
       showToast('تم تصدير Excel', 'success');
     });
 
@@ -3986,6 +3997,14 @@ input[type="date"], input[type="month"] {
         }
       });
 
+      const fmtAttPrint = (act) => {
+        const total = act.present + act.absent;
+        if (total === 0) return '—';
+        if (act.present === total) return '<span style=\'color:#2ecc71;font-weight:700\'>✔</span>';
+        if (act.present === 0) return '<span style=\'color:#e74c3c;font-weight:700\'>✘</span>';
+        return act.present + '/' + total;
+      };
+
       const htmlRows = Object.values(grouped).map((r, i) => {
         const total = r.totalPresent + r.totalAbsent;
         const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
@@ -3993,10 +4012,10 @@ input[type="date"], input[type="month"] {
           <td>${i+1}</td>
           <td>${esc(r.name)}</td>
           <td>${esc(r.grade)}</td>
-          <td>${r['دراسي'].present}/${r['دراسي'].present + r['دراسي'].absent}</td>
-          <td>${r['قبطي'].present}/${r['قبطي'].present + r['قبطي'].absent}</td>
-          <td>${r['محفوظات'].present}/${r['محفوظات'].present + r['محفوظات'].absent}</td>
-          <td>${r['ألحان'].present}/${r['ألحان'].present + r['ألحان'].absent}</td>
+          <td>${fmtAttPrint(r['دراسي'])}</td>
+          <td>${fmtAttPrint(r['قبطي'])}</td>
+          <td>${fmtAttPrint(r['محفوظات'])}</td>
+          <td>${fmtAttPrint(r['ألحان'])}</td>
           <td>${r.totalPresent}</td>
           <td>${r.totalAbsent}</td>
           <td>${rate}</td>
