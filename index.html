@@ -1307,6 +1307,7 @@ input[type="date"], input[type="month"] {
   </style>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
   <div id="app">
@@ -1899,6 +1900,15 @@ input[type="date"], input[type="month"] {
         return div.innerHTML;
       };
     })();
+
+    function xmlEsc(str='') {
+      return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&apos;');
+    }
 
     // ============================================================
     // DATE UTILITIES (local timezone safe, with day name)
@@ -2502,10 +2512,12 @@ input[type="date"], input[type="month"] {
       }
 
       const needs = activeGirls.filter(g => {
-        const abs = Object.values(state.attendanceData).filter(a =>
-          a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
-        ).length;
-        return abs >= 2;
+        const absDates = new Set(
+          Object.values(state.attendanceData)
+            .filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب')
+            .map(a => a.date)
+        );
+        return absDates.size >= 2;
       });
       const needsEl = DOM.needsFollowup;
       if (!needs.length) {
@@ -2513,9 +2525,11 @@ input[type="date"], input[type="month"] {
       } else {
         const frag = document.createDocumentFragment();
         needs.forEach(g => {
-          const abs = Object.values(state.attendanceData).filter(a =>
-            a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
-          ).length;
+          const abs = new Set(
+            Object.values(state.attendanceData)
+              .filter(a => a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب')
+              .map(a => a.date)
+          ).size;
           const div = document.createElement('div');
           div.className = 'followup-item';
           div.dataset.girlId = g.id;
@@ -2758,7 +2772,7 @@ input[type="date"], input[type="month"] {
       DOM.profileName.textContent = g.name;
 
       const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
-      girlAtt.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+      girlAtt.sort((a, b) => new Date(b.date) - new Date(a.date));
 
       // Calculate stats
       const totalRecords = girlAtt.length;
@@ -3426,7 +3440,7 @@ input[type="date"], input[type="month"] {
       const absentGirls = [];
 
       Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
-        girlRecords.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        girlRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
         const girl = activeGirls.find(g => g.id === girlId);
         if (!girl) return;
 
@@ -3822,14 +3836,14 @@ input[type="date"], input[type="month"] {
         const statusStyle = a.status === 'حاضر' ? 'present' : 'absent';
         xml += '<Row>';
         xml += `<Cell ss:StyleID="center"><Data ss:Type="Number">${i+1}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${esc(g.name)}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${esc(g.grade)}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${a.date}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${xmlEsc(g.name)}</Data></Cell>`;
+        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${xmlEsc(g.grade)}</Data></Cell>`;
+        xml += `<Cell ss:StyleID="date"><Data ss:Type="DateTime">${a.date}T00:00:00.000</Data></Cell>`;
         xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${dayName}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${esc(a.activity||'')}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="${statusStyle}"><Data ss:Type="String">${esc(a.status)}</Data></Cell>`;
+        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${xmlEsc(a.activity||'')}</Data></Cell>`;
+        xml += `<Cell ss:StyleID="${statusStyle}"><Data ss:Type="String">${xmlEsc(a.status)}</Data></Cell>`;
         xml += `<Cell ss:StyleID="center"><Data ss:Type="Number">${a.rating||0}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${esc(a.notes||'')}</Data></Cell>`;
+        xml += `<Cell><Data ss:Type="String">${xmlEsc(a.notes||'')}</Data></Cell>`;
         xml += '</Row>';
       });
 
@@ -3909,7 +3923,7 @@ input[type="date"], input[type="month"] {
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     // ============================================================
@@ -3924,10 +3938,12 @@ input[type="date"], input[type="month"] {
     // MODAL HELPERS
     // ============================================================
     function openModal(id) {
+      if (!DOM[id]) return;
       DOM[id].classList.add('show');
       document.body.style.overflow = 'hidden';
     }
     function closeModal(id) {
+      if (!DOM[id]) return;
       DOM[id].classList.remove('show');
       document.body.style.overflow = '';
     }
