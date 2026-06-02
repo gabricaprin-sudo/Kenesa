@@ -596,11 +596,13 @@ body {
 .att-delete-btn {
   background: none; border: none; color: var(--text-muted);
   font-size: 18px; cursor: pointer; padding: 4px;
-  opacity: 0.4; transition: opacity 0.2s, color 0.2s;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
   min-width: 32px; min-height: 32px;
   display: flex; align-items: center; justify-content: center;
   touch-action: manipulation;
 }
+.att-item:hover .att-delete-btn { opacity: 1; }
 .att-delete-btn:hover, .att-delete-btn:active { opacity: 1; color: var(--red); }
 
 .fab-save {
@@ -920,7 +922,7 @@ body {
 }
 
 .big-stats-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px; margin-bottom: 20px;
 }
 .big-stat-card {
@@ -1200,8 +1202,8 @@ textarea.form-input { resize: none; }
 
 /* Profile stats dashboard */
 .profile-dashboard {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px; margin-bottom: 20px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px; margin-bottom: 20px;
 }
 .profile-stat {
   background: var(--bg); border-radius: 12px; padding: 14px;
@@ -1583,7 +1585,7 @@ input[type="date"], input[type="month"] {
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
                 <span>&#128196;</span>
-                <div><b>تصدير CSV</b><small>ملف CSV مفصول بفواصل</small></div>
+                <div><b>تصدير Excel</b><small>ملف Excel (.xls)</small></div>
               </button>
               <button class="export-btn json" id="exportJSON">
                 <span>&#128190;</span>
@@ -1947,6 +1949,19 @@ input[type="date"], input[type="month"] {
         .replace(/ؤ/g, 'و')
         .replace(/ئ/g, 'ي')
         .replace(/ة/g, 'ه')
+        .toLowerCase();
+    }
+
+    // ============================================================
+    // NAME NORMALIZATION (for duplicate detection)
+    // ============================================================
+    function normalizeName(name) {
+      return name
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/ى/g, 'ي')
         .toLowerCase();
     }
 
@@ -2664,9 +2679,10 @@ input[type="date"], input[type="month"] {
             if (state.idb) {
               await IDB.put('girls', { ...g, isDeleted: true, deletedAt: Date.now(), deletedBy: state.currentUser?.email || '' });
               const allAtt = await IDB.getAll('attendance');
-              for (const a of allAtt) {
-                if (a.girlId === id) await IDB.delete('attendance', a.id);
-              }
+              const toDelete = allAtt.filter(a => a.girlId === id);
+              await Promise.all(
+                toDelete.map(a => IDB.delete('attendance', a.id))
+              );
             }
 
             // 4. Sync to Firebase if online
@@ -2683,9 +2699,12 @@ input[type="date"], input[type="month"] {
                 const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
                 const attSnap = await getDocs(attQuery);
                 if (!attSnap.empty) {
-                  const batch = writeBatch(db);
-                  attSnap.forEach(d => batch.delete(d.ref));
-                  await batch.commit();
+                  const docs = attSnap.docs;
+                  for (let i = 0; i < docs.length; i += 500) {
+                    const batch = writeBatch(db);
+                    docs.slice(i, i + 500).forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                  }
                 }
               } catch(e) {
                 console.error('Delete girl Firestore error:', e);
@@ -2713,6 +2732,9 @@ input[type="date"], input[type="month"] {
     });
 
     DOM.saveGirlBtn.addEventListener('click', async () => {
+      if (state.savingGirl) return;
+      state.savingGirl = true;
+      try {
       const name = DOM.girlName.value.trim();
       const phone = DOM.girlPhone.value.trim();
       const grade = DOM.girlGrade.value;
@@ -2721,15 +2743,15 @@ input[type="date"], input[type="month"] {
       if (!name) { showToast('الرجاء إدخال اسم المخدومة', 'error'); return; }
       if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
 
-      const nameLower = name.toLowerCase();
+      const normalizedName = normalizeName(name);
       const existingGirl = state.girls.find(g =>
-        g.name.toLowerCase() === nameLower && g.id !== state.editingGirlId && !g.isDeleted
+        normalizeName(g.name) === normalizedName && g.id !== state.editingGirlId && !g.isDeleted
       );
       if (existingGirl) {
         showToast('هذه المخدومة موجودة بالفعل', 'error'); return;
       }
 
-      const id = state.editingGirlId || 'girl_' + Date.now();
+      const id = state.editingGirlId || 'girl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
       const now = Date.now();
       const girlData = {
         id, name, phone, grade, notes,
@@ -2760,6 +2782,9 @@ input[type="date"], input[type="month"] {
       showToast(state.editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
       state.editingGirlId = null;
       renderPage();
+      } finally {
+        state.savingGirl = false;
+      }
     });
 
     // ============================================================
@@ -2841,7 +2866,7 @@ input[type="date"], input[type="month"] {
               ${records.map(r => {
                 const stars = r.rating ? '&#9733;'.repeat(r.rating) + '&#9734;'.repeat(5-r.rating) : '';
                 return `<div class="profile-record">
-                  <span class="rec-date">${esc(r.date)} ${esc(DAY_NAMES[new Date(r.date).getDay()] || '')}</span>
+                  <span class="rec-date">${esc(r.date)} ${esc(DAY_NAMES[new Date(r.date + 'T00:00:00').getDay()] || '')}</span>
                   <span class="rec-activity">${esc(r.activity||'')}</span>
                   <span class="rec-status ${r.status==='حاضر'?'present':'absent'}">${esc(r.status)}</span>
                   ${stars ? `<span class="rec-rating">${stars}</span>` : ''}
@@ -2874,7 +2899,7 @@ input[type="date"], input[type="month"] {
       const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
       const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
 
-      const shareText = `�\uDC69 ${g.name}
+      const shareText = `👧 ${g.name}
 \uD83D\uDCDA ${g.grade}
 \u2705 حضور: ${presentCount}
 \u274C غياب: ${absentCount}
@@ -3792,42 +3817,121 @@ input[type="date"], input[type="month"] {
       if (!DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.getMonthStr();
     }
 
-    // CSV export
+    // Excel XML export
     DOM.exportCSV.addEventListener('click', () => {
       const month = DOM.exportMonth.value;
       const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-      const monthAtt = Object.values(state.attendanceData).filter(a =>
+      let monthAtt = Object.values(state.attendanceData).filter(a =>
         a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
       );
 
       const monthName = DateUtil.formatMonth(month);
 
-      // Build CSV with BOM for proper Arabic support in Excel
-      let csv = '\uFEFF';
-      csv += csvEscape('تقرير حضور ' + monthName) + '\n\n';
-      // Header row
-      csv += ['#', 'الاسم', 'السنة', 'التاريخ', 'اليوم', 'النشاط', 'الحضور', 'التقييم', 'ملاحظات']
-        .map(csvEscape).join(',') + '\n';
-
-      monthAtt.forEach((a, i) => {
-        const g = state.girls.find(x => x.id === a.girlId);
-        if (!g) return;
-        const dayName = DAY_NAMES[new Date(a.date).getDay()] || '';
-        csv += [
-          i + 1,
-          g.name,
-          g.grade,
-          a.date,
-          dayName,
-          a.activity || '',
-          a.status,
-          a.rating || 0,
-          a.notes || ''
-        ].map(csvEscape).join(',') + '\n';
+      // Sort by date then activity
+      monthAtt.sort((a, b) => {
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
+        }
+        return (a.activity || '').localeCompare(b.activity || '', 'ar');
       });
 
-      downloadFile(`حضور_${month}.csv`, csv, 'text/csv;charset=utf-8;');
-      showToast('تم تصدير CSV', 'success');
+      // Build Excel XML
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>';
+      xml += '<?mso-application progid="Excel.Sheet"?>';
+      xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+      xml += '<Styles>';
+      xml += '<Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#1a2744" ss:Pattern="Solid"/><Font ss:Color="#ffffff" ss:Bold="1"/></Style>';
+      xml += '<Style ss:ID="title"><Font ss:Size="14" ss:Bold="1"/></Style>';
+      xml += '<Style ss:ID="stats"><Font ss:Bold="1"/><Interior ss:Color="#f0f2f8" ss:Pattern="Solid"/></Style>';
+      xml += '</Styles>';
+      xml += '<Worksheet ss:Name="' + xmlEsc(monthName) + '"><Table>';
+
+      // Column widths
+      xml += '<Column ss:Width="50"/>';
+      xml += '<Column ss:Width="180"/>';
+      xml += '<Column ss:Width="120"/>';
+      xml += '<Column ss:Width="80"/>';
+      xml += '<Column ss:Width="80"/>';
+      xml += '<Column ss:Width="80"/>';
+      xml += '<Column ss:Width="120"/>';
+      xml += '<Column ss:Width="100"/>';
+
+      // Title row
+      xml += '<Row><Cell ss:StyleID="title" ss:MergeAcross="7"><Data ss:Type="String">' + xmlEsc('تقرير حضور ' + monthName) + '</Data></Cell></Row>';
+      xml += '<Row></Row>';
+
+      // Stats rows
+      const totalPresent = monthAtt.filter(a => a.status === 'حاضر').length;
+      const totalAbsent = monthAtt.filter(a => a.status === 'غائب').length;
+
+      xml += '<Row ss:StyleID="stats">';
+      xml += '<Cell><Data ss:Type="String">عدد المخدومات</Data></Cell>';
+      xml += '<Cell><Data ss:Type="Number">' + activeGirlIds.size + '</Data></Cell>';
+      xml += '</Row>';
+      xml += '<Row ss:StyleID="stats">';
+      xml += '<Cell><Data ss:Type="String">إجمالي الحضور</Data></Cell>';
+      xml += '<Cell><Data ss:Type="Number">' + totalPresent + '</Data></Cell>';
+      xml += '</Row>';
+      xml += '<Row ss:StyleID="stats">';
+      xml += '<Cell><Data ss:Type="String">إجمالي الغياب</Data></Cell>';
+      xml += '<Cell><Data ss:Type="Number">' + totalAbsent + '</Data></Cell>';
+      xml += '</Row>';
+      xml += '<Row></Row>';
+
+      // Group by girl - one row per girl
+      const grouped = {};
+      monthAtt.forEach(a => {
+        if (!grouped[a.girlId]) {
+          const g = state.girls.find(x => x.id === a.girlId);
+          grouped[a.girlId] = {
+            name: g?.name || '',
+            grade: g?.grade || '',
+            'دراسي': { present: 0, absent: 0 },
+            'قبطي': { present: 0, absent: 0 },
+            'محفوظات': { present: 0, absent: 0 },
+            'ألحان': { present: 0, absent: 0 },
+            totalPresent: 0,
+            totalAbsent: 0
+          };
+        }
+        if (a.status === 'حاضر') {
+          grouped[a.girlId][a.activity].present++;
+          grouped[a.girlId].totalPresent++;
+        } else {
+          grouped[a.girlId][a.activity].absent++;
+          grouped[a.girlId].totalAbsent++;
+        }
+      });
+
+      // Header row
+      xml += '<Row>';
+      ['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']
+        .forEach(h => {
+          xml += '<Cell ss:StyleID="header"><Data ss:Type="String">' + xmlEsc(h) + '</Data></Cell>';
+        });
+      xml += '</Row>';
+
+      // Data rows
+      Object.values(grouped).forEach(r => {
+        const total = r.totalPresent + r.totalAbsent;
+        const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
+        xml += '<Row>';
+        xml += '<Cell><Data ss:Type="String">' + xmlEsc(r.name) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + xmlEsc(r.grade) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + (r['دراسي'].present + '/' + (r['دراسي'].present + r['دراسي'].absent)) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + (r['قبطي'].present + '/' + (r['قبطي'].present + r['قبطي'].absent)) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + (r['محفوظات'].present + '/' + (r['محفوظات'].present + r['محفوظات'].absent)) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + (r['ألحان'].present + '/' + (r['ألحان'].present + r['ألحان'].absent)) + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="Number">' + r.totalPresent + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="Number">' + r.totalAbsent + '</Data></Cell>';
+        xml += '<Cell><Data ss:Type="String">' + rate + '</Data></Cell>';
+        xml += '</Row>';
+      });
+
+      xml += '</Table></Worksheet></Workbook>';
+
+      downloadFile(`حضور_${month}.xls`, xml, 'application/vnd.ms-excel');
+      showToast('تم تصدير Excel', 'success');
     });
 
     DOM.exportJSON.addEventListener('click', () => {
@@ -3849,13 +3953,55 @@ input[type="date"], input[type="month"] {
     DOM.exportPrint.addEventListener('click', () => {
       const month = DOM.exportMonth.value;
       const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-      const monthAtt = Object.values(state.attendanceData).filter(a =>
+      let monthAtt = Object.values(state.attendanceData).filter(a =>
         a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
       );
 
       const presents = monthAtt.filter(a => a.status === 'حاضر').length;
       const absents = monthAtt.filter(a => a.status === 'غائب').length;
       const activeGirls = state.girls.filter(g => !g.isDeleted);
+
+      // Group by girl - one row per girl
+      const grouped = {};
+      monthAtt.forEach(a => {
+        if (!grouped[a.girlId]) {
+          const g = state.girls.find(x => x.id === a.girlId);
+          grouped[a.girlId] = {
+            name: g?.name || '',
+            grade: g?.grade || '',
+            'دراسي': { present: 0, absent: 0 },
+            'قبطي': { present: 0, absent: 0 },
+            'محفوظات': { present: 0, absent: 0 },
+            'ألحان': { present: 0, absent: 0 },
+            totalPresent: 0,
+            totalAbsent: 0
+          };
+        }
+        if (a.status === 'حاضر') {
+          grouped[a.girlId][a.activity].present++;
+          grouped[a.girlId].totalPresent++;
+        } else {
+          grouped[a.girlId][a.activity].absent++;
+          grouped[a.girlId].totalAbsent++;
+        }
+      });
+
+      const htmlRows = Object.values(grouped).map((r, i) => {
+        const total = r.totalPresent + r.totalAbsent;
+        const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
+        return `<tr>
+          <td>${i+1}</td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.grade)}</td>
+          <td>${r['دراسي'].present}/${r['دراسي'].present + r['دراسي'].absent}</td>
+          <td>${r['قبطي'].present}/${r['قبطي'].present + r['قبطي'].absent}</td>
+          <td>${r['محفوظات'].present}/${r['محفوظات'].present + r['محفوظات'].absent}</td>
+          <td>${r['ألحان'].present}/${r['ألحان'].present + r['ألحان'].absent}</td>
+          <td>${r.totalPresent}</td>
+          <td>${r.totalAbsent}</td>
+          <td>${rate}</td>
+        </tr>`;
+      }).join('');
 
       const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
         <head><meta charset="UTF-8"><title>تقرير ${month}</title>
@@ -3867,35 +4013,39 @@ input[type="date"], input[type="month"] {
         .sum-box b{font-size:24px;color:#1a2744}
         .sum-box span{font-size:13px;color:#6b7a99}
         table{width:100%;border-collapse:collapse;margin-top:20px}
-        th,td{border:1px solid #ddd;padding:8px;text-align:right}
+        th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
         th{background:#1a2744;color:white}
         .present{color:green}.absent{color:red}
         .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
+        @media print{body{padding:10px}}
         </style></head><body>
         <h1>تقرير متابعة المخدومات - ${DateUtil.formatMonth(month)}</h1>
         <div class="summary">
           <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
           <div class="sum-box"><b>${presents}</b><br><span>حالات الحضور</span></div>
           <div class="sum-box"><b>${absents}</b><br><span>حالات الغياب</span></div>
-          <div class="sum-box"><b>${monthAtt.length}</b><br><span>إجمالي السجلات</span></div>
+          <div class="sum-box"><b>${Object.keys(grouped).length}</b><br><span>مخدومات مشاركة</span></div>
         </div>
-        <table><tr><th>#</th><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>اليوم</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${monthAtt.map((a, i) => {
-          const g = state.girls.find(x => x.id === a.girlId);
-          if (!g) return '';
-          const dayName = DAY_NAMES[new Date(a.date).getDay()] || '';
-          return `<tr><td>${i+1}</td><td>${esc(g.name)}</td><td>${esc(g.grade)}</td><td>${a.date}</td><td>${dayName}</td><td>${esc(a.activity||'')}</td>
-          <td class="${a.status==='حاضر'?'present':'absent'}">${esc(a.status)}</td>
-          <td>${'&#9733;'.repeat(a.rating||0)}</td><td>${esc(a.notes||'')}</td></tr>`;
-        }).join('')}
+        <table>
+          <tr>
+            <th>#</th>
+            <th>الاسم</th>
+            <th>السنة</th>
+            <th>دراسي</th>
+            <th>قبطي</th>
+            <th>محفوظات</th>
+            <th>ألحان</th>
+            <th>الحضور</th>
+            <th>الغياب</th>
+            <th>النسبة</th>
+          </tr>
+          ${htmlRows}
         </table>
         <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
         </body></html>`;
       const w = window.open('', '_blank');
       w.document.write(html); w.document.close(); w.print();
-    });
-
-    function downloadFile(filename, content, mimeType) {
+    });function downloadFile(filename, content, mimeType) {
       const blob = new Blob([content], { type: mimeType });
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -3922,7 +4072,10 @@ input[type="date"], input[type="month"] {
     function closeModal(id) {
       if (!DOM[id]) return;
       DOM[id].classList.remove('show');
-      document.body.style.overflow = '';
+      const anyOpen = document.querySelector('.modal-overlay.show');
+      if (!anyOpen) {
+        document.body.style.overflow = '';
+      }
     }
 
     // ============================================================
@@ -4018,23 +4171,20 @@ input[type="date"], input[type="month"] {
       });
 
       // Long press handlers
-      let longPressTriggered = false;
-
       DOM.attendanceList.addEventListener('mousedown', e => {
         const item = e.target.closest('.att-item');
         if (!item) return;
         state.isLongPress = false;
-        longPressTriggered = false;
+        
         state.longPressTimer = setTimeout(() => {
           state.isLongPress = true;
-          longPressTriggered = true;
           const g = state.girls.find(x => x.id === item.dataset.girlId);
           if (g) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
         }, 500);
       });
       DOM.attendanceList.addEventListener('mouseup', () => {
         if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-        setTimeout(() => { state.isLongPress = false; longPressTriggered = false; }, 100);
+        setTimeout(() => { state.isLongPress = false;  }, 100);
       });
       DOM.attendanceList.addEventListener('mouseleave', () => {
         if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
@@ -4044,17 +4194,16 @@ input[type="date"], input[type="month"] {
         const item = e.target.closest('.att-item');
         if (!item) return;
         state.isLongPress = false;
-        longPressTriggered = false;
+        
         state.longPressTimer = setTimeout(() => {
           state.isLongPress = true;
-          longPressTriggered = true;
           const g = state.girls.find(x => x.id === item.dataset.girlId);
           if (g) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
         }, 500);
       }, { passive: true });
       DOM.attendanceList.addEventListener('touchend', () => {
         if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-        setTimeout(() => { state.isLongPress = false; longPressTriggered = false; }, 100);
+        setTimeout(() => { state.isLongPress = false;  }, 100);
       });
       DOM.attendanceList.addEventListener('touchcancel', () => {
         if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
