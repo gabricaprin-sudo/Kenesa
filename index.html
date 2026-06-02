@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <style>
 /* ============================================================
-   نظام متابعة المخدومات — النسخة النهائية مع جميع التحسينات
+   نظام متابعة المخدومات — النسخة النهائية الكاملة
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -66,28 +66,23 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   transition: background var(--transition), color var(--transition);
 }
 
 #app { min-height: 100vh; position: relative; max-width: 480px; margin: 0 auto; }
 
-/* ============================================================
-   SPLASH
-   ============================================================ */
+/* ===== SPLASH ===== */
 .splash {
   position: fixed; inset: 0; z-index: 9999;
   background: linear-gradient(160deg, #1a2744 0%, #2a3d6b 50%, #1a2744 100%);
   display: flex; align-items: center; justify-content: center;
   transition: opacity 0.5s ease;
-  contain: strict;
 }
 .splash.fade-out { opacity: 0; pointer-events: none; }
-.splash-content { text-align: center; color: white; contain: layout; }
+.splash-content { text-align: center; color: white; }
 .splash-cross {
   font-size: 64px; display: block; margin-bottom: 16px;
   animation: pulse 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 20px rgba(232,160,32,0.5));
 }
 .splash-content h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
 .splash-content p { font-size: 16px; color: rgba(255,255,255,0.7); margin-bottom: 32px; }
@@ -102,9 +97,7 @@ body {
 @keyframes loading { 0%{transform:translateX(-100%)} 100%{transform:translateX(350%)} }
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
-/* ============================================================
-   LOGIN
-   ============================================================ */
+/* ===== LOGIN ===== */
 .login-bg {
   position: fixed; inset: 0;
   background: linear-gradient(160deg, #1a2744 0%, #2a3d6b 60%, #1a2744 100%);
@@ -138,16 +131,13 @@ body {
   font-size: 17px; font-weight: 600; color: var(--text);
   cursor: pointer; display: flex; align-items: center;
   justify-content: center; gap: 12px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: transform 0.2s ease;
   min-height: var(--tap-target);
 }
 .btn-google:active { transform: scale(0.97); }
 .login-note { margin-top: 16px; color: var(--text-muted); font-size: 14px; }
 
-/* ============================================================
-   HEADER
-   ============================================================ */
+/* ===== HEADER ===== */
 .app-header {
   position: fixed; top: 0; left: 0; right: 0;
   max-width: 480px; margin: 0 auto;
@@ -181,9 +171,7 @@ body {
   display: flex; align-items: center; justify-content: center;
 }
 
-/* ============================================================
-   DRAWER
-   ============================================================ */
+/* ===== DRAWER ===== */
 .drawer-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   z-index: 200; opacity: 0; pointer-events: none;
@@ -250,9 +238,7 @@ body {
   justify-content: center;
 }
 
-/* ============================================================
-   PAGE CONTENT
-   ============================================================ */
+/* ===== PAGE CONTENT ===== */
 .page-content {
   padding-top: calc(76px + var(--safe-top));
   padding-bottom: calc(70px + var(--safe-bottom));
@@ -261,9 +247,7 @@ body {
 .page { padding: 16px; display: none; }
 .page.active { display: block; }
 
-/* ============================================================
-   BOTTOM NAV
-   ============================================================ */
+/* ===== BOTTOM NAV ===== */
 .bottom-nav {
   position: fixed; bottom: 0; left: 0; right: 0;
   max-width: 480px; margin: 0 auto;
@@ -285,9 +269,7 @@ body {
 .nav-btn.active { color: var(--primary); }
 .nav-btn.active span { transform: scale(1.1); }
 
-/* ============================================================
-   HOME PAGE
-   ============================================================ */
+/* ===== HOME & COMMON STYLES ===== */
 .search-bar-wrap { margin-bottom: 12px; position: relative; }
 .search-bar {
   width: 100%; padding: 14px 16px;
@@ -395,9 +377,7 @@ body {
   font-size: 15px; line-height: 1.6;
 }
 
-/* ============================================================
-   ATTENDANCE PAGE
-   ============================================================ */
+/* ===== ATTENDANCE PAGE ===== */
 .day-selector { display: flex; gap: 8px; margin-bottom: 12px; }
 .day-btn {
   flex: 1; padding: 12px 8px; border: 2px solid var(--border);
@@ -549,9 +529,7 @@ body {
   border-radius: 8px;
 }
 
-/* ============================================================
-   GIRLS PAGE
-   ============================================================ */
+/* ===== GIRLS PAGE ===== */
 .filter-bar { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 .filter-select {
   flex: 1; padding: 12px 14px; background: var(--surface);
@@ -652,9 +630,7 @@ body {
   margin-bottom: 0;
 }
 
-/* ============================================================
-   STATS PAGE (with grade filter)
-   ============================================================ */
+/* ===== STATS PAGE ===== */
 .stats-grade-filters {
   display: flex;
   gap: 8px;
@@ -795,9 +771,7 @@ body {
 .rank-grade { font-size: 12px; color: var(--text-muted); }
 .rank-count { font-size: 14px; font-weight: 700; color: var(--green); }
 
-/* ============================================================
-   CALENDAR PAGE
-   ============================================================ */
+/* ===== CALENDAR PAGE ===== */
 .calendar-nav {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--primary); color: white; border-radius: var(--radius);
@@ -853,9 +827,7 @@ body {
 .day-activity { font-size: 15px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .day-activity:last-child { border-bottom: none; }
 
-/* ============================================================
-   HISTORY & EXPORT
-   ============================================================ */
+/* ===== HISTORY & EXPORT ===== */
 .history-controls {
   display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
 }
@@ -911,9 +883,7 @@ body {
 .export-btn.json { background: rgba(52,152,219,0.1); color: #1a5280; }
 .export-btn.print { background: rgba(26,39,68,0.08); color: var(--primary); }
 
-/* ============================================================
-   MODALS
-   ============================================================ */
+/* ===== MODALS ===== */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 300;
   background: rgba(0,0,0,0.5);
@@ -1051,9 +1021,7 @@ textarea.form-input { resize: none; }
   opacity: 0.8;
 }
 
-/* ============================================================
-   ACTIVITY DETAIL MODAL
-   ============================================================ */
+/* ===== ACTIVITY DETAIL MODAL ===== */
 .activity-detail-tabs {
   display: flex;
   gap: 0;
@@ -1145,9 +1113,7 @@ textarea.form-input { resize: none; }
   padding: 6px 14px;
 }
 
-/* ============================================================
-   CONFIRM MODAL
-   ============================================================ */
+/* ===== CONFIRM MODAL ===== */
 .confirm-overlay {
   position: fixed; inset: 0; z-index: 400;
   background: rgba(0,0,0,0.6);
@@ -1193,9 +1159,7 @@ textarea.form-input { resize: none; }
 }
 .confirm-ok:active { transform: scale(0.97); }
 
-/* ============================================================
-   TOAST
-   ============================================================ */
+/* ===== TOAST ===== */
 .toast {
   position: fixed; bottom: calc(80px + var(--safe-bottom) + 10px);
   left: 50%; transform: translateX(-50%);
@@ -1213,9 +1177,7 @@ textarea.form-input { resize: none; }
 .toast.error { background: var(--red); }
 .toast.warning { background: var(--orange); }
 
-/* ============================================================
-   UTILS
-   ============================================================ */
+/* ===== UTILS ===== */
 .hidden { display: none !important; }
 
 ::-webkit-scrollbar { width: 4px; }
@@ -1403,7 +1365,7 @@ textarea.form-input { resize: none; }
             <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
           </div>
           <div class="att-toggle-hint">&#128161; اضغط على المخدومة للتبديل بين حاضر / غائب &middot; اضغط مطولاً للتفاصيل</div>
-          <!-- Added attendance search input -->
+          <!-- Attendance search input -->
           <input type="text" id="attendanceSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة في الحضور..." autocomplete="off" style="margin-bottom:12px;">
           <div id="attendanceList" class="attendance-list"></div>
           <button class="fab-save" id="saveAttendanceBtn">&#128190; حفظ الحضور</button>
@@ -1522,7 +1484,7 @@ textarea.form-input { resize: none; }
       </nav>
     </div>
 
-    <!-- Modals (same as original but keep all) -->
+    <!-- Modals -->
     <div class="modal-overlay" id="girlModal" role="dialog">
       <div class="modal">
         <div class="modal-header"><h3 id="girlModalTitle">إضافة مخدومة</h3><button class="modal-close" id="closeGirlModal">&#10005;</button></div>
@@ -1546,8 +1508,7 @@ textarea.form-input { resize: none; }
 
     <div id="toast" class="toast hidden" role="status"></div>
   </div>
-
-  <script type="module">
+    <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
     import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
@@ -1616,7 +1577,7 @@ textarea.form-input { resize: none; }
       activityDetailTab: 'present', currentActivityDetail: null
     };
 
-    // Helper functions (esc, normalizeArabic, toast, etc.) - keep original implementations
+    // Helper functions
     const esc = (str) => { const div = document.createElement('div'); div.textContent = str ?? ''; return div.innerHTML; };
     const normalizeArabic = (str) => (str || '').replace(/[إأآا]/g, 'ا').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/ة/g, 'ه').toLowerCase();
     let toastTimeout;
@@ -1629,7 +1590,7 @@ textarea.form-input { resize: none; }
     const hideSplash = () => { DOM.splash.classList.add('fade-out'); setTimeout(() => DOM.splash.remove(), 500); };
     setTimeout(hideSplash, 3000);
 
-    // Dark Mode
+    // Dark mode
     const applyTheme = (theme) => {
       document.documentElement.setAttribute('data-theme', theme);
       localStorage.setItem('theme', theme);
@@ -1647,8 +1608,8 @@ textarea.form-input { resize: none; }
     window.addEventListener('online', () => { state.isOnline = true; updateSyncUI(); syncPending(); showToast('تم الاتصال بالإنترنت', 'success'); });
     window.addEventListener('offline', () => { state.isOnline = false; updateSyncUI(); showToast('وضع عدم الاتصال', 'warning'); });
     const updateSyncUI = () => {
-      if (state.isOnline) DOM.syncIndicator.classList.add('online'), DOM.syncIndicator.classList.remove('offline'), DOM.offlineBadge.classList.remove('show');
-      else DOM.syncIndicator.classList.add('offline'), DOM.syncIndicator.classList.remove('online'), DOM.offlineBadge.classList.add('show');
+      if (state.isOnline) { DOM.syncIndicator.classList.add('online'); DOM.syncIndicator.classList.remove('offline'); DOM.offlineBadge.classList.remove('show'); }
+      else { DOM.syncIndicator.classList.add('offline'); DOM.syncIndicator.classList.remove('online'); DOM.offlineBadge.classList.add('show'); }
     };
 
     // IndexedDB
@@ -1757,7 +1718,7 @@ textarea.form-input { resize: none; }
     const closeDrawer = () => { DOM.drawer.classList.remove('open'); DOM.drawerOverlay.classList.remove('show'); };
     DOM.drawerOverlay.addEventListener('click', closeDrawer);
 
-    // Render page dispatcher
+    // Render dispatcher
     const renderPage = () => {
       switch(state.currentPage) {
         case 'home': renderHome(); break;
@@ -1770,7 +1731,7 @@ textarea.form-input { resize: none; }
       }
     };
 
-    // ---------- HOME PAGE ----------
+    // Date utilities
     const DateUtil = {
       pad: n => String(n).padStart(2,'0'),
       toStr: (d=new Date()) => `${d.getFullYear()}-${DateUtil.pad(d.getMonth()+1)}-${DateUtil.pad(d.getDate())}`,
@@ -1782,6 +1743,7 @@ textarea.form-input { resize: none; }
     const SERVICE_DAYS = { 'السبت':true, 'الاثنين':true, 'الاربعاء':true };
     const ACTIVITIES = ['دراسي', 'محفوظات', 'قبطي', 'ألحان'];
 
+    // Home page functions
     const getBestGrade = (monthStr, gradeFilter) => {
       let activeGirls = state.girls.filter(g => !g.isDeleted);
       if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
@@ -1840,7 +1802,6 @@ textarea.form-input { resize: none; }
       });
       return best;
     };
-
     const renderHome = () => {
       const now = new Date();
       const dayName = DateUtil.dayName(now);
@@ -1905,7 +1866,7 @@ textarea.form-input { resize: none; }
       }
     };
 
-    // ---------- ATTENDANCE PAGE ----------
+    // Attendance page
     let attendancePageInitialized = false;
     const renderAttendancePage = () => {
       if(!DOM.attendanceDate.value) DOM.attendanceDate.value = DateUtil.toStr();
@@ -2045,7 +2006,7 @@ textarea.form-input { resize: none; }
     });
     DOM.saveAttendanceBtn.addEventListener('click', () => showToast('جميع البيانات محفوظة','success'));
 
-    // ---------- GIRLS PAGE ----------
+    // Girls page
     const renderGirlsList = () => {
       const filter = state.girlsGradeFilter;
       const activeGirls = state.girls.filter(g => !g.isDeleted);
@@ -2114,14 +2075,13 @@ textarea.form-input { resize: none; }
       renderPage();
     });
 
-    // ---------- GIRL PROFILE (enhanced) ----------
+    // Girl profile (enhanced)
     const showGirlProfile = (id) => {
       const g = state.girls.find(x => x.id === id);
       if(!g || g.isDeleted) return;
       DOM.profileName.textContent = g.name;
       const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
       girlAtt.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-      // Compute stats
       const totalAtt = girlAtt.length;
       const presents = girlAtt.filter(a => a.status === 'حاضر').length;
       const absents = totalAtt - presents;
@@ -2130,7 +2090,6 @@ textarea.form-input { resize: none; }
       let totalRating = 0, ratingCount = 0;
       girlAtt.forEach(a => { if(a.rating > 0) { totalRating += a.rating; ratingCount++; } });
       const avgRating = ratingCount ? (totalRating/ratingCount).toFixed(1) : '-';
-      // Best activity
       const actCount = { 'دراسي':0, 'محفوظات':0, 'قبطي':0, 'ألحان':0 };
       girlAtt.forEach(a => { if(a.status === 'حاضر' && actCount[a.activity] !== undefined) actCount[a.activity]++; });
       let bestAct = '-', bestActVal = 0;
@@ -2158,7 +2117,7 @@ textarea.form-input { resize: none; }
     };
     DOM.closeProfileModal.addEventListener('click', () => closeModal('girlProfileModal'));
 
-    // ---------- CALENDAR PAGE ----------
+    // Calendar page
     const renderCalendar = () => {
       const year = state.calendarDate.getFullYear();
       const month = state.calendarDate.getMonth();
@@ -2203,7 +2162,7 @@ textarea.form-input { resize: none; }
     DOM.calNext.addEventListener('click', () => { hideDayDetail(); state.calendarDate.setMonth(state.calendarDate.getMonth()+1); renderCalendar(); });
     DOM.calendarGrid.addEventListener('click', e => { const day = e.target.closest('.cal-day'); if(day && !day.classList.contains('empty')) showDayDetail(day.dataset.date); });
 
-    // ---------- STATS PAGE (with grade filter) ----------
+    // Stats page
     const getPeriodBounds = (period) => {
       const now = new Date();
       const todayStr = DateUtil.toStr(now);
@@ -2323,7 +2282,7 @@ textarea.form-input { resize: none; }
     if(DOM.timeFilterTabs) DOM.timeFilterTabs.addEventListener('click', e => { const btn = e.target.closest('.time-filter-tab'); if(btn) { state.statsTimeFilter = btn.dataset.period; renderStats(); } });
     if(DOM.statsGradeFilters) DOM.statsGradeFilters.addEventListener('click', e => { const btn = e.target.closest('.stats-grade-btn'); if(btn) { state.statsGradeFilter = btn.dataset.grade; document.querySelectorAll('.stats-grade-btn').forEach(b => b.classList.toggle('active', b === btn)); renderStats(); } });
 
-    // ---------- HISTORY PAGE ----------
+    // History page
     const renderHistory = async (append = false) => {
       const filter = DOM.historyFilter?.value || '';
       if(!append) { DOM.historyList.innerHTML = '<div class="empty-state">جارٍ التحميل...</div>'; state.historyOffset = 0; if(state.idb) { const logs = await IDB.getAll('history'); logs.sort((a,b)=>b.timestamp - a.timestamp); state.historyAllLogs = filter ? logs.filter(l => l.action.includes(filter)) : logs; } else state.historyAllLogs = []; }
@@ -2340,7 +2299,7 @@ textarea.form-input { resize: none; }
     const getHistoryIcon = (action) => { if(action.includes('إضافة')) return '➕'; if(action.includes('تعديل')) return '✏️'; if(action.includes('حذف')) return '❌'; if(action.includes('حضور')) return '📋'; return '📄'; };
     const logHistory = async (action, detail) => { const log = { id: 'log_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), action, detail, by: state.currentUser?.displayName || 'خادم', byEmail: state.currentUser?.email || '', timestamp: Date.now() }; if(state.idb) await IDB.put('history', log); if(state.isOnline) try { await setDoc(doc(db,'history',log.id), log); } catch(e) {} };
 
-    // ---------- EXPORT PAGE ----------
+    // Export page
     const renderExport = () => { if(!DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.getMonthStr(); };
     const csvEscape = (v) => `"${String(v||'').replace(/"/g,'""')}"`;
     DOM.exportCSV.addEventListener('click', () => {
@@ -2362,16 +2321,15 @@ textarea.form-input { resize: none; }
       const month = DOM.exportMonth.value;
       const activeIds = new Set(state.girls.filter(g=>!g.isDeleted).map(g=>g.id));
       const monthAtt = Object.values(state.attendanceData).filter(a => a.date?.startsWith(month) && activeIds.has(a.girlId));
-      const activeGirls = state.girls.filter(g=>!g.isDeleted);
-      const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير ${month}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px} h1{color:#1a2744} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px;text-align:right} th{background:#1a2744;color:white} .present{color:green} .absent{color:red}</style></head><body><h1>تقرير متابعة المخدومات - ${DateUtil.formatMonth(month)}</h1><table><thead><tr><th>#</th><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr></thead><tbody>${monthAtt.map((a,i) => { const g = state.girls.find(x=>x.id===a.girlId); if(!g) return ''; return `<tr><td>${i+1}</td><td>${esc(g.name)}</td><td>${esc(g.grade)}</td><td>${a.date}</td><td>${esc(a.activity||'')}</td><td class="${a.status==='حاضر'?'present':'absent'}">${esc(a.status)}</td><td>${'★'.repeat(a.rating||0)}</td><td>${esc(a.notes||'')}</td></tr>`; }).join('')}</tbody></table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
+      const html = `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>تقرير ${month}</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet"><style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px} h1{color:#1a2744} table{width:100%;border-collapse:collapse} th,td{border:1px solid #ccc;padding:8px;text-align:right} th{background:#1a2744;color:white} .present{color:green} .absent{color:red}</style></head><body><h1>تقرير متابعة المخدومات - ${DateUtil.formatMonth(month)}</h1><tr><thead><tr><th>#</th><th>الاسم</th><th>السنة</th><th>التاريخ</th><th>النشاط</th><th>الحضور</th><th>التقييم</th><th>ملاحظات</th></tr></thead><tbody>${monthAtt.map((a,i) => { const g = state.girls.find(x=>x.id===a.girlId); if(!g) return ''; return `<tr><td>${i+1}</td><td>${esc(g.name)}</td><td>${esc(g.grade)}</td><td>${a.date}</td><td>${esc(a.activity||'')}</td><td class="${a.status==='حاضر'?'present':'absent'}">${esc(a.status)}</td><td>${'★'.repeat(a.rating||0)}</td><td>${esc(a.notes||'')}</td></tr>`; }).join('')}</tbody></table><div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div></body></html>`;
       const w = window.open('', '_blank'); w.document.write(html); w.document.close(); w.print();
     });
 
-    // ---------- PENDING SYNC ----------
+    // Pending sync
     const addPending = async (type, data) => { if(state.idb) await IDB.put('pending', { id: 'pending_'+Date.now(), type, data }); };
     const syncPending = async () => { if(!state.idb || !state.isOnline) return; try { const pending = await IDB.getAll('pending'); let count=0; for(const item of pending) { try { if(item.type === 'girl') await setDoc(doc(db,'girls',item.data.id), item.data); else if(item.type === 'attendance') await setDoc(doc(db,'attendance',item.data.id), item.data); else if(item.type === 'delete_girl') { await setDoc(doc(db,'girls',item.data.id), item.data.update, {merge:true}); const attQuery = query(collection(db,'attendance'), where('girlId','==',item.data.id)); const attSnap = await getDocs(attQuery); const batch = writeBatch(db); attSnap.forEach(d=>batch.delete(d.ref)); await batch.commit(); } await IDB.delete('pending', item.id); count++; } catch(e) { console.error(e); } } if(count>0) showToast(`تمت مزامنة ${count} سجل`,'success'); } catch(e) { console.error(e); } };
 
-    // ---------- MODAL HELPERS ----------
+    // Modals
     const openModal = (id) => { DOM[id].classList.add('show'); document.body.style.overflow = 'hidden'; };
     const closeModal = (id) => { DOM[id].classList.remove('show'); document.body.style.overflow = ''; };
     let confirmResolve = null;
@@ -2383,7 +2341,7 @@ textarea.form-input { resize: none; }
     DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal')); DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
     document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => { if(e.target === overlay) closeModal(overlay.id); }));
 
-    // ---------- EVENT DELEGATION ----------
+    // Event delegation
     const setupDelegation = () => {
       DOM.needsFollowup.addEventListener('click', e => { const item = e.target.closest('.followup-item'); if(item) showGirlProfile(item.dataset.girlId); });
       DOM.girlsList.addEventListener('click', e => { const editBtn = e.target.closest('.edit-btn'); if(editBtn) { e.stopPropagation(); editGirl(editBtn.dataset.girlId); return; } const card = e.target.closest('.girl-card'); if(card) showGirlProfile(card.dataset.girlId); });
@@ -2412,7 +2370,6 @@ textarea.form-input { resize: none; }
     };
     DOM.homeGradeFilters.addEventListener('click', e => { const btn = e.target.closest('.grade-filter-btn'); if(btn) { state.homeGradeFilter = btn.dataset.grade; renderHome(); } });
     DOM.girlsGradeFilters.addEventListener('click', e => { const btn = e.target.closest('.grade-filter-btn'); if(btn) { state.girlsGradeFilter = btn.dataset.grade; renderGirlsList(); } });
-    // Global search with debounce
     let searchTimeout;
     DOM.globalSearch.addEventListener('input', function() {
       clearTimeout(searchTimeout);
@@ -2426,14 +2383,10 @@ textarea.form-input { resize: none; }
         resultsEl.classList.add('show');
       }, 300);
     });
-    // Attendance search listener
-    if(DOM.attendanceSearch) {
-      DOM.attendanceSearch.addEventListener('input', () => renderAttendanceList());
-    }
+    if(DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', () => renderAttendanceList());
 
     setupDelegation();
 
-    // Bootstrap
     const bootstrap = async () => { try { await IDB.open(); } catch(e) { console.error('IDB open failed:', e); } initAuth(); };
     bootstrap();
   </script>
