@@ -1583,7 +1583,7 @@ input[type="date"], input[type="month"] {
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
                 <span>&#128196;</span>
-                <div><b>تصدير Excel</b><small>ملف Excel منسق</small></div>
+                <div><b>تصدير CSV</b><small>ملف CSV مفصول بفواصل</small></div>
               </button>
               <button class="export-btn json" id="exportJSON">
                 <span>&#128190;</span>
@@ -3786,13 +3786,13 @@ input[type="date"], input[type="month"] {
     }
 
     // ============================================================
-    // EXPORT PAGE — Fixed Excel with dates & improved style
+    // EXPORT PAGE — CSV export
     // ============================================================
     function renderExport() {
       if (!DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.getMonthStr();
     }
 
-    // Enhanced Excel export with proper dates and styling
+    // CSV export
     DOM.exportCSV.addEventListener('click', () => {
       const month = DOM.exportMonth.value;
       const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
@@ -3800,57 +3800,34 @@ input[type="date"], input[type="month"] {
         a.date?.startsWith(month) && activeGirlIds.has(a.girlId)
       );
 
-      // FIX: Use proper Excel XML format with styled dates
       const monthName = DateUtil.formatMonth(month);
 
-      // Build Excel XML (SpreadsheetML)
-      let xml = '<?xml version="1.0" encoding="UTF-8"?>';
-      xml += '<?mso-application progid="Excel.Sheet"?>';
-      xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
-      xml += '<Styles>';
-      xml += '<Style ss:ID="header"><Font ss:Bold="1" ss:Color="#FFFFFF"/><Interior ss:Color="#1a2744" ss:Pattern="Solid"/><Alignment ss:Horizontal="Center"/></Style>';
-      xml += '<Style ss:ID="title"><Font ss:Bold="1" ss:Size="14" ss:Color="#1a2744"/></Style>';
-      xml += '<Style ss:ID="present"><Font ss:Color="#2ecc71" ss:Bold="1"/><Alignment ss:Horizontal="Center"/></Style>';
-      xml += '<Style ss:ID="absent"><Font ss:Color="#e74c3c" ss:Bold="1"/><Alignment ss:Horizontal="Center"/></Style>';
-      xml += '<Style ss:ID="center"><Alignment ss:Horizontal="Center"/></Style>';
-      xml += '<Style ss:ID="date"><NumberFormat ss:Format="DD/MM/YYYY"/><Alignment ss:Horizontal="Center"/></Style>';
-      xml += '</Styles>';
-      xml += '<Worksheet ss:Name="الحضور">';
-      xml += '<Table>';
-
-      // Title row
-      xml += `<Row><Cell ss:StyleID="title" ss:MergeAcross="6"><Data ss:Type="String">تقرير حضور ${monthName}</Data></Cell></Row>`;
-      xml += '<Row></Row>';
-
+      // Build CSV with BOM for proper Arabic support in Excel
+      let csv = '\uFEFF';
+      csv += csvEscape('تقرير حضور ' + monthName) + '\n\n';
       // Header row
-      xml += '<Row>';
-      ['#', 'الاسم', 'السنة', 'التاريخ', 'اليوم', 'النشاط', 'الحضور', 'التقييم', 'ملاحظات'].forEach(h => {
-        xml += `<Cell ss:StyleID="header"><Data ss:Type="String">${h}</Data></Cell>`;
-      });
-      xml += '</Row>';
+      csv += ['#', 'الاسم', 'السنة', 'التاريخ', 'اليوم', 'النشاط', 'الحضور', 'التقييم', 'ملاحظات']
+        .map(csvEscape).join(',') + '\n';
 
       monthAtt.forEach((a, i) => {
         const g = state.girls.find(x => x.id === a.girlId);
         if (!g) return;
         const dayName = DAY_NAMES[new Date(a.date).getDay()] || '';
-        const statusStyle = a.status === 'حاضر' ? 'present' : 'absent';
-        xml += '<Row>';
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="Number">${i+1}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${xmlEsc(g.name)}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${xmlEsc(g.grade)}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="date"><Data ss:Type="DateTime">${a.date}T00:00:00.000</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${dayName}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="String">${xmlEsc(a.activity||'')}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="${statusStyle}"><Data ss:Type="String">${xmlEsc(a.status)}</Data></Cell>`;
-        xml += `<Cell ss:StyleID="center"><Data ss:Type="Number">${a.rating||0}</Data></Cell>`;
-        xml += `<Cell><Data ss:Type="String">${xmlEsc(a.notes||'')}</Data></Cell>`;
-        xml += '</Row>';
+        csv += [
+          i + 1,
+          g.name,
+          g.grade,
+          a.date,
+          dayName,
+          a.activity || '',
+          a.status,
+          a.rating || 0,
+          a.notes || ''
+        ].map(csvEscape).join(',') + '\n';
       });
 
-      xml += '</Table></Worksheet></Workbook>';
-
-      downloadFile(`حضور_${month}.xls`, xml, 'application/vnd.ms-excel;charset=utf-8;');
-      showToast('تم تصدير Excel', 'success');
+      downloadFile(`حضور_${month}.csv`, csv, 'text/csv;charset=utf-8;');
+      showToast('تم تصدير CSV', 'success');
     });
 
     DOM.exportJSON.addEventListener('click', () => {
