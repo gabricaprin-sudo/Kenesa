@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#1a2744">
+  <meta name="theme-color" content="#0F2B5B">
   <title>متابعة المخدومات</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="preload" as="image" href="./group_photo.jpg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
   <style>
 /* ============================================================
    نظام متابعة المخدومات — Enhanced Complete Version
@@ -113,7 +114,11 @@
 [data-theme="dark"] .activity-detail-tabs { background: #0f1525; }
 [data-theme="dark"] .offline-badge { background: rgba(243,156,18,0.15); }
 [data-theme="dark"] .splash { background: linear-gradient(160deg, #0f1525 0%, #1a2744 50%, #0f1525 100%); }
-[data-theme="dark"] .login-bg { background: linear-gradient(160deg, #0f1525 0%, #1a2744 60%, #0f1525 100%); }
+[data-theme="dark"] .login-bg {
+  background: #0a1a38;
+  background: radial-gradient(ellipse at 50% 60%, #142a4e 0%, #0a1a38 70%);
+  animation: bgPulse 8s ease-in-out infinite;
+}
 [data-theme="dark"] .splash-cross { filter: drop-shadow(0 0 20px rgba(232,160,32,0.7)); }
 [data-theme="dark"] .export-btn.csv { background: rgba(46,204,113,0.15); }
 [data-theme="dark"] .export-btn.json { background: rgba(52,152,219,0.15); }
@@ -123,7 +128,7 @@
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 
 body {
-  font-family: 'Tajawal', sans-serif;
+  font-family: 'Tajawal', 'Noto Naskh Arabic', sans-serif;
   direction: rtl;
   background: var(--bg);
   color: var(--text);
@@ -171,49 +176,406 @@ body {
 @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
 
 /* ============================================================
-   LOGIN
+   LOGIN — Premium Redesign
    ============================================================ */
 .login-bg {
   position: fixed; inset: 0;
-  background: linear-gradient(160deg, #1a2744 0%, #2a3d6b 60%, #1a2744 100%);
+  background: #0F2B5B;
+  background: radial-gradient(ellipse at 50% 60%, #1a3a6e 0%, #0F2B5B 70%);
   z-index: 0;
+  animation: bgPulse 8s ease-in-out infinite;
 }
-.login-cross-bg {
-  position: absolute; top: 50%; left: 50%;
-  transform: translate(-50%, -60%);
-  font-size: 200px; color: rgba(255,255,255,0.04);
-  pointer-events: none;
-  user-select: none;
+@keyframes bgPulse {
+  0%, 100% { background-position: 50% 60%; }
+  50% { background-position: 50% 55%; }
 }
 #loginScreen {
   position: fixed; inset: 0; z-index: 10;
-  display: flex; align-items: flex-end; justify-content: center;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+/* Hero Image Section */
+.login-hero {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+  z-index: 1;
+}
+.login-hero-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0 0 20px 20px;
+  border-bottom: 2px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  opacity: 0;
+  transform: scale(1.03);
+  animation: heroReveal 600ms cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+}
+@keyframes heroReveal {
+  to { opacity: 1; transform: scale(1); }
+}
+/* Gradient bridge between image and card */
+.login-gradient-bridge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, rgba(15,43,91,0) 0%, #0F2B5B 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+/* Sacred geometry overlay on image bottom */
+.login-geometry-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 35%;
+  pointer-events: none;
+  z-index: 3;
+  opacity: 0;
+  mix-blend-mode: soft-light;
+  animation: geoFadeIn 500ms ease-out 200ms forwards;
+}
+@keyframes geoFadeIn {
+  to { opacity: 1; }
+}
+/* Gold particles */
+.gold-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #D4AF37;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+.gold-particle:nth-child(1)  { left: 10%; animation: particleFloat 7s ease-in-out infinite 0s; }
+.gold-particle:nth-child(2)  { left: 20%; animation: particleFloat 9s ease-in-out infinite 0.4s; }
+.gold-particle:nth-child(3)  { left: 30%; animation: particleFloat 8s ease-in-out infinite 0.8s; }
+.gold-particle:nth-child(4)  { left: 40%; animation: particleFloat 10s ease-in-out infinite 1.2s; }
+.gold-particle:nth-child(5)  { left: 50%; animation: particleFloat 7s ease-in-out infinite 1.6s; }
+.gold-particle:nth-child(6)  { left: 60%; animation: particleFloat 9s ease-in-out infinite 2.0s; }
+.gold-particle:nth-child(7)  { left: 70%; animation: particleFloat 8s ease-in-out infinite 2.4s; }
+.gold-particle:nth-child(8)  { left: 80%; animation: particleFloat 10s ease-in-out infinite 2.8s; }
+.gold-particle:nth-child(9)  { left: 15%; animation: particleFloat 7s ease-in-out infinite 3.2s; }
+.gold-particle:nth-child(10) { left: 25%; animation: particleFloat 9s ease-in-out infinite 3.6s; }
+.gold-particle:nth-child(11) { left: 35%; animation: particleFloat 8s ease-in-out infinite 4.0s; }
+.gold-particle:nth-child(12) { left: 45%; animation: particleFloat 10s ease-in-out infinite 4.4s; }
+.gold-particle:nth-child(13) { left: 55%; animation: particleFloat 7s ease-in-out infinite 4.8s; }
+.gold-particle:nth-child(14) { left: 65%; animation: particleFloat 9s ease-in-out infinite 5.2s; }
+.gold-particle:nth-child(15) { left: 75%; animation: particleFloat 8s ease-in-out infinite 5.6s; }
+
+@keyframes particleFloat {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  50%  { transform: translateY(-80px) translateX(10px); opacity: 0.5; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(-160px) translateX(-5px); opacity: 0; }
+}
+
+/* White Card */
 .login-card {
-  position: relative; z-index: 1;
-  background: white; width: 100%;
+  position: relative;
+  z-index: 5;
+  background: #FFFFFF;
+  width: 100%;
+  flex: 1;
   border-radius: 32px 32px 0 0;
-  padding: 40px 32px calc(40px + var(--safe-bottom));
+  padding: 32px 28px calc(28px + var(--safe-bottom));
   text-align: center;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 -8px 32px rgba(15, 43, 91, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateY(40px);
 }
-.login-icon { font-size: 48px; margin-bottom: 16px; }
-.login-card h2 { font-size: 28px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
-.login-sub { color: var(--text-muted); font-size: 16px; margin-bottom: 32px; }
+.login-card.animate-in {
+  animation: cardSlideUp 800ms cubic-bezier(0.34, 1.56, 0.64, 1) 300ms forwards;
+}
+@keyframes cardSlideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Glass edge on card top */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.5) 20%, rgba(255,255,255,0.5) 80%, transparent 100%);
+  border-radius: 1px;
+  z-index: 6;
+}
+/* Gold Cross Icon */
+.login-cross-icon {
+  font-size: 36px;
+  color: #D4AF37;
+  line-height: 1;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.3));
+  opacity: 0;
+  transform: scale(0.8);
+}
+.login-cross-icon.animate-in {
+  animation: crossBounce 400ms cubic-bezier(0.34, 1.56, 0.64, 1) 500ms forwards;
+}
+@keyframes crossBounce {
+  to { opacity: 1; transform: scale(1); }
+}
+/* Church Name */
+.login-church-name {
+  font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0F2B5B;
+  margin-bottom: 4px;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: translateY(10px);
+}
+.login-church-name.animate-in {
+  animation: fadeSlideUp 400ms ease-out 580ms forwards;
+}
+/* System Title */
+.login-system-title {
+  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #3D4A5C;
+  margin-bottom: 20px;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: translateY(10px);
+}
+.login-system-title.animate-in {
+  animation: fadeSlideUp 400ms ease-out 660ms forwards;
+}
+/* Gold Divider */
+.login-divider {
+  width: 80px;
+  height: 1.5px;
+  background: #D4AF37;
+  margin: 0 auto 20px;
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+  transform: scaleX(0);
+}
+.login-divider.animate-in {
+  animation: dividerExpand 500ms cubic-bezier(0.25, 0.1, 0.25, 1) 740ms forwards;
+}
+@keyframes dividerExpand {
+  to { transform: scaleX(1); }
+}
+/* Shimmer effect on divider */
+.login-divider::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+  animation: shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+/* Welcome Text */
+.login-welcome {
+  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  color: #3D4A5C;
+  margin-bottom: 8px;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: translateY(10px);
+}
+.login-welcome.animate-in {
+  animation: fadeSlideUp 400ms ease-out 820ms forwards;
+}
+/* Bible Verse */
+.login-verse {
+  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  font-style: italic;
+  color: #7A8594;
+  margin-bottom: 4px;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: translateY(10px);
+}
+.login-verse.animate-in {
+  animation: fadeSlideUp 400ms ease-out 900ms forwards;
+}
+/* Verse Reference */
+.login-verse-ref {
+  font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #D4AF37;
+  margin-bottom: 32px;
+  letter-spacing: 0;
+  position: relative;
+  opacity: 0;
+  transform: translateY(10px);
+}
+.login-verse-ref.animate-in {
+  animation: fadeSlideUp 400ms ease-out 980ms forwards;
+}
+/* Verse glow pulse */
+.login-verse-ref::after {
+  content: '';
+  position: absolute;
+  inset: -4px -12px;
+  background: radial-gradient(ellipse, rgba(212, 175, 55, 0.12) 0%, transparent 70%);
+  border-radius: 8px;
+  z-index: -1;
+  animation: verseGlow 4s ease-in-out infinite;
+}
+@keyframes verseGlow {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+@keyframes fadeSlideUp {
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Google Sign-In Button */
 .btn-google {
-  width: 100%; padding: 16px 24px;
-  background: white; border: 2px solid var(--border);
-  border-radius: 14px; font-family: 'Tajawal', sans-serif;
-  font-size: 17px; font-weight: 600; color: var(--text);
-  cursor: pointer; display: flex; align-items: center;
-  justify-content: center; gap: 12px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  min-height: var(--tap-target);
+  width: 90%;
+  padding: 14px 24px;
+  background: #FFFFFF;
+  border: 1.5px solid #C5CBD3;
+  border-radius: 16px;
+  font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #3D4A5C;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  min-height: 52px;
   touch-action: manipulation;
+  opacity: 0;
+  transform: translateY(15px);
 }
-.btn-google:active { transform: scale(0.97); }
-.login-note { margin-top: 16px; color: var(--text-muted); font-size: 14px; }
+.btn-google.animate-in {
+  animation: fadeSlideUp 400ms cubic-bezier(0.25, 0.1, 0.25, 1) 1060ms forwards;
+}
+.btn-google:hover {
+  border-color: #A0AAB8;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.btn-google:active {
+  transform: scale(0.97);
+  border-color: #D4AF37;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition-duration: 0.15s;
+}
+.btn-google:focus-visible {
+  outline: 2px solid #D4AF37;
+  outline-offset: 2px;
+}
+/* Button loading state */
+.btn-google.is-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+.btn-google.is-loading .google-logo {
+  display: none;
+}
+.btn-google.is-loading .btn-spinner {
+  display: inline-block;
+}
+.btn-google.is-loading .btn-text::after {
+  content: 'جاري التسجيل...';
+}
+.btn-google.is-loading .btn-text {
+  font-size: 0;
+}
+.btn-spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(212, 175, 55, 0.2);
+  border-top-color: #D4AF37;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* Watermark */
+.login-watermark {
+  margin-top: auto;
+  padding-top: 24px;
+  font-size: 48px;
+  color: #0F2B5B;
+  opacity: 0;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+.login-watermark.animate-in {
+  animation: fadeSlideUp 600ms ease-out 1400ms forwards;
+}
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .login-hero-img,
+  .login-geometry-overlay,
+  .login-card,
+  .login-cross-icon,
+  .login-church-name,
+  .login-system-title,
+  .login-divider,
+  .login-welcome,
+  .login-verse,
+  .login-verse-ref,
+  .btn-google,
+  .login-watermark,
+  .gold-particle {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .login-card { transform: translateY(0) !important; }
+  .login-divider { transform: scaleX(1) !important; }
+  .login-divider::after { animation: none !important; }
+  .login-verse-ref::after { animation: none !important; opacity: 0.5; }
+  .gold-particle { display: none !important; }
+  .login-bg { animation: none !important; }
+}
+/* Desktop/tablet centering */
+@media (min-width: 481px) {
+  #loginScreen {
+    align-items: center;
+    justify-content: center;
+  }
+  .login-hero {
+    max-width: 480px;
+    border-radius: 0 0 20px 20px;
+    overflow: hidden;
+  }
+  .login-card {
+    max-width: 480px;
+    border-radius: 32px 32px 0 0;
+  }
+}
 
 /* ============================================================
    HEADER
@@ -1324,20 +1686,56 @@ input[type="date"], input[type="month"] {
       </div>
     </div>
 
-    <!-- Login Screen -->
+    <!-- Login Screen — Premium Design -->
     <div id="loginScreen" class="screen hidden">
-      <div class="login-bg">
-        <div class="login-cross-bg">&#10013;</div>
+      <div class="login-bg"></div>
+
+      <!-- Hero Image with Geometry Overlay -->
+      <div class="login-hero">
+        <img
+          src="./group_photo.jpg"
+          alt="صورة جماعية لخدام إعدادي بنات"
+          class="login-hero-img"
+          fetchpriority="high"
+          width="640"
+          height="381"
+        >
+        <div class="login-gradient-bridge"></div>
+        <canvas id="sacredGeometry" class="login-geometry-overlay"></canvas>
       </div>
-      <div class="login-card">
-        <div class="login-icon">&#9962;</div>
-        <h2>كنيسه مارجرجس و الشهداء</h2>
-        <p class="login-sub">نظام متابعه خدمه اعدادي بنات</p>
+
+      <!-- Gold Particles -->
+      <div class="gold-particle" style="bottom: 30%;"></div>
+      <div class="gold-particle" style="bottom: 25%;"></div>
+      <div class="gold-particle" style="bottom: 35%;"></div>
+      <div class="gold-particle" style="bottom: 28%;"></div>
+      <div class="gold-particle" style="bottom: 32%;"></div>
+      <div class="gold-particle" style="bottom: 22%;"></div>
+      <div class="gold-particle" style="bottom: 38%;"></div>
+      <div class="gold-particle" style="bottom: 26%;"></div>
+      <div class="gold-particle" style="bottom: 34%;"></div>
+      <div class="gold-particle" style="bottom: 24%;"></div>
+      <div class="gold-particle" style="bottom: 36%;"></div>
+      <div class="gold-particle" style="bottom: 27%;"></div>
+      <div class="gold-particle" style="bottom: 31%;"></div>
+      <div class="gold-particle" style="bottom: 23%;"></div>
+      <div class="gold-particle" style="bottom: 33%;"></div>
+
+      <!-- White Content Card -->
+      <div class="login-card" id="loginCard">
+        <div class="login-cross-icon">&#10013;</div>
+        <div class="login-church-name">كنيسه مارجرجس والشهداء</div>
+        <div class="login-system-title">نظام متابعه خدمه اعدادي بنات</div>
+        <div class="login-divider"></div>
+        <div class="login-welcome">أهلاً بكم في نظام متابعة خدمة إعدادي بنات</div>
+        <div class="login-verse">&ldquo;كل شيء بلياقة وبحسب ترتيب&rdquo;</div>
+        <div class="login-verse-ref">(1 كو 14: 40)</div>
         <button id="googleSignIn" class="btn-google">
-          <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-          تسجيل الدخول بـ Google
+          <svg class="google-logo" width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          <span class="btn-spinner"></span>
+          <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
-        <p class="login-note">لخدام اعدادي بنات</p>
+        <div class="login-watermark">&#9962;</div>
       </div>
     </div>
 
@@ -2162,8 +2560,10 @@ input[type="date"], input[type="month"] {
     }
 
     DOM.googleSignIn.addEventListener('click', async () => {
+      DOM.googleSignIn.classList.add('is-loading');
       try { await signInWithPopup(auth, provider); }
       catch (e) {
+        DOM.googleSignIn.classList.remove('is-loading');
         if (['auth/popup-blocked','auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(e.code)) {
           try { await signInWithRedirect(auth, provider); }
           catch (e2) { showToast('فشل تسجيل الدخول: ' + e2.message, 'error'); }
@@ -2180,6 +2580,16 @@ input[type="date"], input[type="month"] {
     function showApp(user) {
       DOM.loginScreen.classList.add('hidden');
       DOM.mainApp.classList.remove('hidden');
+      // Stop sacred geometry animation
+      stopSacredGeometry();
+      // Reset login button state
+      DOM.googleSignIn.classList.remove('is-loading');
+      // Reset animation classes for next time
+      const card = document.getElementById('loginCard');
+      if (card) {
+        card.classList.remove('animate-in');
+        card.querySelectorAll('.animate-in').forEach(el => el.classList.remove('animate-in'));
+      }
       const initial = user.displayName ? user.displayName[0] : 'خ';
       DOM.userAvatar.textContent = initial;
       DOM.drawerAvatar.textContent = initial;
@@ -2190,6 +2600,150 @@ input[type="date"], input[type="month"] {
     function showLogin() {
       DOM.loginScreen.classList.remove('hidden');
       DOM.mainApp.classList.add('hidden');
+      // Trigger entrance animations
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const card = document.getElementById('loginCard');
+          if (card) {
+            card.classList.add('animate-in');
+            card.querySelectorAll('.login-cross-icon, .login-church-name, .login-system-title, .login-divider, .login-welcome, .login-verse, .login-verse-ref, .btn-google, .login-watermark').forEach(el => {
+              el.classList.add('animate-in');
+            });
+          }
+          // Start sacred geometry
+          startSacredGeometry();
+        });
+      });
+    }
+
+    // ============================================================
+    // SACRED GEOMETRY — Rotating octahedron on canvas
+    // ============================================================
+    let sacredGeoRAF = null;
+    let sacredGeoActive = false;
+
+    function startSacredGeometry() {
+      const canvas = document.getElementById('sacredGeometry');
+      if (!canvas || sacredGeoActive) return;
+      sacredGeoActive = true;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const radius = Math.min(rect.width, rect.height) * 0.35;
+
+      // Octahedron vertices
+      const vertices = [
+        [0, -1, 0],   // top
+        [1, 0, 0],    // right
+        [0, 0, 1],    // front
+        [-1, 0, 0],   // left
+        [0, 0, -1],   // back
+        [0, 1, 0],    // bottom
+      ];
+      // Octahedron edges (pairs of vertex indices)
+      const edges = [
+        [0,1],[0,2],[0,3],[0,4],
+        [1,2],[2,3],[3,4],[4,1],
+        [5,1],[5,2],[5,3],[5,4],
+      ];
+
+      let angleY = 0;
+      let angleX = 0;
+
+      function project(v) {
+        const fov = 3;
+        const z = v[2] + fov;
+        const scale = fov / z;
+        return [
+          centerX + v[0] * radius * scale,
+          centerY + v[1] * radius * scale,
+        ];
+      }
+
+      function rotateY(v, a) {
+        const cos = Math.cos(a), sin = Math.sin(a);
+        return [v[0]*cos - v[2]*sin, v[1], v[0]*sin + v[2]*cos];
+      }
+
+      function rotateX(v, a) {
+        const cos = Math.cos(a), sin = Math.sin(a);
+        return [v[0], v[1]*cos - v[2]*sin, v[1]*sin + v[2]*cos];
+      }
+
+      function draw() {
+        if (!sacredGeoActive) return;
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        angleY += 0.015; // ~20s per rotation
+        angleX += 0.005;
+
+        const transformed = vertices.map(v => {
+          let r = rotateY(v, angleY);
+          r = rotateX(r, angleX);
+          return r;
+        });
+
+        const projected = transformed.map(project);
+
+        ctx.strokeStyle = 'rgba(212, 175, 55, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+
+        // Draw edges with glow
+        edges.forEach(([a, b]) => {
+          const p1 = projected[a];
+          const p2 = projected[b];
+
+          // Glow
+          ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.moveTo(p1[0], p1[1]);
+          ctx.lineTo(p2[0], p2[1]);
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        });
+
+        // Draw vertices as small dots
+        projected.forEach(p => {
+          ctx.fillStyle = 'rgba(212, 175, 55, 0.6)';
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        sacredGeoRAF = requestAnimationFrame(draw);
+      }
+
+      sacredGeoRAF = requestAnimationFrame(draw);
+
+      // Pause when tab hidden
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          sacredGeoActive = false;
+          if (sacredGeoRAF) cancelAnimationFrame(sacredGeoRAF);
+        } else if (DOM.loginScreen && !DOM.loginScreen.classList.contains('hidden')) {
+          sacredGeoActive = true;
+          sacredGeoRAF = requestAnimationFrame(draw);
+        }
+      });
+    }
+
+    function stopSacredGeometry() {
+      sacredGeoActive = false;
+      if (sacredGeoRAF) {
+        cancelAnimationFrame(sacredGeoRAF);
+        sacredGeoRAF = null;
+      }
     }
 
     // ============================================================
