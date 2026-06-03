@@ -1670,19 +1670,25 @@ input[type="date"], input[type="month"] {
 }
 
 .church-ornament{
-  margin-top:30px;
+  position:absolute;
+  bottom:0;
+  left:0;
+  right:0;
+
   display:flex;
   justify-content:center;
-  opacity:.07;
-  color:#d4af37;
+
+  opacity:.05;
+  color:#D4AF37;
+
   pointer-events:none;
+  overflow:hidden;
 }
 
 .church-ornament svg{
-  width:240px;
-  max-width:80%;
+  width:120%;
+  height:auto;
 }
-
   </style>
 <base target="_blank">
 <base target="_blank">
@@ -1752,66 +1758,25 @@ input[type="date"], input[type="month"] {
         </button>
         
 <div class="church-ornament">
-<svg viewBox="0 0 500 220" xmlns="http://www.w3.org/2000/svg" fill="none">
+<svg viewBox="0 0 1200 400" xmlns="http://www.w3.org/2000/svg">
 
-  <!-- Cross -->
-  <line x1="250" y1="10" x2="250" y2="55" stroke="currentColor" stroke-width="4"/>
-  <line x1="235" y1="25" x2="265" y2="25" stroke="currentColor" stroke-width="4"/>
+  <path d="M100 320 L300 120 L500 320"
+        fill="none" stroke="currentColor" stroke-width="8"/>
 
-  <!-- Main Dome -->
-  <path d="M170 120
-           C170 70 210 40 250 40
-           C290 40 330 70 330 120"
-        stroke="currentColor"
-        stroke-width="4"/>
+  <path d="M500 320 L700 80 L900 320"
+        fill="none" stroke="currentColor" stroke-width="8"/>
 
-  <!-- Church Body -->
-  <rect x="120" y="120" width="260" height="70"
-        stroke="currentColor"
-        stroke-width="4"/>
+  <path d="M900 320 L1050 180 L1150 320"
+        fill="none" stroke="currentColor" stroke-width="8"/>
 
-  <!-- Left Tower -->
-  <rect x="85" y="90" width="40" height="100"
-        stroke="currentColor"
-        stroke-width="4"/>
+  <line x1="700" y1="20" x2="700" y2="90"
+        stroke="currentColor" stroke-width="8"/>
 
-  <line x1="105" y1="60" x2="105" y2="90"
-        stroke="currentColor"
-        stroke-width="4"/>
+  <line x1="670" y1="55" x2="730" y2="55"
+        stroke="currentColor" stroke-width="8"/>
 
-  <line x1="92" y1="75" x2="118" y2="75"
-        stroke="currentColor"
-        stroke-width="4"/>
-
-  <!-- Right Tower -->
-  <rect x="375" y="90" width="40" height="100"
-        stroke="currentColor"
-        stroke-width="4"/>
-
-  <line x1="395" y1="60" x2="395" y2="90"
-        stroke="currentColor"
-        stroke-width="4"/>
-
-  <line x1="382" y1="75" x2="408" y2="75"
-        stroke="currentColor"
-        stroke-width="4"/>
-
-  <!-- Door -->
-  <path d="M220 190
-           V145
-           C220 125 280 125 280 145
-           V190"
-        stroke="currentColor"
-        stroke-width="4"/>
-
-  <!-- Windows -->
-  <circle cx="180" cy="150" r="10"
-          stroke="currentColor"
-          stroke-width="3"/>
-
-  <circle cx="320" cy="150" r="10"
-          stroke="currentColor"
-          stroke-width="3"/>
+  <rect x="250" y="320" width="700" height="40"
+        fill="currentColor"/>
 
 </svg>
 </div>
