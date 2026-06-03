@@ -1670,16 +1670,17 @@ input[type="date"], input[type="month"] {
 }
 
 .church-ornament{
-  margin-top: 30px;
+  margin-top:30px;
   display:flex;
   justify-content:center;
-  opacity:.08;
+  opacity:.07;
+  color:#d4af37;
+  pointer-events:none;
 }
 
-.church-ornament img{
-  width: 180px;
-  max-width: 70%;
-  filter: grayscale(100%);
+.church-ornament svg{
+  width:240px;
+  max-width:80%;
 }
 
   </style>
@@ -1750,8 +1751,69 @@ input[type="date"], input[type="month"] {
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
         
-        <div class="church-ornament">
-  <img src="church-outline.svg" alt="">
+<div class="church-ornament">
+<svg viewBox="0 0 500 220" xmlns="http://www.w3.org/2000/svg" fill="none">
+
+  <!-- Cross -->
+  <line x1="250" y1="10" x2="250" y2="55" stroke="currentColor" stroke-width="4"/>
+  <line x1="235" y1="25" x2="265" y2="25" stroke="currentColor" stroke-width="4"/>
+
+  <!-- Main Dome -->
+  <path d="M170 120
+           C170 70 210 40 250 40
+           C290 40 330 70 330 120"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <!-- Church Body -->
+  <rect x="120" y="120" width="260" height="70"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <!-- Left Tower -->
+  <rect x="85" y="90" width="40" height="100"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <line x1="105" y1="60" x2="105" y2="90"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <line x1="92" y1="75" x2="118" y2="75"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <!-- Right Tower -->
+  <rect x="375" y="90" width="40" height="100"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <line x1="395" y1="60" x2="395" y2="90"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <line x1="382" y1="75" x2="408" y2="75"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <!-- Door -->
+  <path d="M220 190
+           V145
+           C220 125 280 125 280 145
+           V190"
+        stroke="currentColor"
+        stroke-width="4"/>
+
+  <!-- Windows -->
+  <circle cx="180" cy="150" r="10"
+          stroke="currentColor"
+          stroke-width="3"/>
+
+  <circle cx="320" cy="150" r="10"
+          stroke="currentColor"
+          stroke-width="3"/>
+
+</svg>
 </div>
         
       </div>
