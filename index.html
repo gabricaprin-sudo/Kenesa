@@ -1670,12 +1670,16 @@ input[type="date"], input[type="month"] {
 }
 
 .church-ornament{
-  opacity:.12;
+  margin-top: 30px;
+  display:flex;
+  justify-content:center;
+  opacity:.08;
 }
 
 .church-ornament img{
-  width:180px;
-  filter: sepia(1) saturate(3) hue-rotate(5deg);
+  width: 180px;
+  max-width: 70%;
+  filter: grayscale(100%);
 }
 
   </style>
@@ -1745,13 +1749,11 @@ input[type="date"], input[type="month"] {
           <span class="btn-spinner"></span>
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
-        <button id="googleSignIn" class="btn-google">
-  ...
-</button>
-
-<div class="church-ornament">
+        
+        <div class="church-ornament">
   <img src="church-outline.svg" alt="">
 </div>
+        
       </div>
     </div>
 
