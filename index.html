@@ -1669,20 +1669,15 @@ input[type="date"], input[type="month"] {
   }
 }
 
-
-.login-card{
-    position: relative;
+.church-ornament{
+  opacity:.12;
 }
 
-.church-watermark{
-    position:absolute;
-    bottom:15px;
-    left:50%;
-    transform:translateX(-50%);
-    width:220px;
-    opacity:.06;
-    pointer-events:none;
+.church-ornament img{
+  width:180px;
+  filter: sepia(1) saturate(3) hue-rotate(5deg);
 }
+
   </style>
 <base target="_blank">
 <base target="_blank">
@@ -1700,26 +1695,6 @@ input[type="date"], input[type="month"] {
         <div class="splash-loader"><div></div></div>
       </div>
     </div>
-    
-    
-    
-    <div class="church-watermark">
-<svg viewBox="0 0 300 120">
-  <path d="M40 100 H260" stroke="#c9a227" stroke-width="3" fill="none"/>
-  <rect x="110" y="40" width="80" height="60"
-        stroke="#c9a227" stroke-width="3" fill="none"/>
-  <path d="M100 40 L150 10 L200 40"
-        stroke="#c9a227" stroke-width="3" fill="none"/>
-  <rect x="135" y="60" width="30" height="40"
-        stroke="#c9a227" stroke-width="3" fill="none"/>
-  <line x1="150" y1="0" x2="150" y2="20"
-        stroke="#c9a227" stroke-width="3"/>
-  <line x1="142" y1="10" x2="158" y2="10"
-        stroke="#c9a227" stroke-width="3"/>
-</svg>
-</div>
-    
-    
 
     <!-- Login Screen — Premium Design -->
     <div id="loginScreen" class="screen hidden">
@@ -1770,7 +1745,13 @@ input[type="date"], input[type="month"] {
           <span class="btn-spinner"></span>
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
-        
+        <button id="googleSignIn" class="btn-google">
+  ...
+</button>
+
+<div class="church-ornament">
+  <img src="church-outline.svg" alt="">
+</div>
       </div>
     </div>
 
