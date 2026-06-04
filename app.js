@@ -342,9 +342,75 @@ function csvEscape(v) {
 }
 
 // ============================================================
-// INDEXEDDB
+// INDEXEDDB — wrapper for offline history storage
 // ============================================================
+const IDB = {
+  db: null,
+  DB_NAME: 'girlsTrackerDB',
+  DB_VERSION: 1,
 
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => { this.db = request.result; resolve(); };
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('history')) {
+          const store = db.createObjectStore('history', { keyPath: 'id' });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+        if (!db.objectStoreNames.contains('pendingSync')) {
+          db.createObjectStore('pendingSync', { keyPath: 'id' });
+        }
+      };
+    });
+  },
+
+  async add(storeName, data) {
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.put(data);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async getAll(storeName) {
+    if (!this.db) return [];
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async clear(storeName) {
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.clear();
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  },
+
+  async delete(storeName, id) {
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+};
 
 // ============================================================
 // DARK MODE
@@ -556,6 +622,22 @@ async function loadData() {
         }
       }
       if (changed) scheduleRender();
+    });
+
+    // Listen to history collection and sync to IndexedDB
+    _onSnapshot(_query(_collection(db, 'history'), _orderBy('timestamp', 'desc')), async snap => {
+      let changed = false;
+      for (const change of snap.docChanges()) {
+        const log = { id: change.doc.id, ...change.doc.data() };
+        if (change.type === 'removed') {
+          try { await IDB.delete('history', log.id); } catch (e) { }
+          changed = true;
+        } else {
+          try { await IDB.add('history', log); } catch (e) { }
+          changed = true;
+        }
+      }
+      if (changed && state.currentPage === 'history') renderHistory(false);
     });
   } catch (e) { console.error('Load error:', e); }
 }
@@ -2058,7 +2140,7 @@ if (DOM.statsGradeFilter) {
 }
 
 // ============================================================
-// HISTORY PAGE
+// HISTORY PAGE — FIXED: Loads from Firestore + IndexedDB
 // ============================================================
 async function renderHistory(append = false) {
   const el = DOM.historyList;
@@ -2068,13 +2150,43 @@ async function renderHistory(append = false) {
   if (!append) {
     el.innerHTML = '<div class="empty-state">جارٍ التحميل...</div>';
     state.historyOffset = 0;
-    if (state.idb) {
-      const logs = await IDB.getAll('history');
-      logs.sort((a, b) => b.timestamp - a.timestamp);
-      state.historyAllLogs = filter ? logs.filter(l => l.action.includes(filter)) : logs;
-    } else {
-      state.historyAllLogs = [];
+
+    // Collect logs from all sources
+    const allLogs = [];
+    const seenIds = new Set();
+
+    // 1. Try Firestore first (online) — get ALL history documents
+    if (firebaseReady && window._fb) {
+      try {
+        const snap = await window._fb.getDocs(
+          window._fb.query(window._fb.collection(db, 'history'), window._fb.orderBy('timestamp', 'desc'))
+        );
+        snap.docs.forEach(d => {
+          const log = { id: d.id, ...d.data() };
+          if (!seenIds.has(log.id)) {
+            seenIds.add(log.id);
+            allLogs.push(log);
+          }
+        });
+      } catch (e) { console.warn('Firestore history load failed:', e); }
     }
+
+    // 2. Also load from IndexedDB (covers offline entries + duplicates)
+    try {
+      const idbLogs = await IDB.getAll('history');
+      idbLogs.forEach(log => {
+        if (!seenIds.has(log.id)) {
+          seenIds.add(log.id);
+          allLogs.push(log);
+        }
+      });
+    } catch (e) { console.warn('IDB history load failed:', e); }
+
+    // Sort newest first
+    allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+    // Apply filter
+    state.historyAllLogs = filter ? allLogs.filter(l => l.action && l.action.includes(filter)) : allLogs;
   }
 
   if (!state.historyAllLogs.length) {
@@ -2092,7 +2204,7 @@ async function renderHistory(append = false) {
       <div class="history-info">
         <span class="history-action">${esc(log.action)}</span>
         <span class="history-detail">${esc(log.detail)}</span>
-        <span class="history-meta">${esc(log.by)} &middot; ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
+        <span class="history-meta">${esc(log.by || 'خادم')} &middot; ${new Date(log.timestamp).toLocaleString('ar-EG')}</span>
       </div>
     </div>`).join('');
 
@@ -2112,15 +2224,19 @@ if (DOM.clearHistoryBtn) {
       msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
       okLabel: 'مسح الكل',
       onOk: async () => {
+        // Clear IndexedDB
         if (state.idb) await IDB.clear('history');
         state.historyAllLogs = [];
-        if (state.isOnline && firebaseReady && window._fb && !state.isGuest) {
+        // Clear Firestore
+        if (firebaseReady && window._fb) {
           try {
             const snap = await window._fb.getDocs(window._fb.collection(db, 'history'));
             if (snap.docs.length) {
-              const batch = window._fb.writeBatch(db);
-              snap.docs.forEach(d => batch.delete(d.ref));
-              await batch.commit();
+              for (let i = 0; i < snap.docs.length; i += 500) {
+                const batch = window._fb.writeBatch(db);
+                snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                await batch.commit();
+              }
             }
           } catch (e) { console.error('Firestore clear history error:', e); }
         }
@@ -2147,6 +2263,9 @@ async function logHistory(action, detail) {
     byEmail: state.currentUser?.email || '',
     timestamp: Date.now()
   };
+  // Save to IndexedDB first (always works, even offline)
+  try { await IDB.add('history', log); } catch (e) { console.warn('IDB history save failed:', e); }
+  // Save to Firestore (works when online)
   if (firebaseReady && window._fb) {
     try { await window._fb.setDoc(window._fb.doc(db, 'history', log.id), log); } catch (e) { }
   }
@@ -2683,7 +2802,16 @@ setupDelegation();
 async function bootstrap() {
   initDarkMode();
 
-  // Initialize Firebase modules first
+  // Initialize IndexedDB first (always, even without Firebase)
+  try {
+    await IDB.init();
+    state.idb = true;
+  } catch (e) {
+    console.warn('IndexedDB init failed:', e);
+    state.idb = false;
+  }
+
+  // Initialize Firebase modules
   const modulesReady = await initModules();
 
   if (modulesReady) {
