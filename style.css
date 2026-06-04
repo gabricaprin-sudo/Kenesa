@@ -1640,6 +1640,101 @@ textarea.form-input { resize: none; }
 }
 
 /* ============================================================
+   INLINE RATING — Quick star rating in attendance list
+   ============================================================ */
+.att-inline-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 4px 0;
+  animation: fadeInRating 0.25s ease;
+}
+@keyframes fadeInRating {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.att-inline-rating-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.att-inline-stars {
+  display: flex;
+  gap: 2px;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.att-inline-star {
+  font-size: 22px;
+  color: #d0d5dd;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  touch-action: manipulation;
+  user-select: none;
+  line-height: 1;
+  padding: 2px;
+}
+.att-inline-star.active {
+  color: var(--accent);
+  text-shadow: 0 0 4px rgba(232, 160, 32, 0.35);
+}
+.att-inline-star:active {
+  transform: scale(1.25);
+}
+.att-inline-stars:hover .att-inline-star {
+  color: #f0d78c;
+}
+.att-inline-stars .att-inline-star:hover ~ .att-inline-star {
+  color: #d0d5dd;
+}
+.att-inline-stars .att-inline-star:hover {
+  color: var(--accent);
+  transform: scale(1.15);
+}
+.att-inline-stars:hover .att-inline-star.active {
+  color: var(--accent);
+}
+.att-inline-rating-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(232, 160, 32, 0.12);
+  border-radius: 8px;
+  padding: 2px 8px;
+  margin-right: 4px;
+}
+.att-inline-rating-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Dark mode for inline rating */
+[data-theme="dark"] .att-inline-star {
+  color: #3a4560;
+}
+[data-theme="dark"] .att-inline-star.active {
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(232, 160, 32, 0.5);
+}
+[data-theme="dark"] .att-inline-stars:hover .att-inline-star {
+  color: #5a6a8a;
+}
+[data-theme="dark"] .att-inline-stars .att-inline-star:hover ~ .att-inline-star {
+  color: #3a4560;
+}
+[data-theme="dark"] .att-inline-stars .att-inline-star:hover {
+  color: var(--accent);
+}
+[data-theme="dark"] .att-inline-stars:hover .att-inline-star.active {
+  color: var(--accent);
+}
+[data-theme="dark"] .att-inline-rating-val {
+  background: rgba(232, 160, 32, 0.2);
+}
+
+/* ============================================================
    UTILS
    ============================================================ */
 .hidden { display: none !important; }

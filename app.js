@@ -1578,11 +1578,24 @@ function renderAttendanceList() {
     else { absent++; }
 
     const stars = rec?.rating ? '&#9733;'.repeat(rec.rating) + '&#9734;'.repeat(5 - rec.rating) : '';
+    const currentRating = rec?.rating || 0;
     const div = document.createElement('div');
     div.className = `att-item ${statusClass}`;
     div.dataset.girlId = g.id;
     div.dataset.attKey = key;
     div.dataset.girlName = g.name;
+
+    // Interactive inline rating (only for present girls)
+    let inlineRatingHtml = '';
+    if (statusClass === 'present') {
+      inlineRatingHtml = `<div class="att-inline-rating" data-att-key="${esc(key)}">
+        <span class="att-inline-rating-label">التقييم:</span>
+        <span class="att-inline-stars">
+          ${[1,2,3,4,5].map(i => `<span class="att-inline-star ${i <= currentRating ? 'active' : ''}" data-val="${i}" role="button" aria-label="${i} نجمة">&#9733;</span>`).join('')}
+        </span>
+        ${currentRating > 0 ? `<span class="att-inline-rating-val">${currentRating}/5</span>` : '<span class="att-inline-rating-hint">اضغط نجمة للتقييم</span>'}
+      </div>`;
+    }
 
     div.innerHTML = `
       <div class="att-icon">${statusIcon}</div>
@@ -1590,6 +1603,7 @@ function renderAttendanceList() {
         <span class="att-name">${esc(g.name)}</span>
         <span class="att-grade">${esc(g.grade)}</span>
         ${stars ? `<span class="att-stars">${stars}</span>` : ''}
+        ${inlineRatingHtml}
         ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
       </div>
       <span class="att-status-text ${statusClass}">${statusText}</span>
@@ -1634,6 +1648,39 @@ async function deleteAttendanceRecord(key) {
       }
     }
   });
+}
+
+// ============================================================
+// INLINE RATING — Quick star rating directly in attendance list
+// ============================================================
+async function saveInlineRating(attKey, rating) {
+  const rec = state.attendanceData[attKey];
+  if (!rec) return;
+  if (rec.status !== 'حاضر') { showToast('التقييم متاح فقط للحاضرات', 'warning'); return; }
+
+  const updatedRec = {
+    ...rec,
+    rating: rating,
+    updatedAt: Date.now(),
+    updatedBy: state.currentUser?.displayName || 'خادم',
+    updatedByEmail: state.currentUser?.email || ''
+  };
+
+  state.attendanceData[attKey] = updatedRec;
+
+  if (firebaseReady && window._fb) {
+    try { await window._fb.setDoc(window._fb.doc(db, 'attendance', attKey), updatedRec); }
+    catch (e) { console.error('Save inline rating Firestore error:', e); }
+  }
+
+  const g = state.girls.find(x => x.id === rec.girlId);
+  await logHistory('تقييم مخدومة', `${g?.name || ''} - ${rec.activity} - ${rec.date} - ${rating} نجوم`);
+  showToast(`تم التقييم: ${rating} نجوم`, 'success');
+
+  // Refresh the attendance list to show updated stars
+  renderAttendanceList();
+  if (state.currentPage === 'home') renderHome();
+  if (state.currentPage === 'stats') renderStats();
 }
 
 function openAttendanceEntry(girlId, girlName, date) {
@@ -2697,6 +2744,17 @@ function setupDelegation() {
 
   if (DOM.attendanceList) {
     DOM.attendanceList.addEventListener('click', e => {
+      // Handle inline star rating clicks
+      const star = e.target.closest('.att-inline-star');
+      if (star) {
+        e.stopPropagation();
+        e.preventDefault();
+        const ratingWrap = star.closest('.att-inline-rating');
+        if (ratingWrap) {
+          saveInlineRating(ratingWrap.dataset.attKey, parseInt(star.dataset.val));
+        }
+        return;
+      }
       const delBtn = e.target.closest('.att-delete-btn');
       if (delBtn) {
         e.stopPropagation();
