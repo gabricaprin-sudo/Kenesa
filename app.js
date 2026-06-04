@@ -2325,26 +2325,23 @@ function renderExport() {
   if (DOM.exportMonth && !DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.toStr();
 }
 
-// Excel export — FIXED: Supports specific day or whole month, uses ✓ for present and X for absent
+// Excel export — FIXED: Daily report = ✓/✗ per activity, Monthly report = numeric counts
 if (DOM.exportCSV) {
   DOM.exportCSV.addEventListener('click', () => {
     if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
 
-    // Get export options
     const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
     const exportDate = DOM.exportMonth.value || DateUtil.toStr();
 
     let exportStart, exportEnd, reportTitle;
 
     if (exportMode === 'month') {
-      // Export entire month
       const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       exportStart = exportDate.substring(0, 7) + '-01';
       exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
       reportTitle = 'تقرير حضور شهر ' + DateUtil.formatMonth(exportDate.substring(0, 7));
     } else {
-      // Export specific day only
       exportStart = exportDate;
       exportEnd = exportDate;
       const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
@@ -2352,28 +2349,27 @@ if (DOM.exportCSV) {
     }
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    let exportAtt = Object.values(state.attendanceData).filter(a =>
+    const exportAtt = Object.values(state.attendanceData).filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
-
-    exportAtt.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return (a.activity || '').localeCompare(b.activity || '', 'ar');
-    });
 
     const wb = XLSX.utils.book_new();
 
     if (exportMode === 'month') {
-      // === Sheet 1: Monthly Summary per Girl ===
+      // ============================================================
+      // MONTHLY REPORT: NUMBERS per activity + totals
+      // الاسم | السنة | دراسي | قبطي | ألحان | محفوظات | إجمالي الحضور | إجمالي الغياب
+      // ============================================================
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
       const wsData = [];
       wsData.push(['تقرير حضور شهر ' + monthName]);
       wsData.push([]);
       wsData.push(['عدد المخدومات', activeGirlIds.size]);
       wsData.push([]);
-      wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'محفوظات', 'ألحان', 'إجمالي الحضور', 'إجمالي الغياب', 'النسبة']);
+      // Header row
+      wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'ألحان', 'محفوظات', 'إجمالي الحضور', 'إجمالي الغياب']);
 
-      // Group by girl
+      // Group by girl - aggregate counts per activity
       const grouped = {};
       exportAtt.forEach(a => {
         if (!grouped[a.girlId]) {
@@ -2394,26 +2390,31 @@ if (DOM.exportCSV) {
         }
       });
 
-      // Sort by name
       const sortedGirls = Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
       sortedGirls.forEach(r => {
-        const total = r.totalPresent + r.totalAbsent;
-        const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
-        wsData.push([r.name, r.grade,
-          r['دراسي'].present > 0 ? '✓' : (r['دراسي'].absent > 0 ? 'X' : '—'),
-          r['قبطي'].present > 0 ? '✓' : (r['قبطي'].absent > 0 ? 'X' : '—'),
-          r['محفوظات'].present > 0 ? '✓' : (r['محفوظات'].absent > 0 ? 'X' : '—'),
-          r['ألحان'].present > 0 ? '✓' : (r['ألحان'].absent > 0 ? 'X' : '—'),
-          r.totalPresent, r.totalAbsent, rate]);
+        wsData.push([
+          r.name, r.grade,
+          r['دراسي'].present,   // numeric count (not ✓/X)
+          r['قبطي'].present,    // numeric count
+          r['ألحان'].present,   // numeric count
+          r['محفوظات'].present,  // numeric count
+          r.totalPresent,        // total present
+          r.totalAbsent          // total absent
+        ]);
       });
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 12 }, { wch: 10 }];
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
       ws['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
 
       // === Sheet 2: Detailed Daily Records ===
+      exportAtt.sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.activity || '').localeCompare(b.activity || '', 'ar');
+      });
+
       const detailData = [];
       detailData.push(['تقرير تفصيلي — ' + monthName]);
       detailData.push([]);
@@ -2423,7 +2424,7 @@ if (DOM.exportCSV) {
         const g = state.girls.find(x => x.id === a.girlId);
         const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
         const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
-        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : 'X', stars, a.notes || '']);
+        detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
       });
 
       const wsDetail = XLSX.utils.aoa_to_sheet(detailData);
@@ -2432,43 +2433,40 @@ if (DOM.exportCSV) {
       XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
 
     } else {
-      // === Specific Day Export ===
+      // ============================================================
+      // DAILY REPORT: ✓/✗ per activity for each girl
+      // الاسم | السنة | دراسي | قبطي | ألحان | محفوظات
+      // ============================================================
       const wsData = [];
       wsData.push([reportTitle]);
       wsData.push([]);
-      wsData.push(['المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
+      // Header: one row per girl, activities as columns
+      wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'ألحان', 'محفوظات']);
 
-      // Group by girl then by activity for the day
-      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
-
-      exportAtt.sort((a, b) => {
-        const gA = state.girls.find(x => x.id === a.girlId);
-        const gB = state.girls.find(x => x.id === b.girlId);
-        return (gA?.name || '').localeCompare(gB?.name || '', 'ar') || (a.activity || '').localeCompare(b.activity || '', 'ar');
+      // Build per-girl per-activity status map
+      const activeGirls = state.girls.filter(g => !g.isDeleted).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+      activeGirls.forEach(g => {
+        const row = [g.name, g.grade];
+        ACTIVITIES.forEach(act => {
+          const key = `${g.id}_${exportDate}_${act}`;
+          const rec = state.attendanceData[key];
+          if (rec) {
+            row.push(rec.status === 'حاضر' ? '✓' : '✗');
+          } else {
+            row.push('—');
+          }
+        });
+        wsData.push(row);
       });
 
-      exportAtt.forEach(a => {
-        const g = state.girls.find(x => x.id === a.girlId);
-        const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
-        wsData.push([
-          g?.name || '',
-          g?.grade || '',
-          a.activity || '',
-          a.status === 'حاضر' ? '✓' : 'X',
-          stars,
-          a.notes || ''
-        ]);
-      });
-
-      // Summary row
+      // Summary
       const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
       const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
       wsData.push([]);
-      wsData.push(['الإجمالي', '', '', '', '', '']);
-      wsData.push(['حاضر', totalPresent, 'غائب', totalAbsent, '', '']);
+      wsData.push(['', '', 'حاضر: ' + totalPresent, '', 'غائب: ' + totalAbsent, '']);
 
       const ws = XLSX.utils.aoa_to_sheet(wsData);
-      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 24 }];
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }];
       ws['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, ws, 'يوم ' + exportDate);
     }
@@ -2485,9 +2483,7 @@ if (DOM.exportCSV) {
     URL.revokeObjectURL(url);
     showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
   });
-}
-
-if (DOM.exportJSON) {
+}if (DOM.exportJSON) {
   DOM.exportJSON.addEventListener('click', () => {
     const exportDate = DOM.exportMonth.value || DateUtil.toStr();
     const exportStart = exportDate.substring(0, 7) + '-01';
@@ -2509,118 +2505,163 @@ if (DOM.exportJSON) {
 
 if (DOM.exportPrint) {
   DOM.exportPrint.addEventListener('click', () => {
+    const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
     const exportDate = DOM.exportMonth.value || DateUtil.toStr();
-    const exportStart = exportDate.substring(0, 7) + '-01';
-    const exportEnd = exportDate;
+
+    let exportStart, exportEnd;
+    if (exportMode === 'month') {
+      const [year, month] = exportDate.substring(0, 7).split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      exportStart = exportDate.substring(0, 7) + '-01';
+      exportEnd = exportDate.substring(0, 7) + '-' + String(daysInMonth).padStart(2, '0');
+    } else {
+      exportStart = exportDate;
+      exportEnd = exportDate;
+    }
+
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    let exportAtt = Object.values(state.attendanceData).filter(a =>
+    const exportAtt = Object.values(state.attendanceData).filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
-    const presents = exportAtt.filter(a => a.status === 'حاضر').length;
-    const absents = exportAtt.filter(a => a.status === 'غائب').length;
     const activeGirls = state.girls.filter(g => !g.isDeleted);
-    const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
+    const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
+    const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
 
-    const grouped = {};
-    exportAtt.forEach(a => {
-      if (!grouped[a.girlId]) {
-        const g = state.girls.find(x => x.id === a.girlId);
-        grouped[a.girlId] = {
-          name: g?.name || '', grade: g?.grade || '',
-          'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
-          'محفوظات': { present: 0, absent: 0 }, 'ألحان': { present: 0, absent: 0 },
-          totalPresent: 0, totalAbsent: 0
-        };
-      }
-      if (a.status === 'حاضر') {
-        grouped[a.girlId][a.activity].present++;
-        grouped[a.girlId].totalPresent++;
-      } else {
-        grouped[a.girlId][a.activity].absent++;
-        grouped[a.girlId].totalAbsent++;
-      }
-    });
+    let html;
 
-    const fmtAttPrint = (act) => {
-      const total = act.present + act.absent;
-      if (total === 0) return '—';
-      if (act.present > 0) return '<span style="color:#2ecc71;font-weight:700">✓</span>';
-      return '<span style="color:#e74c3c;font-weight:700">X</span>';
-    };
+    if (exportMode === 'month') {
+      // ============================================================
+      // MONTHLY PRINT REPORT: Numbers per activity + totals
+      // ============================================================
+      const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
 
-    const htmlRows = Object.values(grouped).map((r, i) => {
-      const total = r.totalPresent + r.totalAbsent;
-      const rate = total > 0 ? Math.round((r.totalPresent / total) * 100) + '%' : '0%';
-      return `<tr>
-        <td>${i + 1}</td>
-        <td>${esc(r.name)}</td>
-        <td>${esc(r.grade)}</td>
-        <td>${fmtAttPrint(r['دراسي'])}</td>
-        <td>${fmtAttPrint(r['قبطي'])}</td>
-        <td>${fmtAttPrint(r['محفوظات'])}</td>
-        <td>${fmtAttPrint(r['ألحان'])}</td>
-        <td>${r.totalPresent}</td>
-        <td>${r.totalAbsent}</td>
-        <td>${rate}</td>
-      </tr>`;
-    }).join('');
+      // Group by girl - aggregate counts
+      const grouped = {};
+      exportAtt.forEach(a => {
+        if (!grouped[a.girlId]) {
+          const g = state.girls.find(x => x.id === a.girlId);
+          grouped[a.girlId] = {
+            name: g?.name || '', grade: g?.grade || '',
+            'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
+            'محفوظات': { present: 0, absent: 0 }, 'ألحان': { present: 0, absent: 0 },
+            totalPresent: 0, totalAbsent: 0
+          };
+        }
+        if (a.status === 'حاضر') {
+          grouped[a.girlId][a.activity].present++;
+          grouped[a.girlId].totalPresent++;
+        } else {
+          grouped[a.girlId][a.activity].absent++;
+          grouped[a.girlId].totalAbsent++;
+        }
+      });
 
-    // Build detailed daily records table with natural dates
-    const dailyRows = exportAtt.map(a => {
-      const g = state.girls.find(x => x.id === a.girlId);
-      const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
-      const statusIcon = a.status === 'حاضر' ? '<span style="color:#2ecc71;font-weight:700">✓</span>' : '<span style="color:#e74c3c;font-weight:700">X</span>';
-      return `<tr>
-        <td>${esc(a.date)}</td>
-        <td>${esc(dayName)}</td>
-        <td>${esc(g?.name || '')}</td>
-        <td>${esc(g?.grade || '')}</td>
-        <td>${esc(a.activity || '')}</td>
-        <td>${statusIcon}</td>
-        <td>${a.rating ? '★'.repeat(a.rating) : ''}</td>
-        <td>${esc(a.notes || '')}</td>
-      </tr>`;
-    }).join('');
+      const sortedGirls = Object.values(grouped).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
-    const html = `<!DOCTYPE html><html lang="ar" dir="rtl">
-      <head><meta charset="UTF-8"><title>تقرير ${exportDate}</title>
-      <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
-      <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
-      h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
-      h2{color:#1a2744;margin-top:30px;border-bottom:1px solid #e2e8f0;padding-bottom:8px}
-      .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
-      .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
-      .sum-box b{font-size:24px;color:#1a2744}
-      .sum-box span{font-size:13px;color:#6b7a99}
-      table{width:100%;border-collapse:collapse;margin-top:20px}
-      th,td{border:1px solid #ddd;padding:8px;text-align:right;font-size:13px}
-      th{background:#1a2744;color:white}
-      .present{color:green}.absent{color:red}
-      .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
-      @media print{body{padding:10px} h2{page-break-before:auto}}
-      </style></head><body>
-      <h1>تقرير متابعة المخدومات - ${monthName}</h1>
-      <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
-      <div class="summary">
-        <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
-        <div class="sum-box"><b>${presents}</b><br><span>حالات الحضور</span></div>
-        <div class="sum-box"><b>${absents}</b><br><span>حالات الغياب</span></div>
-        <div class="sum-box"><b>${Object.keys(grouped).length}</b><br><span>مخدومات مشاركة</span></div>
-      </div>
-      <table>
-        <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>محفوظات</th><th>ألحان</th><th>الحضور</th><th>الغياب</th><th>النسبة</th></tr>
-        ${htmlRows}
-      </table>
+      const rows = sortedGirls.map((r, i) => {
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.grade)}</td>
+          <td>${r['دراسي'].present}</td>
+          <td>${r['قبطي'].present}</td>
+          <td>${r['ألحان'].present}</td>
+          <td>${r['محفوظات'].present}</td>
+          <td style="color:green;font-weight:700">${r.totalPresent}</td>
+          <td style="color:red;font-weight:700">${r.totalAbsent}</td>
+        </tr>`;
+      }).join('');
 
-      <h2>السجل اليومي التفصيلي</h2>
-      <table>
-        <tr><th>التاريخ</th><th>اليوم</th><th>المخدومة</th><th>السنة</th><th>النشاط</th><th>الحالة</th><th>التقييم</th><th>ملاحظات</th></tr>
-        ${dailyRows}
-      </table>
+      html = `<!DOCTYPE html><html lang="ar" dir="rtl">
+        <head><meta charset="UTF-8"><title>تقرير شهر ${monthName}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
+        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
+        .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
+        .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
+        .sum-box b{font-size:24px;color:#1a2744}
+        .sum-box span{font-size:13px;color:#6b7a99}
+        table{width:100%;border-collapse:collapse;margin-top:20px}
+        th,td{border:1px solid #ddd;padding:8px;text-align:center;font-size:13px}
+        th{background:#1a2744;color:white}
+        .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
+        @media print{body{padding:10px}}
+        </style></head><body>
+        <h1>تقرير حضور شهر ${monthName}</h1>
+        <p style="color:#6b7a99;font-size:14px">الفترة: من ${exportStart} إلى ${exportEnd}</p>
+        <div class="summary">
+          <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
+          <div class="sum-box"><b>${totalPresent}</b><br><span>إجمالي الحضور</span></div>
+          <div class="sum-box"><b>${totalAbsent}</b><br><span>إجمالي الغياب</span></div>
+          <div class="sum-box"><b>${sortedGirls.length}</b><br><span>مخدومات مشاركة</span></div>
+        </div>
+        <table>
+          <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>ألحان</th><th>محفوظات</th><th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>
+          ${rows}
+        </table>
+        <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
+        </body></html>`;
 
-      <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
-      </body></html>`;
+    } else {
+      // ============================================================
+      // DAILY PRINT REPORT: ✓/✗ per activity for each girl
+      // ============================================================
+      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
+
+      // Build per-girl per-activity status map
+      const sortedGirls = state.girls.filter(g => !g.isDeleted).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
+      const rows = sortedGirls.map((g, i) => {
+        const cells = [];
+        ACTIVITIES.forEach(act => {
+          const key = `${g.id}_${exportDate}_${act}`;
+          const rec = state.attendanceData[key];
+          if (rec) {
+            cells.push(rec.status === 'حاضر'
+              ? '<td style="color:green;font-weight:700;font-size:16px">✓</td>'
+              : '<td style="color:red;font-weight:700;font-size:16px">✗</td>');
+          } else {
+            cells.push('<td style="color:#ccc">—</td>');
+          }
+        });
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${esc(g.name)}</td>
+          <td>${esc(g.grade)}</td>
+          ${cells.join('')}
+        </tr>`;
+      }).join('');
+
+      html = `<!DOCTYPE html><html lang="ar" dir="rtl">
+        <head><meta charset="UTF-8"><title>تقرير يوم ${exportDate}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+        <style>body{font-family:Tajawal,sans-serif;direction:rtl;padding:20px}
+        h1{color:#1a2744;border-bottom:2px solid #1a2744;padding-bottom:10px}
+        .summary{display:flex;gap:20px;margin:15px 0;flex-wrap:wrap}
+        .sum-box{background:#f0f2f8;border-radius:10px;padding:12px 20px;text-align:center}
+        .sum-box b{font-size:24px;color:#1a2744}
+        .sum-box span{font-size:13px;color:#6b7a99}
+        table{width:100%;border-collapse:collapse;margin-top:20px}
+        th,td{border:1px solid #ddd;padding:10px;text-align:center;font-size:14px}
+        th{background:#1a2744;color:white}
+        .footer{margin-top:20px;font-size:12px;color:#6b7a99;border-top:1px solid #e2e8f0;padding-top:10px}
+        @media print{body{padding:10px}}
+        </style></head><body>
+        <h1>تقرير حضور يوم ${exportDate}</h1>
+        <p style="color:#6b7a99;font-size:14px">اليوم: ${dayName}</p>
+        <div class="summary">
+          <div class="sum-box"><b>${activeGirls.length}</b><br><span>عدد المخدومات</span></div>
+          <div class="sum-box"><b>${totalPresent}</b><br><span>حاضر</span></div>
+          <div class="sum-box"><b>${totalAbsent}</b><br><span>غائب</span></div>
+        </div>
+        <table>
+          <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>ألحان</th><th>محفوظات</th></tr>
+          ${rows}
+        </table>
+        <div class="footer">تاريخ التصدير: ${new Date().toLocaleDateString('ar-EG')} | نظام متابعة المخدومات</div>
+        </body></html>`;
+    }
 
     const w = window.open('', '_blank');
     if (!w) { showToast('تم حجب النافذة من المتصفح', 'error'); return; }
@@ -2629,7 +2670,6 @@ if (DOM.exportPrint) {
     w.print();
   });
 }
-
 function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
