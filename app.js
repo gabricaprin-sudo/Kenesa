@@ -1678,8 +1678,7 @@ function renderAttendanceList() {
         ${inlineRatingHtml}
         ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
       </div>
-      <span class="att-status-text ${statusClass}">${statusText}</span>
-      <button class="att-delete-btn" data-att-key="${esc(key)}" title="حذف السجل">&#10060;</button>`;
+      <span class="att-status-text ${statusClass}">${statusText}</span>`;
     frag.appendChild(div);
   });
 
@@ -1688,38 +1687,6 @@ function renderAttendanceList() {
   if (DOM.presentCount) DOM.presentCount.textContent = present;
   if (DOM.absentCount) DOM.absentCount.textContent = absent;
   if (DOM.totalCount) DOM.totalCount.textContent = activeGirls.length;
-}
-
-async function deleteAttendanceRecord(key) {
-  const rec = state.attendanceData[key];
-  if (!rec) return;
-
-  const g = state.girls.find(x => x.id === rec.girlId);
-  const gName = g ? g.name : 'مخدومة';
-
-  showConfirm({
-    icon: '&#9888;', title: 'حذف سجل الحضور',
-    msg: `هل أنت متأكد من حذف سجل ${esc(gName)} ليوم ${esc(rec.date)}؟`,
-    okLabel: 'حذف',
-    onOk: async () => {
-      try {
-        delete state.attendanceData[key];
-        if (firebaseReady && window._fb) {
-          try { await window._fb.deleteDoc(window._fb.doc(db, 'attendance', key)); }
-          catch (e) { console.error('Delete attendance Firestore error:', e); }
-        }
-        await logHistory('حذف سجل حضور', `${gName} - ${rec.date} - ${rec.activity} - ${rec.status}`);
-        showToast('تم حذف سجل الحضور', 'success');
-        renderAttendanceList();
-        if (state.currentPage === 'stats') renderStats();
-        if (state.currentPage === 'home') renderHome();
-        if (state.currentPage === 'calendar') renderCalendar();
-      } catch (err) {
-        console.error('Delete attendance error:', err);
-        showToast('حدث خطأ أثناء الحذف', 'error');
-      }
-    }
-  });
 }
 
 // ============================================================
@@ -2919,13 +2886,6 @@ function setupDelegation() {
         if (ratingWrap) {
           saveInlineRating(ratingWrap.dataset.attKey, parseInt(star.dataset.val));
         }
-        return;
-      }
-      const delBtn = e.target.closest('.att-delete-btn');
-      if (delBtn) {
-        e.stopPropagation();
-        e.preventDefault();
-        deleteAttendanceRecord(delBtn.dataset.attKey);
         return;
       }
       if (state.isLongPress) {
