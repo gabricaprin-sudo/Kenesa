@@ -1059,6 +1059,24 @@ body {
 .girls-filter-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
 .girls-filter-row .grade-filter-btns { flex: 1; margin-bottom: 0; }
 
+/* Attendance page grade filter */
+#page-attendance .grade-filter-btns {
+  margin-bottom: 12px;
+  margin-top: -4px;
+}
+
+/* Dark mode for attendance grade filter */
+[data-theme="dark"] #page-attendance .grade-filter-btn {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+[data-theme="dark"] #page-attendance .grade-filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 /* ============================================================
    CALENDAR PAGE
    ============================================================ */

@@ -127,6 +127,7 @@ const DOM = {
   girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
   girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
   homeGradeFilters: $('homeGradeFilters'), girlsGradeFilters: $('girlsGradeFilters'),
+  attendanceGradeFilters: $('attendanceGradeFilters'),
   closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
   saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
   profileName: $('profileName'), profileBody: $('profileBody'),
@@ -179,6 +180,7 @@ const state = {
   homeGradeFilter: '',
   girlsGradeFilter: '',
   girlsSearchQuery: '',
+  attendanceGradeFilter: localStorage.getItem('attendanceGradeFilter') || '',
   statsTimeFilter: 'month',
   statsGradeFilter: '',
   longPressTimer: null,
@@ -1248,9 +1250,19 @@ if (DOM.saveGirlBtn) {
 
       await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
 
+      const isNewGirl = !state.editingGirlId;
+
       if (firebaseReady && window._fb) {
         try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
         catch (e) { console.error('Save girl Firestore error:', e); }
+      }
+
+      // Auto-mark absent on service days for new girls only
+      if (isNewGirl) {
+        const todayStr = DateUtil.toStr();
+        if (isServiceDayDate(todayStr)) {
+          await autoMarkAbsentForNewGirl(id, todayStr);
+        }
       }
 
       closeModal('girlModal');
@@ -1558,6 +1570,50 @@ async function markAllAbsentForDate(date) {
   if (state.currentPage === 'calendar') renderCalendar();
 }
 
+// Auto-mark a newly added girl as absent for all activities on a service day
+async function autoMarkAbsentForNewGirl(girlId, date) {
+  if (!isServiceDayDate(date)) return;
+
+  const dayName = DateUtil.dayName(new Date(date + 'T00:00:00'));
+  const batchRecords = [];
+
+  for (const activity of ACTIVITIES) {
+    const key = `${girlId}_${date}_${activity}`;
+    if (!state.attendanceData[key]) {
+      const rec = {
+        id: key,
+        girlId: girlId,
+        date,
+        day: dayName,
+        activity: activity,
+        status: 'غائب',
+        rating: 0,
+        notes: '',
+        updatedAt: Date.now(),
+        updatedBy: state.currentUser?.displayName || 'خادم',
+        updatedByEmail: state.currentUser?.email || ''
+      };
+      batchRecords.push(rec);
+    }
+  }
+
+  for (const rec of batchRecords) {
+    state.attendanceData[rec.id] = rec;
+  }
+
+  if (firebaseReady && window._fb && batchRecords.length > 0) {
+    try {
+      const batch = window._fb.writeBatch(db);
+      for (const rec of batchRecords) {
+        batch.set(window._fb.doc(db, 'attendance', rec.id), rec);
+      }
+      await batch.commit();
+    } catch (e) {
+      console.error('Auto-absent batch save error:', e);
+    }
+  }
+}
+
 // Kept for backward compatibility - delegates to the new function
 async function markAllAbsent(date) {
   await markAllAbsentForDate(date);
@@ -1617,6 +1673,13 @@ function renderAttendanceList() {
   if (!date) { el.innerHTML = '<div class="empty-state">الرجاء اختيار التاريخ</div>'; return; }
 
   let activeGirls = state.girls.filter(g => !g.isDeleted);
+
+  // Apply grade filter
+  const gradeFilter = state.attendanceGradeFilter;
+  if (gradeFilter) {
+    activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
+  }
+
   const searchQuery = DOM.attendanceSearch?.value?.trim() || '';
   if (searchQuery) {
     const qNorm = normalizeArabic(searchQuery);
@@ -1633,6 +1696,21 @@ function renderAttendanceList() {
     if (DOM.totalCount) DOM.totalCount.textContent = 0;
     return;
   }
+
+  // Update attendance grade filter buttons
+  const allActiveGirls = state.girls.filter(g => !g.isDeleted);
+  const attFilterCountAll = $('attFilterCountAll');
+  const attFilterCount1 = $('attFilterCount1');
+  const attFilterCount2 = $('attFilterCount2');
+  const attFilterCount3 = $('attFilterCount3');
+  if (attFilterCountAll) attFilterCountAll.textContent = allActiveGirls.length;
+  if (attFilterCount1) attFilterCount1.textContent = allActiveGirls.filter(g => g.grade === 'أولى إعدادي').length;
+  if (attFilterCount2) attFilterCount2.textContent = allActiveGirls.filter(g => g.grade === 'تانية إعدادي').length;
+  if (attFilterCount3) attFilterCount3.textContent = allActiveGirls.filter(g => g.grade === 'تالتة إعدادي').length;
+
+  $$('#attendanceGradeFilters .grade-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
+  });
 
   if (!activeGirls.length) {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات مسجلة<br><small>أضف مخدومات أولاً من صفحة المخدومات</small></div>';
@@ -2962,6 +3040,17 @@ if (DOM.girlsGradeFilters) {
     if (!btn) return;
     state.girlsGradeFilter = btn.dataset.grade;
     renderGirlsList();
+  });
+}
+
+// Attendance page grade filter
+if (DOM.attendanceGradeFilters) {
+  DOM.attendanceGradeFilters.addEventListener('click', e => {
+    const btn = e.target.closest('.grade-filter-btn');
+    if (!btn) return;
+    state.attendanceGradeFilter = btn.dataset.grade;
+    localStorage.setItem('attendanceGradeFilter', btn.dataset.grade);
+    renderAttendanceList();
   });
 }
 

@@ -199,6 +199,13 @@
             <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
+          <!-- Grade Filter for Attendance -->
+          <div class="grade-filter-btns" id="attendanceGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="attFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="attFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="attFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="attFilterCount3">0</span></button>
+          </div>
           <div class="activities-tabs">
             <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
             <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
