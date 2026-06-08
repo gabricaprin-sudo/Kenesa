@@ -35,7 +35,6 @@
           alt="Photo"
           class="login-hero-img"
           fetchpriority="high"
-          loading="eager"
           width="640"
           height="381"
          
@@ -43,7 +42,18 @@
         <div class="login-gradient-bridge"></div>
       </div>
 
-      <!-- Gold Particles (placeholder for future effect) -->
+      <!-- Gold Particles -->
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -126,14 +136,14 @@
             <div id="todayServiceBadge" class="service-badge"></div>
           </div>
 
-          <div class="grade-filter-btns" id="homeGradeFilters" role="radiogroup" aria-label="تصفية حسب السنة">
-            <button class="grade-filter-btn active" data-grade="" role="radio" aria-checked="true">الكل <span class="count" id="homeFilterCountAll">0</span></button>
-            <button class="grade-filter-btn" data-grade="أولى إعدادي" role="radio" aria-checked="false">أولى <span class="count" id="homeFilterCount1">0</span></button>
-            <button class="grade-filter-btn" data-grade="تانية إعدادي" role="radio" aria-checked="false">تانية <span class="count" id="homeFilterCount2">0</span></button>
-            <button class="grade-filter-btn" data-grade="تالتة إعدادي" role="radio" aria-checked="false">تالتة <span class="count" id="homeFilterCount3">0</span></button>
+          <div class="grade-filter-btns" id="homeGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="homeFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="homeFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="homeFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="homeFilterCount3">0</span></button>
           </div>
 
-          <div class="stats-grid" aria-live="polite" aria-atomic="true">
+          <div class="stats-grid">
             <div class="stat-card blue">
               <div class="stat-num" id="statTotal">0</div>
               <div class="stat-label">إجمالي المخدومات</div>
@@ -181,26 +191,26 @@
         <!-- ATTENDANCE PAGE -->
         <div id="page-attendance" class="page">
           <div class="day-selector">
-            <button class="day-btn" data-day="السبت" role="tab" aria-selected="false">السبت</button>
-            <button class="day-btn" data-day="الاثنين" role="tab" aria-selected="false">الإثنين</button>
-            <button class="day-btn" data-day="الاربعاء" role="tab" aria-selected="false">الأربعاء</button>
+            <button class="day-btn" data-day="السبت">السبت</button>
+            <button class="day-btn" data-day="الاثنين">الإثنين</button>
+            <button class="day-btn" data-day="الاربعاء">الأربعاء</button>
           </div>
           <div class="date-input-wrap">
             <label for="attendanceDate">التاريخ:</label>
             <input type="date" id="attendanceDate" class="date-input">
           </div>
           <!-- Grade Filter for Attendance -->
-          <div class="grade-filter-btns" id="attendanceGradeFilters" role="radiogroup" aria-label="تصفية حسب السنة">
-            <button class="grade-filter-btn active" data-grade="" role="radio" aria-checked="true">الكل <span class="count" id="attFilterCountAll">0</span></button>
-            <button class="grade-filter-btn" data-grade="أولى إعدادي" role="radio" aria-checked="false">أولى <span class="count" id="attFilterCount1">0</span></button>
-            <button class="grade-filter-btn" data-grade="تانية إعدادي" role="radio" aria-checked="false">تانية <span class="count" id="attFilterCount2">0</span></button>
-            <button class="grade-filter-btn" data-grade="تالتة إعدادي" role="radio" aria-checked="false">تالتة <span class="count" id="attFilterCount3">0</span></button>
+          <div class="grade-filter-btns" id="attendanceGradeFilters">
+            <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="attFilterCountAll">0</span></button>
+            <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="attFilterCount1">0</span></button>
+            <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="attFilterCount2">0</span></button>
+            <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="attFilterCount3">0</span></button>
           </div>
           <div class="activities-tabs">
-            <button class="act-tab active" data-activity="دراسي" role="tab" aria-selected="true">&#128216; دراسي</button>
-            <button class="act-tab" data-activity="محفوظات" role="tab" aria-selected="false">&#128221; محفوظات</button>
-            <button class="act-tab" data-activity="قبطي" role="tab" aria-selected="false">&#9961; قبطي</button>
-            <button class="act-tab" data-activity="ألحان" role="tab" aria-selected="false">&#127925; ألحان</button>
+            <button class="act-tab active" data-activity="دراسي">&#128216; دراسي</button>
+            <button class="act-tab" data-activity="محفوظات">&#128221; محفوظات</button>
+            <button class="act-tab" data-activity="قبطي">&#9961; قبطي</button>
+            <button class="act-tab" data-activity="ألحان">&#127925; ألحان</button>
           </div>
 
           <!-- Attendance Search Bar -->
@@ -228,11 +238,11 @@
             <input type="text" id="girlsSearch" class="search-bar" placeholder="&#128269; ابحث عن مخدومة للتعديل أو الحذف..." autocomplete="off">
           </div>
           <div class="girls-filter-row">
-            <div class="grade-filter-btns" id="girlsGradeFilters" role="radiogroup" aria-label="تصفية حسب السنة">
-              <button class="grade-filter-btn active" data-grade="" role="radio" aria-checked="true">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
-              <button class="grade-filter-btn" data-grade="أولى إعدادي" role="radio" aria-checked="false">أولى <span class="count" id="girlsFilterCount1">0</span></button>
-              <button class="grade-filter-btn" data-grade="تانية إعدادي" role="radio" aria-checked="false">تانية <span class="count" id="girlsFilterCount2">0</span></button>
-              <button class="grade-filter-btn" data-grade="تالتة إعدادي" role="radio" aria-checked="false">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
+            <div class="grade-filter-btns" id="girlsGradeFilters">
+              <button class="grade-filter-btn active" data-grade="">الكل <span class="count" id="girlsFilterCountAll">0</span></button>
+              <button class="grade-filter-btn" data-grade="أولى إعدادي">أولى <span class="count" id="girlsFilterCount1">0</span></button>
+              <button class="grade-filter-btn" data-grade="تانية إعدادي">تانية <span class="count" id="girlsFilterCount2">0</span></button>
+              <button class="grade-filter-btn" data-grade="تالتة إعدادي">تالتة <span class="count" id="girlsFilterCount3">0</span></button>
             </div>
             <button class="btn-add-girl" id="addGirlBtn">+ إضافة</button>
           </div>
@@ -258,10 +268,10 @@
             <input type="date" id="statsMonth" class="month-input">
           </div>
           <div class="time-filter-tabs" id="timeFilterTabs">
-            <button class="time-filter-tab" data-period="today" role="tab" aria-selected="false">اليوم</button>
-            <button class="time-filter-tab active" data-period="month" role="tab" aria-selected="true">هذا الشهر</button>
-            <button class="time-filter-tab" data-period="year" role="tab" aria-selected="false">هذه السنة</button>
-            <button class="time-filter-tab" data-period="all" role="tab" aria-selected="false">الكل</button>
+            <button class="time-filter-tab" data-period="today">اليوم</button>
+            <button class="time-filter-tab active" data-period="month">هذا الشهر</button>
+            <button class="time-filter-tab" data-period="year">هذه السنة</button>
+            <button class="time-filter-tab" data-period="all">الكل</button>
           </div>
           <!-- Grade filter for stats -->
           <div class="stats-grade-filter" id="statsGradeFilter">
@@ -293,8 +303,6 @@
             </select>
             <button id="clearHistoryBtn" class="btn-clear-history">&#10060; مسح السجل</button>
           </div>
-          <!-- FIXED #15: History growth warning -->
-          <div class="history-warning" id="historyWarning">&#9888; ينمو السجل باستمرار. يُنصح بالتنظيف الدوري.</div>
           <div id="historyList" class="history-list">
             <div class="empty-state">جارٍ التحميل...</div>
           </div>
@@ -331,8 +339,6 @@
             <div class="export-hint">
               <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات)
             </div>
-            <!-- FIXED #14: Live Preview -->
-            <div id="exportPreview" class="export-preview"></div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">
                 <span>&#128196;</span>
@@ -354,11 +360,11 @@
 
       <!-- Bottom Nav -->
       <nav class="bottom-nav" aria-label="التنقل السفلي">
-        <button class="nav-btn active" data-page="home" aria-label="الرئيسية" aria-pressed="true"><span>&#127968;</span><label>الرئيسية</label></button>
-        <button class="nav-btn" data-page="attendance" aria-label="الحضور" aria-pressed="false"><span>&#128203;</span><label>الحضور</label></button>
-        <button class="nav-btn" data-page="girls" aria-label="المخدومات" aria-pressed="false"><span>&#128101;</span><label>المخدومات</label></button>
-        <button class="nav-btn" data-page="calendar" aria-label="التقويم" aria-pressed="false"><span>&#128197;</span><label>التقويم</label></button>
-        <button class="nav-btn" data-page="stats" aria-label="إحصائيات" aria-pressed="false"><span>&#128202;</span><label>إحصائيات</label></button>
+        <button class="nav-btn active" data-page="home" aria-label="الرئيسية"><span>&#127968;</span><label>الرئيسية</label></button>
+        <button class="nav-btn" data-page="attendance" aria-label="الحضور"><span>&#128203;</span><label>الحضور</label></button>
+        <button class="nav-btn" data-page="girls" aria-label="المخدومات"><span>&#128101;</span><label>المخدومات</label></button>
+        <button class="nav-btn" data-page="calendar" aria-label="التقويم"><span>&#128197;</span><label>التقويم</label></button>
+        <button class="nav-btn" data-page="stats" aria-label="إحصائيات"><span>&#128202;</span><label>إحصائيات</label></button>
       </nav>
     </div>
 
@@ -493,87 +499,9 @@
     </div>
 
     <!-- Toast -->
-    <div id="toast" class="toast hidden" role="status" aria-live="assertive" aria-atomic="true"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
   <script src="app.js"></script>
-
-  <!-- FIX #24: Focus trap + ESC close for modals -->
-  <script>
-    (function() {
-      const FOCUSABLE_SELECTORS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-      let lastFocusedElement = null;
-
-      function getFocusableElements(modal) {
-        return modal.querySelectorAll(FOCUSABLE_SELECTORS);
-      }
-
-      function trapFocus(modal) {
-        const focusable = getFocusableElements(modal);
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        first.focus();
-        modal._focusTrap = function(e) {
-          if (e.key === 'Tab') {
-            if (e.shiftKey && document.activeElement === first) {
-              e.preventDefault();
-              last.focus();
-            } else if (!e.shiftKey && document.activeElement === last) {
-              e.preventDefault();
-              first.focus();
-            }
-          }
-        };
-        modal.addEventListener('keydown', modal._focusTrap);
-      }
-
-      function releaseFocus(modal) {
-        if (modal._focusTrap) {
-          modal.removeEventListener('keydown', modal._focusTrap);
-          modal._focusTrap = null;
-        }
-        if (lastFocusedElement) {
-          lastFocusedElement.focus();
-          lastFocusedElement = null;
-        }
-      }
-
-      // Observe modal show/hide
-      const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            const modal = mutation.target;
-            if (modal.classList.contains('show') && modal.classList.contains('modal-overlay')) {
-              lastFocusedElement = document.activeElement;
-              setTimeout(() => trapFocus(modal), 100);
-            } else if (!modal.classList.contains('show') && modal.classList.contains('modal-overlay')) {
-              releaseFocus(modal);
-            }
-            if (modal.classList.contains('show') && modal.id === 'confirmOverlay') {
-              lastFocusedElement = document.activeElement;
-              setTimeout(() => trapFocus(modal), 100);
-            } else if (!modal.classList.contains('show') && modal.id === 'confirmOverlay') {
-              releaseFocus(modal);
-            }
-          }
-        });
-      });
-
-      document.querySelectorAll('.modal-overlay, .confirm-overlay').forEach(function(modal) {
-        observer.observe(modal, { attributes: true });
-        // ESC close
-        modal.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape') {
-            modal.classList.remove('show');
-            if (modal.id === 'confirmOverlay' && typeof confirmResolve !== 'undefined') {
-              confirmResolve = null;
-            }
-            document.body.style.overflow = '';
-          }
-        });
-      });
-    })();
-  </script>
 </body>
 </html>
