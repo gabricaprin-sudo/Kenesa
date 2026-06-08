@@ -1,5 +1,7 @@
 // ============================================================
-// نظام متابعة المخدومات — Offline Ready & Guest Mode
+// نظام متابعة المخدومات — v2.0 Performance Optimized
+// Changes: onSnapshot real-time, partial renders, Map lookups,
+//          Firestore offline persistence, per-page data loading
 // ============================================================
 
 // ============================================================
@@ -49,7 +51,7 @@ async function initModules() {
   try {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
     const { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
-    const { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+    const { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where, limit, startAt, endAt, enableIndexedDbPersistence } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
     const firebaseConfig = {
       apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
@@ -67,8 +69,22 @@ async function initModules() {
     provider = new GoogleAuthProvider();
     firebaseReady = true;
 
+    // ENABLE FIRESTORE OFFLINE PERSISTENCE (Improvement #4)
+    try {
+      await enableIndexedDbPersistence(db);
+      console.log('[Perf] Firestore offline persistence enabled');
+    } catch (persistErr) {
+      if (persistErr.code === 'failed-precondition') {
+        console.warn('[Perf] Firestore persistence: multiple tabs open, using memory cache');
+      } else if (persistErr.code === 'unimplemented') {
+        console.warn('[Perf] Firestore persistence: browser not supported');
+      } else {
+        console.warn('[Perf] Firestore persistence error:', persistErr.message);
+      }
+    }
+
     // Attach Firebase functions to global scope for the app
-    window._fb = { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut };
+    window._fb = { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where, limit, startAt, endAt, enableIndexedDbPersistence, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut };
 
     // Try to load XLSX
     try {
@@ -163,6 +179,8 @@ const DOM = {
 const state = {
   currentUser: null,
   girls: [],
+  // NEW: Map for O(1) girl lookups (Improvement #3)
+  girlsById: new Map(),
   attendanceData: {},
   currentPage: 'home',
   selectedDay: 'السبت',
@@ -191,6 +209,11 @@ const state = {
   attendancePageInitialized: false,
   savingGirl: false,
   idb: false,
+  // NEW: Track active Firestore listeners for cleanup (Improvement #5)
+  activeListeners: [],
+  // NEW: Track last changed attendance key for partial updates (Improvement #2)
+  lastAttendanceChange: null,
+  lastGirlChange: null,
 };
 
 const HISTORY_PAGE_SIZE = 30;
@@ -224,6 +247,30 @@ function xmlEsc(str = '') {
 }
 
 // ============================================================
+// MAP-BASED LOOKUP HELPERS (Improvement #3: O(1) instead of O(n) find)
+// ============================================================
+
+/** Build girlsById Map from state.girls array — call after any girls change */
+function rebuildGirlsMap() {
+  state.girlsById.clear();
+  for (const g of state.girls) {
+    if (!g.isDeleted) {
+      state.girlsById.set(g.id, g);
+    }
+  }
+}
+
+/** O(1) girl lookup — replaces state.girls.find(x => x.id === id) */
+function getGirl(id) {
+  return state.girlsById.get(id) || null;
+}
+
+/** O(1) check if girl exists */
+function hasGirl(id) {
+  return state.girlsById.has(id);
+}
+
+// ============================================================
 // DATE UTILITIES
 // ============================================================
 const DateUtil = {
@@ -245,67 +292,6 @@ const DateUtil = {
   dayName(d = new Date()) { return DAY_NAMES[d.getDay()]; },
   normalize(d) {
     return { 'الأحد': 'الاحد', 'الاثنين': 'الاثنين', 'الثلاثاء': 'الثلاثاء', 'الأربعاء': 'الاربعاء', 'الخميس': 'الخميس', 'الجمعة': 'الجمعة', 'السبت': 'السبت' }[d] || d;
-  }
-};
-
-// ============================================================
-// TIMECONTEXT — Unified Date Source for the entire app
-// Every page uses this instead of computing dates independently
-// ============================================================
-const TimeContext = {
-  _selectedDate: null,
-  _listeners: [],
-
-  init() {
-    const saved = localStorage.getItem('trackerSelectedDate');
-    this._selectedDate = saved || DateUtil.toStr();
-  },
-
-  /** Get the currently selected date (YYYY-MM-DD) */
-  getDate() {
-    return this._selectedDate || DateUtil.toStr();
-  },
-
-  /** Set the selected date and notify all listeners */
-  setDate(dateStr) {
-    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      console.warn('Invalid date format:', dateStr);
-      return;
-    }
-    this._selectedDate = dateStr;
-    localStorage.setItem('trackerSelectedDate', dateStr);
-    this._notifyListeners(dateStr);
-  },
-
-  /** Get month string (YYYY-MM) */
-  getMonth() {
-    return this._selectedDate.substring(0, 7);
-  },
-
-  /** Get year string (YYYY) */
-  getYear() {
-    return this._selectedDate.substring(0, 4);
-  },
-
-  /** Reset to today */
-  resetToToday() {
-    this._selectedDate = DateUtil.toStr();
-    localStorage.removeItem('trackerSelectedDate');
-    this._notifyListeners(this._selectedDate);
-  },
-
-  /** Subscribe to date changes */
-  subscribe(fn) {
-    this._listeners.push(fn);
-    return () => {
-      this._listeners = this._listeners.filter(l => l !== fn);
-    };
-  },
-
-  _notifyListeners(dateStr) {
-    this._listeners.forEach(fn => {
-      try { fn(dateStr); } catch (e) { console.error('TimeContext listener error:', e); }
-    });
   }
 };
 
@@ -558,6 +544,7 @@ async function initAuth() {
         state.currentUser = null;
         state.appInitialized = false;
         state.girls = [];
+        state.girlsById.clear();
         state.attendanceData = {};
         showLogin();
         return;
@@ -612,6 +599,8 @@ if (DOM.signOutBtn) {
       showLogin();
       return;
     }
+    // Clean up all listeners before sign out (Improvement #5)
+    cleanupListeners();
     const { signOut } = window._fb;
     await signOut(auth);
   });
@@ -650,49 +639,278 @@ function showLogin() {
 }
 
 // ============================================================
-// FIREBASE LISTENERS
+// LISTENER MANAGEMENT (Improvement #5: Clean up old listeners)
 // ============================================================
+
+/** Register a listener so we can clean it up later */
+function registerListener(unsubscribeFn) {
+  state.activeListeners.push(unsubscribeFn);
+}
+
+/** Clean up all active Firestore listeners */
+function cleanupListeners() {
+  console.log(`[Perf] Cleaning up ${state.activeListeners.length} Firestore listeners`);
+  for (const unsub of state.activeListeners) {
+    try { unsub(); } catch (e) { /* ignore */ }
+  }
+  state.activeListeners = [];
+}
+
+/** Clean up and reload scoped listeners for current page */
+async function refreshScopedListeners() {
+  if (!firebaseReady || !window._fb) return;
+  cleanupListeners();
+  await loadScopedData();
+}
+
+// ============================================================
+// PARTIAL UPDATE ENGINE (Improvement #2: Update only changed elements)
+// ============================================================
+
+/** Update a single attendance row in the DOM without re-rendering the full list */
+function updateAttendanceRowInDOM(girlId, date, activity) {
+  if (!DOM.attendanceList) return;
+  const key = `${girlId}_${date}_${activity}`;
+  const row = DOM.attendanceList.querySelector(`[data-att-key="${CSS.escape(key)}"]`);
+  if (!row) return false; // Row not in current view, full render needed
+
+  const rec = state.attendanceData[key];
+  const g = getGirl(girlId);
+  if (!g) return false;
+
+  const isPresent = rec?.status === 'حاضر';
+  const statusClass = isPresent ? 'present' : 'absent';
+  const statusIcon = isPresent ? '&#10003;' : '&#10007;';
+  const statusText = isPresent ? 'حاضر' : 'غائب';
+
+  // Update CSS classes
+  row.className = `att-item ${statusClass}`;
+  row.dataset.girlId = g.id;
+  row.dataset.attKey = key;
+  row.dataset.girlName = g.name;
+
+  // Build inline rating HTML (only for present)
+  const currentRating = rec?.rating || 0;
+  let inlineRatingHtml = '';
+  if (isPresent) {
+    const starsHtml = [1,2,3,4,5].map(i =>
+      `<span class="att-inline-star ${i <= currentRating ? 'active' : ''}" data-val="${i}" role="button" aria-label="${i} نجمة">&#9733;</span>`
+    ).join('');
+    inlineRatingHtml = `<div class="att-inline-rating" data-att-key="${esc(key)}">
+      <span class="att-inline-rating-label">التقييم:</span>
+      <span class="att-inline-stars">${starsHtml}</span>
+      ${currentRating > 0 ? `<span class="att-inline-rating-val">${currentRating}/5</span>` : '<span class="att-inline-rating-hint">اضغط نجمة للتقييم</span>'}
+    </div>`;
+  }
+
+  const stars = rec?.rating ? '&#9733;'.repeat(rec.rating) + '&#9734;'.repeat(5 - rec.rating) : '';
+
+  // Update inner HTML efficiently
+  row.innerHTML = `
+    <div class="att-icon">${statusIcon}</div>
+    <div class="att-info">
+      <span class="att-name">${esc(g.name)}</span>
+      <span class="att-grade">${esc(g.grade)}</span>
+      ${stars ? `<span class="att-stars">${stars}</span>` : ''}
+      ${inlineRatingHtml}
+      ${rec?.notes ? `<span class="att-note">${esc(rec.notes)}</span>` : ''}
+    </div>
+    <span class="att-status-text ${statusClass}">${statusText}</span>`;
+
+  return true;
+}
+
+/** Update attendance summary counters only */
+function updateAttendanceCounters(date, activity) {
+  if (!DOM.attendanceList) return;
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  let present = 0, absent = 0;
+  activeGirls.forEach(g => {
+    const key = `${g.id}_${date}_${activity}`;
+    const rec = state.attendanceData[key];
+    if (rec?.status === 'حاضر') present++;
+    else absent++;
+  });
+  if (DOM.presentCount) DOM.presentCount.textContent = present;
+  if (DOM.absentCount) DOM.absentCount.textContent = absent;
+  if (DOM.totalCount) DOM.totalCount.textContent = activeGirls.length;
+}
+
+/** Smart render: partial update if possible, full render if needed */
+function smartAttendanceRender(girlId, date, activity) {
+  // Try partial update first
+  const didPartial = updateAttendanceRowInDOM(girlId, date, activity);
+  if (didPartial) {
+    updateAttendanceCounters(date, activity);
+    console.log('[Perf] Partial attendance update for', girlId);
+  } else {
+    // Fall back to full render if row not in view
+    renderAttendanceList();
+  }
+}
+
+// ============================================================
+// FIREBASE LISTENERS — SCOPED PER PAGE (Improvements #1, #5, #6, #7)
+// ============================================================
+
 async function loadData() {
   try {
     if (!firebaseReady || !window._fb) return;
+    await loadScopedData();
+  } catch (e) { console.error('Load error:', e); }
+}
 
-    // Destructure Firestore functions once
-    const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy, getDocs: _getDocs, doc: _doc, setDoc: _setDoc, writeBatch: _writeBatch, deleteDoc: _deleteDoc } = window._fb;
+/** Load data with page-scoped queries (Improvement #5) */
+async function loadScopedData() {
+  const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy, where: _where } = window._fb;
 
-    _onSnapshot(_query(_collection(db, 'girls'), _orderBy('name')), snap => {
-      let changed = false;
-      for (const change of snap.docChanges()) {
-        const g = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'removed' || g.isDeleted) {
-          state.girls = state.girls.filter(x => x.id !== g.id);
-          changed = true;
+  // === GIRLS: Always load all (small collection, needed everywhere) ===
+  const girlsUnsub = _onSnapshot(_query(_collection(db, 'girls'), _orderBy('name')), snap => {
+    let changed = false;
+    for (const change of snap.docChanges()) {
+      const g = { id: change.doc.id, ...change.doc.data() };
+      if (change.type === 'removed' || g.isDeleted) {
+        state.girls = state.girls.filter(x => x.id !== g.id);
+        state.girlsById.delete(g.id);
+        changed = true;
+      } else {
+        const idx = state.girls.findIndex(x => x.id === g.id);
+        if (idx >= 0) {
+          state.girls[idx] = g;
         } else {
-          const idx = state.girls.findIndex(x => x.id === g.id);
-          idx >= 0 ? (state.girls[idx] = g) : state.girls.push(g);
-          changed = true;
+          state.girls.push(g);
         }
+        state.girlsById.set(g.id, g);
+        changed = true;
       }
+    }
+    if (changed) {
       state.girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      if (changed) scheduleRender();
-    });
+      rebuildGirlsMap();
+      scheduleRender();
+    }
+  });
+  registerListener(girlsUnsub);
 
-    _onSnapshot(_query(_collection(db, 'attendance'), _orderBy('date', 'desc')), snap => {
-      let changed = false;
-      for (const change of snap.docChanges()) {
-        const a = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'removed') {
-          delete state.attendanceData[a.id];
-          changed = true;
-        } else {
-          state.attendanceData[a.id] = a;
-          changed = true;
-        }
+  // === ATTENDANCE: Scoped by current page (Improvement #5) ===
+  setupAttendanceListener();
+
+  // === HISTORY: Only load when on history page (Improvement #5) ===
+  if (state.currentPage === 'history') {
+    setupHistoryListener();
+  }
+}
+
+/** Setup attendance listener scoped to current page's needs */
+function setupAttendanceListener() {
+  const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy, where: _where } = window._fb;
+
+  let q;
+  const currentDate = TimeContext.getDate();
+  const currentMonth = currentDate.substring(0, 7);
+
+  switch (state.currentPage) {
+    case 'attendance': {
+      // Only load records for the selected date (Improvement #5)
+      const selectedDate = DOM.attendanceDate?.value || currentDate;
+      q = _query(
+        _collection(db, 'attendance'),
+        _where('date', '==', selectedDate),
+        _orderBy('updatedAt', 'desc')
+      );
+      console.log('[Perf] Attendance scope: single date', selectedDate);
+      break;
+    }
+    case 'calendar': {
+      // Load current month view (Improvement #5)
+      const year = state.calendarDate.getFullYear();
+      const month = state.calendarDate.getMonth() + 1;
+      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+      const lastDay = new Date(year, month, 0).getDate();
+      q = _query(
+        _collection(db, 'attendance'),
+        _where('date', '>=', `${monthStr}-01`),
+        _where('date', '<=', `${monthStr}-${String(lastDay).padStart(2, '0')}`)
+      );
+      console.log('[Perf] Attendance scope: month', monthStr);
+      break;
+    }
+    case 'home':
+    case 'stats': {
+      // Load current month for stats/home (Improvement #5)
+      const selYear = parseInt(currentDate.substring(0, 4));
+      const selMonth = parseInt(currentDate.substring(5, 7));
+      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      q = _query(
+        _collection(db, 'attendance'),
+        _where('date', '>=', `${currentMonth}-01`),
+        _where('date', '<=', `${currentMonth}-${String(lastDay).padStart(2, '0')}`)
+      );
+      console.log('[Perf] Attendance scope: month for home/stats', currentMonth);
+      break;
+    }
+    default: {
+      // For other pages, load current month as default
+      const selYear = parseInt(currentDate.substring(0, 4));
+      const selMonth = parseInt(currentDate.substring(5, 7));
+      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      q = _query(
+        _collection(db, 'attendance'),
+        _where('date', '>=', `${currentMonth}-01`),
+        _where('date', '<=', `${currentMonth}-${String(lastDay).padStart(2, '0')}`)
+      );
+    }
+  }
+
+  const attUnsub = _onSnapshot(q, snap => {
+    let changed = false;
+    const changedKeys = [];
+
+    for (const change of snap.docChanges()) {
+      const a = { id: change.doc.id, ...change.doc.data() };
+      if (change.type === 'removed') {
+        delete state.attendanceData[a.id];
+        changed = true;
+        changedKeys.push(a.id);
+      } else {
+        state.attendanceData[a.id] = a;
+        changed = true;
+        changedKeys.push(a.id);
       }
-      if (changed) scheduleRender();
-    });
+    }
 
-    // Listen to history collection and sync to IndexedDB
-    _onSnapshot(_query(_collection(db, 'history'), _orderBy('timestamp', 'desc')), async snap => {
+    if (changed) {
+      // Partial updates: only update changed rows (Improvement #2, #7)
+      if (state.currentPage === 'attendance' && changedKeys.length <= 3) {
+        // Small change — do partial updates
+        const currentDate = DOM.attendanceDate?.value || TimeContext.getDate();
+        const currentActivity = state.selectedActivity;
+        changedKeys.forEach(key => {
+          const rec = state.attendanceData[key];
+          if (rec && rec.date === currentDate && rec.activity === currentActivity) {
+            smartAttendanceRender(rec.girlId, rec.date, rec.activity);
+          }
+        });
+        // Still update counters and cross-references
+        updateAttendanceCounters(currentDate, currentActivity);
+        if (state.currentPage === 'home') renderHome();
+        if (state.currentPage === 'stats') renderStats();
+      } else {
+        // Large change — schedule full render
+        scheduleRender();
+      }
+    }
+  });
+  registerListener(attUnsub);
+}
+
+/** Setup history listener (only called when on history page) */
+function setupHistoryListener() {
+  const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy } = window._fb;
+
+  const histUnsub = _onSnapshot(
+    _query(_collection(db, 'history'), _orderBy('timestamp', 'desc')),
+    async snap => {
       let changed = false;
       for (const change of snap.docChanges()) {
         const log = { id: change.doc.id, ...change.doc.data() };
@@ -705,8 +923,9 @@ async function loadData() {
         }
       }
       if (changed && state.currentPage === 'history') renderHistory(false);
-    });
-  } catch (e) { console.error('Load error:', e); }
+    }
+  );
+  registerListener(histUnsub);
 }
 
 // ============================================================
@@ -730,7 +949,7 @@ function renderPage() {
 }
 
 // ============================================================
-// NAVIGATION
+// NAVIGATION — with scoped listener refresh (Improvement #5)
 // ============================================================
 const PAGE_TITLES = {
   home: ['الرئيسية', ''],
@@ -742,7 +961,7 @@ const PAGE_TITLES = {
   export: ['التصدير', 'تصدير البيانات']
 };
 
-function navigateTo(page) {
+async function navigateTo(page) {
   const pageEl = $(`page-${page}`);
   if (!pageEl) {
     console.warn(`Page element not found: page-${page}`);
@@ -756,6 +975,8 @@ function navigateTo(page) {
   const [title, sub] = PAGE_TITLES[page] || [page, ''];
   if (DOM.pageTitle) DOM.pageTitle.textContent = title;
   if (DOM.pageSubtitle) DOM.pageSubtitle.textContent = sub;
+
+  const previousPage = state.currentPage;
   state.currentPage = page;
 
   if (page === 'attendance') {
@@ -763,6 +984,11 @@ function navigateTo(page) {
   }
   if (page !== 'calendar') {
     hideDayDetail();
+  }
+
+  // Refresh scoped listeners when navigating between pages (Improvement #5)
+  if (previousPage !== page && firebaseReady) {
+    await refreshScopedListeners();
   }
 
   renderPage();
@@ -805,7 +1031,8 @@ function getBestGradeFiltered(monthStr, gradeFilter) {
   Object.values(state.attendanceData).forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
     if (a.status !== 'حاضر') return;
-    const girl = activeGirls.find(g => g.id === a.girlId);
+    // Use Map lookup instead of find (Improvement #3)
+    const girl = getGirl(a.girlId);
     if (!girl) return;
     if (gradeFilter && girl.grade !== gradeFilter) return;
     if (!gradeStats[girl.grade]) return;
@@ -863,7 +1090,8 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
     const count = dateSet.size;
     if (count === 0) return;
     const percent = (count / totalServiceDays) * 100;
-    const girl = activeGirls.find(g => g.id === girlId);
+    // Use Map lookup (Improvement #3)
+    const girl = getGirl(girlId);
     if (!girl) return;
     if (!best || percent > best.percent || (percent === best.percent && count > best.count)) {
       best = { name: girl.name, count, percent };
@@ -1003,7 +1231,8 @@ function renderHome() {
       const frag = document.createDocumentFragment();
       sorted.forEach(([id, count], i) => {
         if (!count) return;
-        const g = state.girls.find(x => x.id === id);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(id);
         if (!g) return;
         const div = document.createElement('div');
         div.className = 'top-item';
@@ -1135,7 +1364,8 @@ if (DOM.addGirlBtn) {
 }
 
 function editGirl(id) {
-  const g = state.girls.find(x => x.id === id);
+  // Use Map lookup (Improvement #3)
+  const g = getGirl(id);
   if (!g || g.isDeleted) return;
   state.editingGirlId = id;
   if (DOM.girlModalTitle) DOM.girlModalTitle.textContent = 'تعديل بيانات المخدومة';
@@ -1150,7 +1380,8 @@ function editGirl(id) {
 if (DOM.deleteGirlBtn) {
   DOM.deleteGirlBtn.addEventListener('click', async () => {
     if (!state.editingGirlId || state.deleteInProgress) return;
-    const g = state.girls.find(x => x.id === state.editingGirlId);
+    // Use Map lookup (Improvement #3)
+    const g = getGirl(state.editingGirlId);
     if (!g) return;
 
     closeModal('girlModal');
@@ -1167,6 +1398,7 @@ if (DOM.deleteGirlBtn) {
         try {
           const id = state.editingGirlId;
           state.girls = state.girls.filter(x => x.id !== id);
+          state.girlsById.delete(id);
           const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
           attKeys.forEach(k => delete state.attendanceData[k]);
 
@@ -1224,16 +1456,21 @@ if (DOM.saveGirlBtn) {
       if (!grade) { showToast('الرجاء اختيار السنة الدراسية', 'error'); return; }
 
       const normalizedName = normalizeName(name);
-      const existingGirl = state.girls.find(g =>
-        normalizeName(g.name) === normalizedName && g.id !== state.editingGirlId && !g.isDeleted
-      );
+      // Use Map for duplicate check (Improvement #3)
+      let existingGirl = null;
+      for (const g of state.girls) {
+        if (normalizeName(g.name) === normalizedName && g.id !== state.editingGirlId && !g.isDeleted) {
+          existingGirl = g;
+          break;
+        }
+      }
       if (existingGirl) { showToast('هذه المخدومة موجودة بالفعل', 'error'); return; }
 
       const id = state.editingGirlId || 'girl_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
       const now = Date.now();
       const girlData = {
         id, name, phone, grade, notes,
-        createdAt: state.editingGirlId ? (state.girls.find(g => g.id === state.editingGirlId)?.createdAt || now) : now,
+        createdAt: state.editingGirlId ? (getGirl(state.editingGirlId)?.createdAt || now) : now,
         updatedAt: now,
         updatedBy: state.currentUser?.displayName || 'خادم',
         updatedByEmail: state.currentUser?.email || '',
@@ -1245,6 +1482,7 @@ if (DOM.saveGirlBtn) {
       } else {
         state.girls.push(girlData);
       }
+      state.girlsById.set(id, girlData);
 
       await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
 
@@ -1267,7 +1505,8 @@ if (DOM.saveGirlBtn) {
 // GIRL PROFILE
 // ============================================================
 function showGirlProfile(id) {
-  const g = state.girls.find(x => x.id === id);
+  // Use Map lookup (Improvement #3)
+  const g = getGirl(id);
   if (!g || g.isDeleted) return;
   state.currentProfileGirlId = id;
   if (DOM.profileName) DOM.profileName.textContent = g.name;
@@ -1350,7 +1589,8 @@ if (DOM.shareProfileBtn) {
   DOM.shareProfileBtn.addEventListener('click', async () => {
     const id = state.currentProfileGirlId;
     if (!id) return;
-    const g = state.girls.find(x => x.id === id);
+    // Use Map lookup (Improvement #3)
+    const g = getGirl(id);
     if (!g) return;
 
     const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
@@ -1358,7 +1598,7 @@ if (DOM.shareProfileBtn) {
     const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
     const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
 
-      const shareText = `👧 ${g.name}
+    const shareText = `👧 ${g.name}
 📚 ${g.grade}
 \u2705 حضور: ${presentCount}
 \u274C غياب: ${absentCount}
@@ -1466,6 +1706,9 @@ function debouncedAttSearch() {
 
 if (DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', debouncedAttSearch);
 
+// ============================================================
+// TOGGLE ATTENDANCE — with partial DOM update (Improvement #2, #7)
+// ============================================================
 async function toggleAttendanceStatus(girlId, girlName, date) {
   const key = `${girlId}_${date}_${state.selectedActivity}`;
   const existing = state.attendanceData[key];
@@ -1492,7 +1735,9 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
     catch (e) { console.error('Save attendance Firestore error:', e); }
   }
 
-  renderAttendanceList();
+  // Partial DOM update instead of full re-render (Improvement #2)
+  smartAttendanceRender(girlId, date, state.selectedActivity);
+
   if (state.currentPage === 'home') renderHome();
   if (state.currentPage === 'stats') renderStats();
   if (state.currentPage === 'calendar') renderCalendar();
@@ -1604,6 +1849,8 @@ async function selectAllStatus(status) {
 
   await logHistory('تسجيل حضور', `${status === 'حاضر' ? 'تحديد الكل حاضر' : 'تحديد الكل غائب'} - ${state.selectedActivity} - ${date}`);
   showToast(status === 'حاضر' ? 'تم تحديد الكل حاضر' : 'تم تحديد الكل غائب', 'success');
+
+  // For select-all, do full render since many rows changed
   renderAttendanceList();
   if (state.currentPage === 'home') renderHome();
   if (state.currentPage === 'stats') renderStats();
@@ -1690,7 +1937,7 @@ function renderAttendanceList() {
 }
 
 // ============================================================
-// INLINE RATING — Quick star rating directly in attendance list
+// INLINE RATING — with partial DOM update (Improvement #2)
 // ============================================================
 async function saveInlineRating(attKey, rating) {
   const rec = state.attendanceData[attKey];
@@ -1712,12 +1959,27 @@ async function saveInlineRating(attKey, rating) {
     catch (e) { console.error('Save inline rating Firestore error:', e); }
   }
 
-  const g = state.girls.find(x => x.id === rec.girlId);
+  // Use Map lookup (Improvement #3)
+  const g = getGirl(rec.girlId);
   await logHistory('تقييم مخدومة', `${g?.name || ''} - ${rec.activity} - ${rec.date} - ${rating} نجوم`);
   showToast(`تم التقييم: ${rating} نجوم`, 'success');
 
-  // Refresh the attendance list to show updated stars
-  renderAttendanceList();
+  // Partial DOM update — only update the stars in this row (Improvement #2)
+  const row = DOM.attendanceList?.querySelector(`[data-att-key="${CSS.escape(attKey)}"]`);
+  if (row) {
+    const starsContainer = row.querySelector('.att-inline-stars');
+    const ratingVal = row.querySelector('.att-inline-rating-val');
+    const ratingHint = row.querySelector('.att-inline-rating-hint');
+    if (starsContainer) {
+      starsContainer.querySelectorAll('.att-inline-star').forEach((star, idx) => {
+        const val = parseInt(star.dataset.val);
+        star.classList.toggle('active', val <= rating);
+      });
+    }
+    if (ratingVal) ratingVal.textContent = `${rating}/5`;
+    if (ratingHint) ratingHint.style.display = rating > 0 ? 'none' : '';
+  }
+
   if (state.currentPage === 'home') renderHome();
   if (state.currentPage === 'stats') renderStats();
 }
@@ -1787,11 +2049,14 @@ if (DOM.saveAttendanceEntry) {
       catch (e) { console.error('Save attendance Firestore error:', e); }
     }
 
-    const gName = state.girls.find(g => g.id === state.currentAttendanceGirlId)?.name || '';
+    // Use Map lookup (Improvement #3)
+    const gName = getGirl(state.currentAttendanceGirlId)?.name || '';
     await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
     closeModal('attendanceModal');
     showToast('تم الحفظ', 'success');
-    renderAttendanceList();
+
+    // Partial DOM update (Improvement #2)
+    smartAttendanceRender(state.currentAttendanceGirlId, date, state.selectedActivity);
 
     if (state.currentPage === 'home') renderHome();
     if (state.currentPage === 'stats') renderStats();
@@ -1811,6 +2076,17 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = TimeContext.getDate();
 
+  // Build activeGirlIds Set once (Improvement #3)
+  const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+
+  // Pre-compute which dates have attendance data (single pass)
+  const datesWithData = new Set();
+  Object.values(state.attendanceData).forEach(a => {
+    if (activeGirlIds.has(a.girlId)) {
+      datesWithData.add(a.date);
+    }
+  });
+
   let html = '<div class="cal-weekdays">';
   ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
   html += '</div><div class="cal-days">';
@@ -1819,8 +2095,7 @@ function renderCalendar() {
     const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
     const dayOfWeek = new Date(year, month, d).getDay();
     const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
-    const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const hasData = Object.values(state.attendanceData).some(a => a.date === dateStr && activeGirlIds.has(a.girlId));
+    const hasData = datesWithData.has(dateStr);
     const isToday = dateStr === todayStr;
     html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
       <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
@@ -1852,7 +2127,11 @@ function refreshDayDetail() {
   const records = Object.values(state.attendanceData).filter(a => a.date === dateStr);
   const el = DOM.dayDetail;
 
-  const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+  // Use Map for lookups (Improvement #3)
+  const activeGirlIds = new Set();
+  for (const g of state.girls) {
+    if (!g.isDeleted) activeGirlIds.add(g.id);
+  }
   const filteredRecords = records.filter(r => activeGirlIds.has(r.girlId));
 
   if (!filteredRecords.length) {
@@ -1974,7 +2253,8 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
 
   Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
     girlRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const girl = activeGirls.find(g => g.id === girlId);
+    // Use Map lookup (Improvement #3)
+    const girl = getGirl(girlId);
     if (!girl) return;
 
     const pCount = girlRecords.filter(r => r.status === 'حاضر').length;
@@ -2205,7 +2485,8 @@ function renderStats() {
   if (DOM.absenceChart) {
     DOM.absenceChart.innerHTML = sortedAbs.length
       ? sortedAbs.map(([id, count]) => {
-        const g = state.girls.find(x => x.id === id);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(id);
         if (!g) return '';
         const pct = Math.round((count / maxAbs) * 100);
         return `<div class="chart-row">
@@ -2233,7 +2514,8 @@ function renderStats() {
   if (DOM.attendanceRanking) {
     DOM.attendanceRanking.innerHTML = sortedPresents.length
       ? sortedPresents.map(([id, count], i) => {
-        const g = state.girls.find(x => x.id === id);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(id);
         if (!g) return '';
         return `<div class="rank-item">
           <span class="rank-num">${i + 1}</span>
@@ -2465,7 +2747,8 @@ if (DOM.exportCSV) {
       const grouped = {};
       exportAtt.forEach(a => {
         if (!grouped[a.girlId]) {
-          const g = state.girls.find(x => x.id === a.girlId);
+          // Use Map lookup (Improvement #3)
+          const g = getGirl(a.girlId);
           grouped[a.girlId] = {
             name: g?.name || '', grade: g?.grade || '',
             'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
@@ -2513,7 +2796,8 @@ if (DOM.exportCSV) {
       detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
 
       exportAtt.forEach(a => {
-        const g = state.girls.find(x => x.id === a.girlId);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(a.girlId);
         const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
         const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
         detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
@@ -2633,7 +2917,8 @@ if (DOM.exportPrint) {
       const grouped = {};
       exportAtt.forEach(a => {
         if (!grouped[a.girlId]) {
-          const g = state.girls.find(x => x.id === a.girlId);
+          // Use Map lookup (Improvement #3)
+          const g = getGirl(a.girlId);
           grouped[a.girlId] = {
             name: g?.name || '', grade: g?.grade || '',
             'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
@@ -2896,7 +3181,8 @@ function setupDelegation() {
       }
       const item = e.target.closest('.att-item');
       if (item) {
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
       }
     });
@@ -2907,7 +3193,8 @@ function setupDelegation() {
       state.isLongPress = false;
       state.longPressTimer = setTimeout(() => {
         state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
       }, 500);
     });
@@ -2925,7 +3212,8 @@ function setupDelegation() {
       state.isLongPress = false;
       state.longPressTimer = setTimeout(() => {
         state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        // Use Map lookup (Improvement #3)
+        const g = getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
       }, 500);
     }, { passive: true });
