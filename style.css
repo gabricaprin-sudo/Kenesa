@@ -88,7 +88,6 @@
 [data-theme="dark"] .today-card { background: linear-gradient(135deg, #1e2d4d 0%, #2a3d6b 100%); }
 [data-theme="dark"] .cal-day.empty { background: transparent; }
 [data-theme="dark"] .service-dot { background: var(--accent); }
-[data-theme="dark"] 
 [data-theme="dark"] .filter-select { background: #131c30; color: var(--text); border-color: #2a3650; }
 [data-theme="dark"] .edit-btn { background: #1e293b; }
 [data-theme="dark"] .grade-badge { background: rgba(201,214,240,0.15); color: var(--primary); }
@@ -97,7 +96,6 @@
 [data-theme="dark"] .cal-wday { color: #8892a8; }
 [data-theme="dark"] .cal-day.service-day { background: rgba(201,214,240,0.08); }
 [data-theme="dark"] .activity-detail-tabs { background: #0f1525; }
-[data-theme="dark"] 
 [data-theme="dark"] .splash { background: linear-gradient(160deg, #0f1525 0%, #1a2744 50%, #0f1525 100%); }
 [data-theme="dark"] .login-bg {
   background: #0a1a38;

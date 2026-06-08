@@ -190,6 +190,7 @@ const state = {
   attSearchDebounceTimer: null,
   attendancePageInitialized: false,
   savingGirl: false,
+  idb: false,
 };
 
 const HISTORY_PAGE_SIZE = 30;
@@ -247,6 +248,68 @@ const DateUtil = {
   }
 };
 
+// ============================================================
+// TIMECONTEXT — Unified Date Source for the entire app
+// Every page uses this instead of computing dates independently
+// ============================================================
+const TimeContext = {
+  _selectedDate: null,
+  _listeners: [],
+
+  init() {
+    const saved = localStorage.getItem('trackerSelectedDate');
+    this._selectedDate = saved || DateUtil.toStr();
+  },
+
+  /** Get the currently selected date (YYYY-MM-DD) */
+  getDate() {
+    return this._selectedDate || DateUtil.toStr();
+  },
+
+  /** Set the selected date and notify all listeners */
+  setDate(dateStr) {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      console.warn('Invalid date format:', dateStr);
+      return;
+    }
+    this._selectedDate = dateStr;
+    localStorage.setItem('trackerSelectedDate', dateStr);
+    this._notifyListeners(dateStr);
+  },
+
+  /** Get month string (YYYY-MM) */
+  getMonth() {
+    return this._selectedDate.substring(0, 7);
+  },
+
+  /** Get year string (YYYY) */
+  getYear() {
+    return this._selectedDate.substring(0, 4);
+  },
+
+  /** Reset to today */
+  resetToToday() {
+    this._selectedDate = DateUtil.toStr();
+    localStorage.removeItem('trackerSelectedDate');
+    this._notifyListeners(this._selectedDate);
+  },
+
+  /** Subscribe to date changes */
+  subscribe(fn) {
+    this._listeners.push(fn);
+    return () => {
+      this._listeners = this._listeners.filter(l => l !== fn);
+    };
+  },
+
+  _notifyListeners(dateStr) {
+    this._listeners.forEach(fn => {
+      try { fn(dateStr); } catch (e) { console.error('TimeContext listener error:', e); }
+    });
+  }
+};
+
+
 function getServiceDaysInMonth(year, month) {
   const days = [];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -299,19 +362,16 @@ function hasConsecutiveAbsences(girlId, monthStr) {
 // UNIFIED STATS BOUNDS — All stats use this single function
 // ============================================================
 function getStatsBounds() {
-  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+  // Unified: always use TimeContext as the single date source
+  const selectedDate = TimeContext.getDate();
 
   switch (state.statsTimeFilter) {
     case 'today':
       return { start: selectedDate, end: selectedDate };
-    case 'month': {
-      const year = parseInt(selectedDate.substring(0, 4));
-      const month = parseInt(selectedDate.substring(5, 7));
-      const lastDay = new Date(year, month, 0).getDate();
-      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
-    }
+    case 'month':
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
     case 'year':
-      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
+      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
     default: // 'all'
       return { start: '2000-01-01', end: selectedDate };
   }
@@ -592,9 +652,8 @@ async function loadData() {
   try {
     if (!firebaseReady || !window._fb) return;
 
-    const { getDocs, query, collection, orderBy, onSnapshot, doc, setDoc } = window._fb;
-
-    const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy } = window._fb;
+    // Destructure Firestore functions once
+    const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy, getDocs: _getDocs, doc: _doc, setDoc: _setDoc, writeBatch: _writeBatch, deleteDoc: _deleteDoc } = window._fb;
 
     _onSnapshot(_query(_collection(db, 'girls'), _orderBy('name')), snap => {
       let changed = false;
@@ -813,11 +872,12 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 // HOME PAGE — FIXED: Auto-count absences on service days
 // ============================================================
 function renderHome() {
-  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+  // Use TimeContext for unified date source
+  const selectedDate = TimeContext.getDate();
   const now = new Date(selectedDate + 'T00:00:00');
   const dayName = DateUtil.dayName(now);
-  const dateStr = DateUtil.toStr(now);
-  const monthStr = DateUtil.getMonthStr(now);
+  const dateStr = selectedDate;
+  const monthStr = TimeContext.getMonth();
 
   if (DOM.todayDay) DOM.todayDay.textContent = `${DateUtil.formatDateShort(now)} ${dayName}`;
   if (DOM.todayDate) DOM.todayDate.textContent = now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -1030,8 +1090,7 @@ function renderGirlsList() {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
     return;
   }
-  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
-  const monthStr = selectedDate.substring(0, 7);
+  const monthStr = TimeContext.getMonth();
   const frag = document.createDocumentFragment();
   filtered.forEach(g => {
     const presents = Object.values(state.attendanceData).filter(a =>
@@ -1215,14 +1274,7 @@ function showGirlProfile(id) {
   const totalRecords = girlAtt.length;
   const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
   const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
-  // Calculate attendance rate based on actual service days (not just records)
-  const monthsWithRecords = [...new Set(girlAtt.map(a => a.date?.substring(0, 7)).filter(Boolean))];
-  let totalServiceDays = 0;
-  monthsWithRecords.forEach(m => {
-    const [y, mo] = m.split('-').map(Number);
-    totalServiceDays += getServiceDaysInMonth(y, mo - 1).length;
-  });
-  const attendanceRate = totalServiceDays > 0 ? Math.round((presentCount / totalServiceDays) * 100) : 0;
+  const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
   const ratings = girlAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '0';
   const lastAttendance = girlAtt.find(a => a.status === 'حاضر');
@@ -1339,7 +1391,8 @@ function isServiceDayDate(dateStr) {
 
 function renderAttendancePage() {
   if (!DOM.attendanceDate) return;
-  if (!DOM.attendanceDate.value) DOM.attendanceDate.value = DateUtil.toStr();
+  // Use TimeContext and always update to the selected date
+  DOM.attendanceDate.value = TimeContext.getDate();
 
   const currentServiceDay = getCurrentServiceDay();
   if (currentServiceDay && !state.attendancePageInitialized) {
@@ -1392,6 +1445,8 @@ $$('.act-tab').forEach(b => b.addEventListener('click', () => {
 }));
 if (DOM.attendanceDate) {
   DOM.attendanceDate.addEventListener('change', () => {
+    // Sync selected date to TimeContext so all pages stay in sync
+    TimeContext.setDate(DOM.attendanceDate.value);
     state.attendancePageInitialized = false;
     renderAttendancePage();
   });
@@ -1783,7 +1838,7 @@ function renderCalendar() {
 
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayStr = DateUtil.toStr();
+  const todayStr = TimeContext.getDate();
 
   let html = '<div class="cal-weekdays">';
   ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
@@ -1803,9 +1858,9 @@ function renderCalendar() {
   html += '</div>';
   if (DOM.calendarGrid) DOM.calendarGrid.innerHTML = html;
 
-  // Auto-show today's details if today is in the current month view
+  // Only auto-show today on initial load, not when user navigates
   const now = new Date();
-  if (year === now.getFullYear() && month === now.getMonth()) {
+  if (year === now.getFullYear() && month === now.getMonth() && !currentDayDetailDate) {
     currentDayDetailDate = todayStr;
     refreshDayDetail();
   } else if (currentDayDetailDate) {
@@ -1854,6 +1909,11 @@ if (DOM.calPrev) {
   DOM.calPrev.addEventListener('click', () => {
     hideDayDetail();
     state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
+    // Sync calendar navigation to TimeContext
+    const y = state.calendarDate.getFullYear();
+    const m = state.calendarDate.getMonth() + 1;
+    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
+    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
     renderCalendar();
   });
 }
@@ -1861,6 +1921,11 @@ if (DOM.calNext) {
   DOM.calNext.addEventListener('click', () => {
     hideDayDetail();
     state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
+    // Sync calendar navigation to TimeContext
+    const y = state.calendarDate.getFullYear();
+    const m = state.calendarDate.getMonth() + 1;
+    const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
+    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
     renderCalendar();
   });
 }
@@ -1869,16 +1934,12 @@ if (DOM.calNext) {
 // ACTIVITY STATS — FIXED: Show both present AND absence data
 // ============================================================
 function getPeriodBounds(period, customDate) {
-  const selectedDate = customDate || (DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr());
+  // Unified: use TimeContext, with optional override
+  const selectedDate = customDate || TimeContext.getDate();
   switch (period) {
     case 'today': return { start: selectedDate, end: selectedDate };
-    case 'month': {
-      const year = parseInt(selectedDate.substring(0, 4));
-      const month = parseInt(selectedDate.substring(5, 7));
-      const lastDay = new Date(year, month, 0).getDate();
-      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
-    }
-    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
+    case 'month': return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
+    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
     case 'all': default: return { start: '2000-01-01', end: selectedDate };
   }
 }
@@ -2033,8 +2094,8 @@ if (DOM.closeActivityDetailModal) {
 // ============================================================
 // ACTIVITY STAT CARDS — FIXED: Show both present and absent
 // ============================================================
-function renderActivityStats(period, gradeFilter = '', selectedDate) {
-  const stats = getActivityStats(period, gradeFilter, selectedDate);
+function renderActivityStats(period, gradeFilter = '') {
+  const stats = getActivityStats(period, gradeFilter);
   const el = DOM.activityStatsGrid;
   if (!el) return;
 
@@ -2073,8 +2134,9 @@ if (DOM.activityStatsGrid) {
 // STATS PAGE
 // ============================================================
 function renderStats() {
-  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
-  if (DOM.statsMonth && !DOM.statsMonth.value) DOM.statsMonth.value = selectedDate;
+  // Use TimeContext as the single source of truth
+  const selectedDate = TimeContext.getDate();
+  if (DOM.statsMonth) DOM.statsMonth.value = selectedDate;
 
   // Unified date bounds from the three interconnected filters
   const { start, end } = getStatsBounds();
@@ -2148,7 +2210,7 @@ function renderStats() {
       <div class="big-stat-card orange-card"><div class="big-num">${followupCount}</div><div>تحتاج متابعة</div></div>`;
   }
 
-  renderActivityStats(state.statsTimeFilter, gradeFilter, selectedDate);
+  renderActivityStats(state.statsTimeFilter, gradeFilter);
 
   const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
@@ -2208,7 +2270,12 @@ function renderStats() {
   }
 }
 
-if (DOM.statsMonth) DOM.statsMonth.addEventListener('change', renderStats);
+if (DOM.statsMonth) {
+  DOM.statsMonth.addEventListener('change', () => {
+    TimeContext.setDate(DOM.statsMonth.value);
+    renderStats();
+  });
+}
 
 if (DOM.timeFilterTabs) {
   DOM.timeFilterTabs.addEventListener('click', e => {
@@ -2364,7 +2431,14 @@ async function logHistory(action, detail) {
 // EXPORT PAGE — FIXED: Day/Month selection with ✓ and X symbols
 // ============================================================
 function renderExport() {
-  if (DOM.exportMonth && !DOM.exportMonth.value) DOM.exportMonth.value = DateUtil.toStr();
+  if (DOM.exportMonth) DOM.exportMonth.value = TimeContext.getDate();
+}
+
+// Sync exportMonth changes to TimeContext
+if (DOM.exportMonth) {
+  DOM.exportMonth.addEventListener('change', () => {
+    if (DOM.exportMonth.value) TimeContext.setDate(DOM.exportMonth.value);
+  });
 }
 
 // Excel export — FIXED: Daily report = ✓/✗ per activity, Monthly report = numeric counts
@@ -2373,7 +2447,7 @@ if (DOM.exportCSV) {
     if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
 
     const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
 
     let exportStart, exportEnd, reportTitle;
 
@@ -2525,9 +2599,10 @@ if (DOM.exportCSV) {
     URL.revokeObjectURL(url);
     showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
   });
-}if (DOM.exportJSON) {
+}
+if (DOM.exportJSON) {
   DOM.exportJSON.addEventListener('click', () => {
-    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
     const exportStart = exportDate.substring(0, 7) + '-01';
     const exportEnd = exportDate;
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
@@ -2548,7 +2623,7 @@ if (DOM.exportCSV) {
 if (DOM.exportPrint) {
   DOM.exportPrint.addEventListener('click', () => {
     const exportMode = document.querySelector('input[name="exportMode"]:checked')?.value || 'day';
-    const exportDate = DOM.exportMonth.value || DateUtil.toStr();
+    const exportDate = DOM.exportMonth.value || TimeContext.getDate();
 
     let exportStart, exportEnd;
     if (exportMode === 'month') {
@@ -2936,11 +3011,20 @@ if (girlsSearchInput) {
 
 setupDelegation();
 
+// Subscribe all major render functions to TimeContext date changes
+TimeContext.subscribe(() => {
+  if (state.currentPage === 'home') renderHome();
+  if (state.currentPage === 'girls') renderGirlsList();
+  if (state.currentPage === 'stats') renderStats();
+  if (state.currentPage === 'export') renderExport();
+});
+
 // ============================================================
 // BOOTSTRAP — Fixed with proper error handling
 // ============================================================
 async function bootstrap() {
   initDarkMode();
+  TimeContext.init(); // Initialize unified date source
 
   // Initialize IndexedDB first (always, even without Firebase)
   try {
