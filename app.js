@@ -364,14 +364,18 @@ function hasConsecutiveAbsences(girlId, monthStr) {
 function getStatsBounds() {
   // Unified: always use TimeContext as the single date source
   const selectedDate = TimeContext.getDate();
+  const selYear = parseInt(selectedDate.substring(0, 4));
+  const selMonth = parseInt(selectedDate.substring(5, 7));
 
   switch (state.statsTimeFilter) {
     case 'today':
       return { start: selectedDate, end: selectedDate };
-    case 'month':
-      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
+    case 'month': {
+      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
+    }
     case 'year':
-      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
     default: // 'all'
       return { start: '2000-01-01', end: selectedDate };
   }
@@ -1936,10 +1940,15 @@ if (DOM.calNext) {
 function getPeriodBounds(period, customDate) {
   // Unified: use TimeContext, with optional override
   const selectedDate = customDate || TimeContext.getDate();
+  const selYear = parseInt(selectedDate.substring(0, 4));
+  const selMonth = parseInt(selectedDate.substring(5, 7));
   switch (period) {
     case 'today': return { start: selectedDate, end: selectedDate };
-    case 'month': return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
-    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+    case 'month': {
+      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
+    }
+    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
     case 'all': default: return { start: '2000-01-01', end: selectedDate };
   }
 }
