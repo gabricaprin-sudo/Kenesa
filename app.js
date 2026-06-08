@@ -2080,17 +2080,35 @@ function renderStats() {
   );
 
   const totalSessions = new Set(monthAtt.map(a => a.date)).size;
-  const presents = monthAtt.filter(a => a.status === 'حاضر').length;
-  const absents = monthAtt.filter(a => a.status === 'غائب').length;
+
+  // Group records by girlId+date to count per-person-per-day (like home page)
+  // A girl is present on a day if ANY activity is حاضر, absent otherwise
+  const recordsByGirlDate = {};
+  monthAtt.forEach(a => {
+    const key = `${a.girlId}_${a.date}`;
+    if (!recordsByGirlDate[key]) recordsByGirlDate[key] = { girlId: a.girlId, date: a.date, hasPresent: false, hasAbsent: false };
+    if (a.status === 'حاضر') recordsByGirlDate[key].hasPresent = true;
+    if (a.status === 'غائب') recordsByGirlDate[key].hasAbsent = true;
+  });
+
+  let presents = 0;
+  let absents = 0;
+  Object.values(recordsByGirlDate).forEach(day => {
+    if (day.hasPresent) presents++;
+    else if (day.hasAbsent) absents++;
+  });
+
   const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '-';
 
   // Follow-up uses the same unified bounds
   const followupCount = activeGirls.filter(g => {
-    const absRecords = Object.values(state.attendanceData)
-      .filter(a => a.girlId === g.id && a.date >= start && a.date <= end && a.status === 'غائب');
-    if (absRecords.length < 2) return false;
-    const absDates = [...new Set(absRecords.map(a => a.date))].sort();
+    const absDates = [...new Set(
+      Object.values(state.attendanceData)
+        .filter(a => a.girlId === g.id && a.date >= start && a.date <= end && a.status === 'غائب')
+        .map(a => a.date)
+    )].sort();
+    if (absDates.length < 2) return false;
     for (let i = 0; i < absDates.length - 1; i++) {
       const d1 = new Date(absDates[i] + 'T00:00:00');
       const d2 = new Date(absDates[i + 1] + 'T00:00:00');
@@ -2117,11 +2135,14 @@ function renderStats() {
   const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
 
+  // Absence chart — count unique dates per girl (not individual activity records)
   const absenceByGirl = {};
-  activeGirls.forEach(g => absenceByGirl[g.id] = 0);
+  activeGirls.forEach(g => absenceByGirl[g.id] = new Set());
   monthAtt.filter(a => a.status === 'غائب').forEach(a => {
-    if (absenceByGirl[a.girlId] !== undefined) absenceByGirl[a.girlId]++;
+    if (absenceByGirl[a.girlId] !== undefined) absenceByGirl[a.girlId].add(a.date);
   });
+  // Convert Sets to counts
+  Object.keys(absenceByGirl).forEach(id => { absenceByGirl[id] = absenceByGirl[id].size; });
   const maxAbs = Math.max(...Object.values(absenceByGirl), 1);
   const sortedAbs = Object.entries(absenceByGirl).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
@@ -2140,11 +2161,14 @@ function renderStats() {
       : `<div class="empty-state">لا توجد غيابات حتى ${dateLabel} &#127881;</div>`;
   }
 
+  // Attendance ranking — count unique dates per girl (not individual activity records)
   const presentsByGirl = {};
-  activeGirls.forEach(g => presentsByGirl[g.id] = 0);
+  activeGirls.forEach(g => presentsByGirl[g.id] = new Set());
   monthAtt.filter(a => a.status === 'حاضر').forEach(a => {
-    if (presentsByGirl[a.girlId] !== undefined) presentsByGirl[a.girlId]++;
+    if (presentsByGirl[a.girlId] !== undefined) presentsByGirl[a.girlId].add(a.date);
   });
+  // Convert Sets to counts
+  Object.keys(presentsByGirl).forEach(id => { presentsByGirl[id] = presentsByGirl[id].size; });
 
   const sortedPresents = Object.entries(presentsByGirl)
     .filter(([, c]) => c > 0)
