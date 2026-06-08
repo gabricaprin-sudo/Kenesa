@@ -304,10 +304,14 @@ function getStatsBounds() {
   switch (state.statsTimeFilter) {
     case 'today':
       return { start: selectedDate, end: selectedDate };
-    case 'month':
-      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
+    case 'month': {
+      const year = parseInt(selectedDate.substring(0, 4));
+      const month = parseInt(selectedDate.substring(5, 7));
+      const lastDay = new Date(year, month, 0).getDate();
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
+    }
     case 'year':
-      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+      return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
     default: // 'all'
       return { start: '2000-01-01', end: selectedDate };
   }
@@ -809,7 +813,8 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 // HOME PAGE — FIXED: Auto-count absences on service days
 // ============================================================
 function renderHome() {
-  const now = new Date();
+  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+  const now = new Date(selectedDate + 'T00:00:00');
   const dayName = DateUtil.dayName(now);
   const dateStr = DateUtil.toStr(now);
   const monthStr = DateUtil.getMonthStr(now);
@@ -1025,7 +1030,8 @@ function renderGirlsList() {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
     return;
   }
-  const monthStr = DateUtil.getMonthStr(new Date());
+  const selectedDate = DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr();
+  const monthStr = selectedDate.substring(0, 7);
   const frag = document.createDocumentFragment();
   filtered.forEach(g => {
     const presents = Object.values(state.attendanceData).filter(a =>
@@ -1209,7 +1215,14 @@ function showGirlProfile(id) {
   const totalRecords = girlAtt.length;
   const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
   const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
-  const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+  // Calculate attendance rate based on actual service days (not just records)
+  const monthsWithRecords = [...new Set(girlAtt.map(a => a.date?.substring(0, 7)).filter(Boolean))];
+  let totalServiceDays = 0;
+  monthsWithRecords.forEach(m => {
+    const [y, mo] = m.split('-').map(Number);
+    totalServiceDays += getServiceDaysInMonth(y, mo - 1).length;
+  });
+  const attendanceRate = totalServiceDays > 0 ? Math.round((presentCount / totalServiceDays) * 100) : 0;
   const ratings = girlAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '0';
   const lastAttendance = girlAtt.find(a => a.status === 'حاضر');
@@ -1856,11 +1869,16 @@ if (DOM.calNext) {
 // ACTIVITY STATS — FIXED: Show both present AND absence data
 // ============================================================
 function getPeriodBounds(period, customDate) {
-  const selectedDate = customDate || DateUtil.toStr();
+  const selectedDate = customDate || (DOM.statsMonth && DOM.statsMonth.value ? DOM.statsMonth.value : DateUtil.toStr());
   switch (period) {
     case 'today': return { start: selectedDate, end: selectedDate };
-    case 'month': return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate };
-    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate };
+    case 'month': {
+      const year = parseInt(selectedDate.substring(0, 4));
+      const month = parseInt(selectedDate.substring(5, 7));
+      const lastDay = new Date(year, month, 0).getDate();
+      return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
+    }
+    case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
     case 'all': default: return { start: '2000-01-01', end: selectedDate };
   }
 }
@@ -2015,8 +2033,8 @@ if (DOM.closeActivityDetailModal) {
 // ============================================================
 // ACTIVITY STAT CARDS — FIXED: Show both present and absent
 // ============================================================
-function renderActivityStats(period, gradeFilter = '') {
-  const stats = getActivityStats(period, gradeFilter);
+function renderActivityStats(period, gradeFilter = '', selectedDate) {
+  const stats = getActivityStats(period, gradeFilter, selectedDate);
   const el = DOM.activityStatsGrid;
   if (!el) return;
 
@@ -2130,7 +2148,7 @@ function renderStats() {
       <div class="big-stat-card orange-card"><div class="big-num">${followupCount}</div><div>تحتاج متابعة</div></div>`;
   }
 
-  renderActivityStats(state.statsTimeFilter, gradeFilter);
+  renderActivityStats(state.statsTimeFilter, gradeFilter, selectedDate);
 
   const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
