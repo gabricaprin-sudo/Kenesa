@@ -318,8 +318,53 @@ function xmlEsc(str = '') {
 }
 
 // ============================================================
-// DATE UTILITIES
+// DATE UTILITIES — FIXED: Safe date parsing without timezone bugs
 // ============================================================
+
+/**
+ * FIXED: Safely parse a YYYY-MM-DD string into a Date object.
+ * Uses new Date(year, month-1, day) to avoid timezone shift bugs
+ * that can occur with new Date("YYYY-MM-DDT00:00:00").
+ */
+function parseDateStr(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return new Date(NaN);
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return new Date(NaN);
+  const [year, month, day] = parts;
+  // Validate ranges
+  if (month < 1 || month > 12 || day < 1 || day > 31) return new Date(NaN);
+  return new Date(year, month - 1, day);
+}
+
+/**
+ * FIXED: Compare two date strings (YYYY-MM-DD) safely.
+ * Returns -1 if a < b, 0 if equal, 1 if a > b.
+ */
+function compareDateStr(a, b) {
+  if (a === b) return 0;
+  const da = parseDateStr(a);
+  const db = parseDateStr(b);
+  const ta = da.getTime();
+  const tb = db.getTime();
+  if (isNaN(ta) || isNaN(tb)) return String(a).localeCompare(String(b));
+  return ta < tb ? -1 : ta > tb ? 1 : 0;
+}
+
+/**
+ * FIXED: Check if a date string is within a range [start, end] (inclusive).
+ */
+function isDateInRange(dateStr, start, end) {
+  return compareDateStr(dateStr, start) >= 0 && compareDateStr(dateStr, end) <= 0;
+}
+
+/**
+ * FIXED: Generate a consistent attendance record key.
+ * Centralized key format to avoid mismatch bugs.
+ */
+function makeAttKey(girlId, date, activity) {
+  return `${girlId}_${date}_${activity}`;
+}
+
 const DateUtil = {
   pad: (n) => String(n).padStart(2, '0'),
   toStr(d = new Date()) {
@@ -353,6 +398,7 @@ const DateUtil = {
 
 // ============================================================
 // TIMECONTEXT — Unified Date Source for the entire app
+// FIXED: Added null-safety protection for substring operations
 // ============================================================
 const TimeContext = {
   _selectedDate: null,
@@ -360,7 +406,12 @@ const TimeContext = {
 
   init() {
     const saved = localStorage.getItem('trackerSelectedDate');
-    this._selectedDate = saved || DateUtil.toStr();
+    // FIXED: Validate saved date format before using
+    if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
+      this._selectedDate = saved;
+    } else {
+      this._selectedDate = DateUtil.toStr();
+    }
   },
 
   /** Get the currently selected date (YYYY-MM-DD) */
@@ -379,14 +430,16 @@ const TimeContext = {
     this._notifyListeners(dateStr);
   },
 
-  /** Get month string (YYYY-MM) */
+  /** Get month string (YYYY-MM) — FIXED: with null safety */
   getMonth() {
-    return this._selectedDate.substring(0, 7);
+    const d = this._selectedDate || DateUtil.toStr();
+    return d.substring(0, 7);
   },
 
-  /** Get year string (YYYY) */
+  /** Get year string (YYYY) — FIXED: with null safety */
   getYear() {
-    return this._selectedDate.substring(0, 4);
+    const d = this._selectedDate || DateUtil.toStr();
+    return d.substring(0, 4);
   },
 
   /** Reset to today */
@@ -458,13 +511,21 @@ function getServiceDaysInMonth(year, month) {
 
 function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
   let count = 0;
-  const to = new Date(toDate + 'T00:00:00');
-  const daysInMonth = new Date(fromYear, fromMonth + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = `${fromYear}-${DateUtil.pad(fromMonth + 1)}-${DateUtil.pad(d)}`;
-    const current = new Date(dateStr + 'T00:00:00');
-    if (current > to) break;
-    const dayOfWeek = current.getDay();
+  // FIXED: Use parseDateStr for safe date parsing
+  const to = parseDateStr(toDate);
+  if (isNaN(to.getTime())) return 0;
+
+  const toYear = to.getFullYear();
+  const toMonth = to.getMonth();
+  const toDay = to.getDate();
+
+  // FIXED: Only iterate up to the target day, not the entire month
+  const lastDay = (fromYear === toYear && fromMonth === toMonth)
+    ? toDay
+    : new Date(fromYear, fromMonth + 1, 0).getDate();
+
+  for (let d = 1; d <= lastDay; d++) {
+    const dayOfWeek = new Date(fromYear, fromMonth, d).getDay();
     if (SERVICE_DAY_NUMBERS.includes(dayOfWeek)) {
       count++;
     }
@@ -488,18 +549,30 @@ function hasConsecutiveAbsences(girlId, monthStr) {
   // FIXED: Check actual consecutive service days (not just any 3-day gap)
   // Get service days for this month to check true consecutive absences
   const [year, month] = monthStr.split('-').map(Number);
-  const serviceDays = new Set(getServiceDaysInMonth(year, month - 1));
+  const serviceDays = getServiceDaysInMonth(year, month - 1);
+  const serviceDaySet = new Set(serviceDays);
 
+  // FIXED: Build a map of service day index for each absence date
+  // A girl has consecutive absences if she misses 2+ CONSECUTIVE service days
   let consecutiveCount = 1;
   let maxConsecutive = 1;
 
-  for (let i = 0; i < absDates.length - 1; i++) {
-    const d1 = new Date(absDates[i] + 'T00:00:00');
-    const d2 = new Date(absDates[i + 1] + 'T00:00:00');
-    const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
+  // Get the indices of absDates within the serviceDays array
+  const absentServiceIndices = [];
+  for (let i = 0; i < serviceDays.length; i++) {
+    if (absDates.includes(serviceDays[i])) {
+      absentServiceIndices.push(i);
+    }
+  }
 
-    // Check if both dates are service days and consecutive in service schedule
-    if (diffDays <= 3 && serviceDays.has(absDates[i]) && serviceDays.has(absDates[i + 1])) {
+  if (absentServiceIndices.length < 2) {
+    return { hasConsecutive: false, count: absDates.length, dates: absDates };
+  }
+
+  // Check for consecutive indices in service schedule
+  for (let i = 0; i < absentServiceIndices.length - 1; i++) {
+    if (absentServiceIndices[i + 1] - absentServiceIndices[i] === 1) {
+      // These are truly consecutive service days
       consecutiveCount++;
       maxConsecutive = Math.max(maxConsecutive, consecutiveCount);
     } else {
@@ -1048,7 +1121,8 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 // ============================================================
 function renderHome() {
   const selectedDate = TimeContext.getDate();
-  const now = new Date(selectedDate + 'T00:00:00');
+  // FIXED: Use parseDateStr instead of unsafe new Date(dateStr + 'T00:00:00')
+  const now = parseDateStr(selectedDate);
   const dayName = DateUtil.dayName(now);
   const dateStr = selectedDate;
   const monthStr = TimeContext.getMonth();
@@ -1498,7 +1572,8 @@ function showGirlProfile(id) {
   if (DOM.profileName) DOM.profileName.textContent = g.name;
 
   const girlAtt = Cache.getAllAttendance().filter(a => a.girlId === id);
-  girlAtt.sort((a, b) => new Date(b.date) - new Date(a.date));
+  // FIXED: Use parseDateStr for safe date comparison
+  girlAtt.sort((a, b) => compareDateStr(b.date, a.date));
 
   const totalRecords = girlAtt.length;
   const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
@@ -1513,7 +1588,7 @@ function showGirlProfile(id) {
 
   // FIXED: Use findLast (or reverse find) to get MOST RECENT present record
   // Instead of find which gets first match
-  const sortedAtt = [...girlAtt].sort((a, b) => new Date(a.date) - new Date(b.date)); // oldest first
+  const sortedAtt = [...girlAtt].sort((a, b) => compareDateStr(a.date, b.date)); // oldest first
   const lastAttendance = [...sortedAtt].reverse().find(a => a.status === 'حاضر');
   const lastDate = lastAttendance ? lastAttendance.date : '-';
 
@@ -1556,8 +1631,10 @@ function showGirlProfile(id) {
         <div class="profile-records">
           ${records.map(r => {
             const stars = r.rating ? '&#9733;'.repeat(r.rating) + '&#9734;'.repeat(5 - r.rating) : '';
+            // FIXED: Use parseDateStr for safe day name lookup
+            const dayName = DAY_NAMES[parseDateStr(r.date).getDay()] || '';
             return `<div class="profile-record">
-              <span class="rec-date">${esc(r.date)} ${esc(DAY_NAMES[new Date(r.date + 'T00:00:00').getDay()] || '')}</span>
+              <span class="rec-date">${esc(r.date)} ${esc(dayName)}</span>
               <span class="rec-activity">${esc(r.activity || '')}</span>
               <span class="rec-status ${r.status === 'حاضر' ? 'present' : 'absent'}">${esc(r.status)}</span>
               ${stars ? `<span class="rec-rating">${stars}</span>` : ''}
@@ -1627,7 +1704,9 @@ function getCurrentServiceDay() {
 
 function isServiceDayDate(dateStr) {
   if (!dateStr) return false;
-  const d = new Date(dateStr + 'T00:00:00');
+  // FIXED: Use parseDateStr for safe date parsing
+  const d = parseDateStr(dateStr);
+  if (isNaN(d.getTime())) return false;
   return SERVICE_DAY_NUMBERS.includes(d.getDay());
 }
 
@@ -1699,7 +1778,7 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
   state.pendingAttendanceOps.add(opKey);
 
   try {
-    const key = `${girlId}_${date}_${state.selectedActivity}`;
+    const key = makeAttKey(girlId, date, state.selectedActivity);
     const existing = state.attendanceData[key];
     const newStatus = existing?.status === 'حاضر' ? 'غائب' : 'حاضر';
 
@@ -1752,7 +1831,7 @@ async function markAllAbsentForDate(date) {
 
   for (const g of activeGirls) {
     for (const activity of ACTIVITIES) {
-      const key = `${g.id}_${date}_${activity}`;
+      const key = makeAttKey(g.id, date, activity);
       if (!newAttData[key]) {
         const rec = {
           id: key,
@@ -1801,12 +1880,13 @@ async function markAllAbsentForDate(date) {
 async function autoMarkAbsentForNewGirl(girlId, date) {
   if (!isServiceDayDate(date)) return;
 
-  const dayName = DateUtil.dayName(new Date(date + 'T00:00:00'));
+  // FIXED: Use parseDateStr for safe day name lookup
+  const dayName = DateUtil.dayName(parseDateStr(date));
   const batchRecords = [];
   const newAttData = { ...state.attendanceData };
 
   for (const activity of ACTIVITIES) {
-    const key = `${girlId}_${date}_${activity}`;
+    const key = makeAttKey(girlId, date, activity);
     if (!newAttData[key]) {
       const rec = {
         id: key,
@@ -1846,6 +1926,9 @@ async function markAllAbsent(date) {
   await markAllAbsentForDate(date);
 }
 
+// ============================================================
+// SELECT ALL — FIXED: Only write current date records to Firestore
+// ============================================================
 async function selectAllStatus(status) {
   if (!DOM.attendanceDate) return;
   const date = DOM.attendanceDate.value;
@@ -1853,9 +1936,10 @@ async function selectAllStatus(status) {
 
   const activeGirls = state.girls.filter(g => !g.isDeleted);
   const newAttData = { ...state.attendanceData };
+  const currentDateRecords = []; // FIXED: Track only current date records for Firestore write
 
   for (const g of activeGirls) {
-    const key = `${g.id}_${date}_${state.selectedActivity}`;
+    const key = makeAttKey(g.id, date, state.selectedActivity);
     const rec = {
       id: key,
       girlId: g.id,
@@ -1870,12 +1954,14 @@ async function selectAllStatus(status) {
       updatedByEmail: state.currentUser?.email || ''
     };
     newAttData[key] = rec;
+    currentDateRecords.push(rec); // FIXED: Only records for this date
   }
 
   if (firebaseReady) {
     try {
       const batch = FB.writeBatch(db);
-      Object.values(newAttData).forEach(rec => {
+      // FIXED: Only write records for the CURRENT date, not all attendance
+      currentDateRecords.forEach(rec => {
         batch.set(FB.doc(db, 'attendance', rec.id), rec);
       });
       await batch.commit();
@@ -1895,7 +1981,7 @@ async function selectAllStatus(status) {
 }
 
 // ============================================================
-// RENDER ATTENDANCE LIST — FIXED: O(n) single-pass optimization
+// RENDER ATTENDANCE LIST — FIXED: O(n) single-pass optimization + key consistency
 // ============================================================
 function renderAttendanceList() {
   if (!DOM.attendanceDate || !DOM.attendanceList) return;
@@ -1952,16 +2038,20 @@ function renderAttendanceList() {
   const frag = document.createDocumentFragment();
 
   // Pre-fetch attendance for this date to avoid repeated lookups
+  // FIXED: Use makeAttKey for consistent key generation
   const dateAttendance = {};
   const allAttendance = Cache.getAllAttendance();
   allAttendance.forEach(a => {
     if (a.date === date) {
-      dateAttendance[a.id] = a;
+      // FIXED: Use makeAttKey for consistent key matching
+      const lookupKey = makeAttKey(a.girlId, a.date, a.activity);
+      dateAttendance[lookupKey] = a;
     }
   });
 
   activeGirls.forEach(g => {
-    const key = `${g.id}_${date}_${state.selectedActivity}`;
+    // FIXED: Use makeAttKey helper for consistent key generation
+    const key = makeAttKey(g.id, date, state.selectedActivity);
     const rec = dateAttendance[key];
     let statusClass = 'absent', statusIcon = '&#10007;', statusText = 'غائب';
     if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '&#10003;'; statusText = 'حاضر'; present++; }
@@ -2056,7 +2146,8 @@ function openAttendanceEntry(girlId, girlName, date) {
   if (DOM.modalGirlName) DOM.modalGirlName.textContent = girlName;
   if (DOM.attendanceNotes) DOM.attendanceNotes.value = '';
 
-  const key = `${girlId}_${date}_${state.selectedActivity}`;
+  // FIXED: Use makeAttKey for consistent key generation
+  const key = makeAttKey(girlId, date, state.selectedActivity);
   const existing = state.attendanceData[key];
   if (existing) {
     document.querySelectorAll('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
@@ -2092,7 +2183,8 @@ if (DOM.saveAttendanceEntry) {
     const statusBtn = document.querySelector('.attend-btn.selected');
     if (!statusBtn) { showToast('الرجاء تحديد الحضور أو الغياب', 'error'); return; }
 
-    const key = `${state.currentAttendanceGirlId}_${date}_${state.selectedActivity}`;
+    // FIXED: Use makeAttKey for consistent key generation
+    const key = makeAttKey(state.currentAttendanceGirlId, date, state.selectedActivity);
     const rec = {
       id: key,
       girlId: state.currentAttendanceGirlId,
@@ -2277,7 +2369,8 @@ function getActivityStats(period, gradeFilter = '', customDate) {
   const allAttendance = Cache.getAllAttendance();
   allAttendance.forEach(a => {
     if (!activeGirlIds.has(a.girlId)) return;
-    if (a.date < start || a.date > end) return;
+    // FIXED: Use isDateInRange for safe date comparison
+    if (!isDateInRange(a.date, start, end)) return;
     if (stats.hasOwnProperty(a.activity)) {
       if (a.status === 'حاضر') stats[a.activity].present++;
       else if (a.status === 'غائب') stats[a.activity].absent++;
@@ -2290,7 +2383,7 @@ function getActivityStats(period, gradeFilter = '', customDate) {
 }
 
 // ============================================================
-// ACTIVITY DETAIL MODAL — FIXED: Clearer classification logic
+// ACTIVITY DETAIL MODAL — FIXED: Classification by presence count, not rate
 // ============================================================
 function openActivityDetailModal(activity, period, gradeFilter = '', customDate) {
   const { start, end } = getPeriodBounds(period, customDate);
@@ -2303,7 +2396,8 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
   const records = allAttendance.filter(a => {
     if (a.activity !== activity) return false;
     if (!activeGirlIds.has(a.girlId)) return false;
-    if (a.date < start || a.date > end) return false;
+    // FIXED: Use isDateInRange for safe date comparison
+    if (!isDateInRange(a.date, start, end)) return false;
     return true;
   });
 
@@ -2314,7 +2408,8 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
   const absentGirls = [];
 
   Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
-    girlRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // FIXED: Use parseDateStr for safe date comparison
+    girlRecords.sort((a, b) => compareDateStr(b.date, a.date));
     const girl = Cache.getGirl(girlId);
     if (!girl) return;
 
@@ -2324,8 +2419,9 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
     const rate = total > 0 ? Math.round((pCount / total) * 100) : 0;
 
     const entry = { girl, presentCount: pCount, absentCount: aCount, totalRecords: total, attendanceRate: rate, latestRecord: girlRecords[0] };
-    // FIXED: Classification is based on majority attendance rate (not just count)
-    if (rate >= 50) presentGirls.push(entry);
+    // FIXED: Classification is based on majority presence count (not percentage threshold)
+    // A girl with ANY presence is considered "present" in the activity context
+    if (pCount > aCount) presentGirls.push(entry);
     else absentGirls.push(entry);
   });
 
@@ -2423,7 +2519,8 @@ function renderActivityStats(period, gradeFilter = '') {
   }
 
   const icons = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
-  const medals = ['&#129351;', '&#129352;', '&#129353;', '4'];
+  // FIXED: Use medal emoji for 4th place instead of "4"
+  const medals = ['&#129351;', '&#129352;', '&#129353;', '&#127941;'];
 
   // FIXED: Show both present AND total (clearer metric definition)
   el.innerHTML = stats.map(([activity, data], i) => `
@@ -2488,7 +2585,8 @@ function renderStats() {
 
   // Single pass over all attendance data
   allAttendance.forEach(a => {
-    if (a.date < start || a.date > end) return;
+    // FIXED: Use isDateInRange for safe date comparison
+    if (!isDateInRange(a.date, start, end)) return;
     if (!activeGirlIds.has(a.girlId)) return;
 
     monthAtt.push(a);
@@ -2517,28 +2615,15 @@ function renderStats() {
 
   const avgRating = ratingValues.length ? (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1) : '-';
 
-  // Follow-up: Check consecutive absences using precomputed sets
+  // FIXED: Follow-up count using the centralized hasConsecutiveAbsences function
   let followupCount = 0;
   activeGirls.forEach(g => {
-    const absDates = [...absenceByGirl[g.id]].sort();
-    if (absDates.length < 2) return;
-    const [year, month] = start.substring(0, 7).split('-').map(Number);
-    const serviceDays = new Set(getServiceDaysInMonth(year, month - 1));
-    let consecutiveCount = 1;
-    for (let i = 0; i < absDates.length - 1; i++) {
-      const d1 = new Date(absDates[i] + 'T00:00:00');
-      const d2 = new Date(absDates[i + 1] + 'T00:00:00');
-      const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
-      if (diffDays <= 3 && serviceDays.has(absDates[i]) && serviceDays.has(absDates[i + 1])) {
-        consecutiveCount++;
-        if (consecutiveCount >= 2) { followupCount++; return; }
-      } else {
-        consecutiveCount = 1;
-      }
-    }
+    const result = hasConsecutiveAbsences(g.id, start.substring(0, 7));
+    if (result.hasConsecutive) followupCount++;
   });
 
-  const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'long', day: 'numeric' });
+  // FIXED: Use parseDateStr for safe date formatting
+  const dateLabel = parseDateStr(selectedDate).toLocaleDateString('ar-EG', { month: 'long', day: 'numeric' });
 
   if (DOM.bigStatsGrid) {
     DOM.bigStatsGrid.innerHTML = `
@@ -2787,14 +2872,16 @@ if (DOM.exportCSV) {
     } else {
       exportStart = exportDate;
       exportEnd = exportDate;
-      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
+      // FIXED: Use parseDateStr for safe day name lookup
+      const dayName = DAY_NAMES[parseDateStr(exportDate).getDay()] || '';
       reportTitle = 'تقرير حضور يوم ' + exportDate + ' (' + dayName + ')';
     }
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
     const allAttendance = Cache.getAllAttendance();
+    // FIXED: Use isDateInRange for safe date comparison
     const exportAtt = allAttendance.filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
+      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
     );
 
     const wb = XLSX.utils.book_new();
@@ -2859,7 +2946,8 @@ if (DOM.exportCSV) {
 
       exportAtt.forEach(a => {
         const g = Cache.getGirl(a.girlId);
-        const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
+        // FIXED: Use parseDateStr for safe day name lookup
+        const dayName = DAY_NAMES[parseDateStr(a.date).getDay()] || '';
         const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
         detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
       });
@@ -2879,7 +2967,8 @@ if (DOM.exportCSV) {
       activeGirls.forEach(g => {
         const row = [g.name, g.grade];
         ACTIVITIES.forEach(act => {
-          const key = `${g.id}_${exportDate}_${act}`;
+          // FIXED: Use makeAttKey for consistent key lookup
+          const key = makeAttKey(g.id, exportDate, act);
           const rec = state.attendanceData[key];
           if (rec) {
             row.push(rec.status === 'حاضر' ? '✓' : '✗');
@@ -2922,8 +3011,9 @@ if (DOM.exportJSON) {
     const exportEnd = exportDate;
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
     const allAttendance = Cache.getAllAttendance();
+    // FIXED: Use isDateInRange for safe date comparison
     const exportAtt = allAttendance.filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
+      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
     );
     const payload = {
       dateRange: { start: exportStart, end: exportEnd },
@@ -2954,8 +3044,9 @@ if (DOM.exportPrint) {
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
     const allAttendance = Cache.getAllAttendance();
+    // FIXED: Use isDateInRange for safe date comparison
     const exportAtt = allAttendance.filter(a =>
-      a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
+      isDateInRange(a.date, exportStart, exportEnd) && activeGirlIds.has(a.girlId)
     );
 
     const activeGirls = state.girls.filter(g => !g.isDeleted);
@@ -3034,13 +3125,15 @@ if (DOM.exportPrint) {
         </body></html>`;
 
     } else {
-      const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
+      // FIXED: Use parseDateStr for safe day name lookup
+      const dayName = DAY_NAMES[parseDateStr(exportDate).getDay()] || '';
       const sortedGirls = state.girls.filter(g => !g.isDeleted).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
       const rows = sortedGirls.map((g, i) => {
         const cells = [];
         ACTIVITIES.forEach(act => {
-          const key = `${g.id}_${exportDate}_${act}`;
+          // FIXED: Use makeAttKey for consistent key lookup
+          const key = makeAttKey(g.id, exportDate, act);
           const rec = state.attendanceData[key];
           if (rec) {
             cells.push(rec.status === 'حاضر'
@@ -3228,21 +3321,29 @@ function setupDelegation() {
       }
     });
 
+    // FIXED: Safer long press handling with proper cleanup
+    let longPressActive = false;
+
     DOM.attendanceList.addEventListener('mousedown', e => {
       const item = e.target.closest('.att-item');
       if (!item) return;
       state.isLongPress = false;
+      longPressActive = true;
       state.longPressTimer = setTimeout(() => {
-        state.isLongPress = true;
-        const g = Cache.getGirl(item.dataset.girlId);
-        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+        if (longPressActive) {
+          state.isLongPress = true;
+          const g = Cache.getGirl(item.dataset.girlId);
+          if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+        }
       }, 500);
     });
     DOM.attendanceList.addEventListener('mouseup', () => {
+      longPressActive = false;
       if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 100);
+      setTimeout(() => { state.isLongPress = false; }, 150);
     });
     DOM.attendanceList.addEventListener('mouseleave', () => {
+      longPressActive = false;
       if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
     });
 
@@ -3250,17 +3351,22 @@ function setupDelegation() {
       const item = e.target.closest('.att-item');
       if (!item) return;
       state.isLongPress = false;
+      longPressActive = true;
       state.longPressTimer = setTimeout(() => {
-        state.isLongPress = true;
-        const g = Cache.getGirl(item.dataset.girlId);
-        if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+        if (longPressActive) {
+          state.isLongPress = true;
+          const g = Cache.getGirl(item.dataset.girlId);
+          if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
+        }
       }, 500);
     }, { passive: true });
     DOM.attendanceList.addEventListener('touchend', () => {
+      longPressActive = false;
       if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
-      setTimeout(() => { state.isLongPress = false; }, 100);
+      setTimeout(() => { state.isLongPress = false; }, 150);
     });
     DOM.attendanceList.addEventListener('touchcancel', () => {
+      longPressActive = false;
       if (state.longPressTimer) { clearTimeout(state.longPressTimer); state.longPressTimer = null; }
     });
   }

@@ -25,6 +25,10 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --tap-target: 44px;
+  /* FIXED: Consistent transition timing variables */
+  --transition-fast: 0.15s;
+  --transition: 0.2s;
+  --transition-slow: 0.3s;
 }
 
 /* Dark mode variables */
@@ -1774,4 +1778,103 @@ input[type="date"], input[type="month"] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================================================
+   ACCESSIBILITY — FIXED: Focus-visible states for keyboard navigation
+   ============================================================ */
+
+/* Base focus-visible styles for all interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Remove default outline when not focus-visible (mouse users) */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Specific focus styles for cards and list items */
+.girl-card:focus-visible,
+.att-item:focus-visible,
+.top-item:focus-visible,
+.followup-item:focus-visible,
+.rank-item:focus-visible,
+.detail-girl-item:focus-visible,
+.history-item:focus-visible,
+.search-item:focus-visible,
+.cal-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Modal close button focus */
+.modal-close:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Dark mode focus-visible adjustments */
+[data-theme="dark"] button:focus-visible,
+[data-theme="dark"] a:focus-visible,
+[data-theme="dark"] input:focus-visible,
+[data-theme="dark"] select:focus-visible,
+[data-theme="dark"] textarea:focus-visible,
+[data-theme="dark"] [tabindex]:focus-visible {
+  outline-color: var(--accent);
+}
+
+/* ============================================================
+   TRANSITION CONSISTENCY — Using CSS variables for timing
+   ============================================================ */
+
+/* Apply consistent transition timing using variables */
+.btn-primary,
+.btn-danger,
+.btn-share,
+.btn-cancel,
+.confirm-cancel,
+.confirm-ok,
+.day-btn,
+.act-tab,
+.time-filter-tab,
+.stats-grade-btn,
+.grade-filter-btn,
+.quick-action-btn,
+.export-btn,
+.btn-load-more,
+.btn-clear-history,
+.export-mode-option {
+  transition: all var(--transition) ease;
+}
+
+/* Fast transitions for small interactive elements */
+.star,
+.att-inline-star,
+.modal-close,
+.att-delete-btn,
+.edit-btn,
+.nav-btn span {
+  transition: all var(--transition-fast) ease;
+}
+
+/* Slow transitions for larger movements */
+.modal,
+.confirm-box,
+.drawer,
+.splash {
+  transition-duration: var(--transition-slow);
 }
