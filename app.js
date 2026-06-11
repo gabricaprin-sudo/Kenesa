@@ -135,7 +135,21 @@ function safeGetElement(id) {
   return el || null;
 }
 
-const DOM = {
+// FIXED: Lazy DOM getter for elements that may be rendered dynamically
+const DOM = new Proxy({}, {
+  get(target, prop) {
+    // Return cached value if available
+    if (prop in target && target[prop] !== null) return target[prop];
+    // Try to get from document for unknown/null properties
+    const id = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const el = document.getElementById(id) || document.getElementById(prop);
+    if (el) target[prop] = el; // Cache for next time
+    return el || null;
+  }
+});
+
+// Eagerly cache known static elements
+Object.assign(DOM, {
   splash: safeGetElement('splash'), loginScreen: safeGetElement('loginScreen'), mainApp: safeGetElement('mainApp'),
   pageTitle: safeGetElement('pageTitle'), pageSubtitle: safeGetElement('pageSubtitle'),
   syncIndicator: safeGetElement('syncIndicator'), userAvatar: safeGetElement('userAvatar'),
@@ -199,7 +213,7 @@ const DOM = {
   shareProfileBtn: safeGetElement('shareProfileBtn'), editProfileBtn: safeGetElement('editProfileBtn'),
   statsGradeFilter: safeGetElement('statsGradeFilter'),
   activityStatsGrade: safeGetElement('activityStatsGrade')
-};
+}); // FIXED: Close the Proxy target Object.assign
 
 // ============================================================
 // APP STATE — FIXED: Added cache indexes for performance
@@ -240,6 +254,9 @@ const state = {
   // FIXED: Add pending operation locks to prevent race conditions
   pendingAttendanceOps: new Set(),
   pendingSaveGirl: false,
+  // FIXED: Precomputed absence cache { monthStr: { girlId: { hasConsecutive, count, dates } } }
+  absenceCache: {},
+  lastAbsenceCacheMonth: null,
 };
 
 // ============================================================
@@ -249,14 +266,47 @@ const state = {
 const Cache = {
   girlsById: null,
   allAttendance: null,
+  // FIXED: Indexed attendance structures for O(1) lookups
+  attendanceByGirl: null,   // { girlId: [records] }
+  attendanceByDate: null,   // { date: [records] }
+  attendanceByMonth: null,  // { 'YYYY-MM': [records] }
   _dirty: true,
 
-  invalidate() { this._dirty = true; this.girlsById = null; this.allAttendance = null; },
+  invalidate() {
+    this._dirty = true;
+    this.girlsById = null;
+    this.allAttendance = null;
+    this.attendanceByGirl = null;
+    this.attendanceByDate = null;
+    this.attendanceByMonth = null;
+  },
 
   build() {
     if (!this._dirty) return;
     this.girlsById = Object.fromEntries(state.girls.filter(g => !g.isDeleted).map(g => [g.id, g]));
-    this.allAttendance = Object.values(state.attendanceData);
+    const allAtt = Object.values(state.attendanceData);
+    this.allAttendance = allAtt;
+
+    // FIXED: Build indexed structures for O(1) lookups
+    this.attendanceByGirl = {};
+    this.attendanceByDate = {};
+    this.attendanceByMonth = {};
+
+    allAtt.forEach(a => {
+      // By girl
+      if (!this.attendanceByGirl[a.girlId]) this.attendanceByGirl[a.girlId] = [];
+      this.attendanceByGirl[a.girlId].push(a);
+      // By date
+      if (!this.attendanceByDate[a.date]) this.attendanceByDate[a.date] = [];
+      this.attendanceByDate[a.date].push(a);
+      // By month
+      const month = a.date?.substring(0, 7);
+      if (month) {
+        if (!this.attendanceByMonth[month]) this.attendanceByMonth[month] = [];
+        this.attendanceByMonth[month].push(a);
+      }
+    });
+
     this._dirty = false;
   },
 
@@ -268,6 +318,22 @@ const Cache = {
   getAllAttendance() {
     this.build();
     return this.allAttendance || [];
+  },
+
+  // FIXED: O(1) indexed lookups
+  getAttendanceByGirl(girlId) {
+    this.build();
+    return this.attendanceByGirl?.[girlId] || [];
+  },
+
+  getAttendanceByDate(date) {
+    this.build();
+    return this.attendanceByDate?.[date] || [];
+  },
+
+  getAttendanceByMonth(month) {
+    this.build();
+    return this.attendanceByMonth?.[month] || [];
   }
 };
 
@@ -534,55 +600,78 @@ function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
 }
 
 // ============================================================
-// CONSECUTIVE ABSENCES — FIXED: True consecutive service days
+// CONSECUTIVE ABSENCES — FIXED: O(1) with precomputed cache
 // ============================================================
-function hasConsecutiveAbsences(girlId, monthStr) {
-  const allAttendance = Cache.getAllAttendance();
-  const absRecords = allAttendance
-    .filter(a => a.girlId === girlId && a.date?.startsWith(monthStr) && a.status === 'غائب');
 
-  if (absRecords.length < 2) return { hasConsecutive: false, count: absRecords.length, dates: [] };
-
-  // Get unique absence dates sorted
-  const absDates = [...new Set(absRecords.map(a => a.date))].sort();
-
-  // FIXED: Check actual consecutive service days (not just any 3-day gap)
-  // Get service days for this month to check true consecutive absences
+/**
+ * FIXED: Build absence cache for a month in single O(n) pass.
+ * Call this once when data changes, then hasConsecutiveAbsences is O(1).
+ */
+function buildAbsenceCache(monthStr) {
   const [year, month] = monthStr.split('-').map(Number);
   const serviceDays = getServiceDaysInMonth(year, month - 1);
-  const serviceDaySet = new Set(serviceDays);
 
-  // FIXED: Build a map of service day index for each absence date
-  // A girl has consecutive absences if she misses 2+ CONSECUTIVE service days
-  let consecutiveCount = 1;
-  let maxConsecutive = 1;
+  // Get all attendance for this month using indexed lookup
+  const monthAtt = Cache.getAttendanceByMonth(monthStr);
 
-  // Get the indices of absDates within the serviceDays array
-  const absentServiceIndices = [];
-  for (let i = 0; i < serviceDays.length; i++) {
-    if (absDates.includes(serviceDays[i])) {
-      absentServiceIndices.push(i);
+  // Group absence records by girl
+  const absByGirl = {};
+  monthAtt.forEach(a => {
+    if (a.status === 'غائب') {
+      if (!absByGirl[a.girlId]) absByGirl[a.girlId] = new Set();
+      absByGirl[a.girlId].add(a.date);
     }
-  }
+  });
 
-  if (absentServiceIndices.length < 2) {
-    return { hasConsecutive: false, count: absDates.length, dates: absDates };
-  }
-
-  // Check for consecutive indices in service schedule
-  for (let i = 0; i < absentServiceIndices.length - 1; i++) {
-    if (absentServiceIndices[i + 1] - absentServiceIndices[i] === 1) {
-      // These are truly consecutive service days
-      consecutiveCount++;
-      maxConsecutive = Math.max(maxConsecutive, consecutiveCount);
-    } else {
-      consecutiveCount = 1;
+  const cache = {};
+  Object.entries(absByGirl).forEach(([girlId, absDateSet]) => {
+    const absDates = [...absDateSet].sort();
+    if (absDates.length < 2) {
+      cache[girlId] = { hasConsecutive: false, count: absDates.length, dates: absDates };
+      return;
     }
-  }
 
-  // Return true only if 2+ consecutive service-day absences
-  const hasConsecutive = maxConsecutive >= 2;
-  return { hasConsecutive, count: absDates.length, dates: absDates };
+    // Build absent service indices
+    const absentServiceIndices = [];
+    for (let i = 0; i < serviceDays.length; i++) {
+      if (absDateSet.has(serviceDays[i])) absentServiceIndices.push(i);
+    }
+
+    if (absentServiceIndices.length < 2) {
+      cache[girlId] = { hasConsecutive: false, count: absDates.length, dates: absDates };
+      return;
+    }
+
+    // Check for consecutive service day absences
+    let consecutiveCount = 1;
+    let maxConsecutive = 1;
+    for (let i = 0; i < absentServiceIndices.length - 1; i++) {
+      if (absentServiceIndices[i + 1] - absentServiceIndices[i] === 1) {
+        consecutiveCount++;
+        maxConsecutive = Math.max(maxConsecutive, consecutiveCount);
+      } else {
+        consecutiveCount = 1;
+      }
+    }
+
+    cache[girlId] = {
+      hasConsecutive: maxConsecutive >= 2,
+      count: absDates.length,
+      dates: absDates
+    };
+  });
+
+  state.absenceCache[monthStr] = cache;
+  state.lastAbsenceCacheMonth = monthStr;
+}
+
+function hasConsecutiveAbsences(girlId, monthStr) {
+  // FIXED: Build cache on first access for this month
+  if (!state.absenceCache[monthStr]) {
+    buildAbsenceCache(monthStr);
+  }
+  // O(1) cache lookup
+  return state.absenceCache[monthStr]?.[girlId] || { hasConsecutive: false, count: 0, dates: [] };
 }
 
 // ============================================================
@@ -597,7 +686,9 @@ function getStatsBounds() {
     case 'today':
       return { start: selectedDate, end: selectedDate };
     case 'month': {
-      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      // FIXED: selMonth is 1-based (from substring), JS Date month is 0-based
+      const monthIndex = selMonth - 1;
+      const lastDay = new Date(selYear, monthIndex + 1, 0).getDate();
       return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
     }
     case 'year':
@@ -679,29 +770,57 @@ const IDB = {
 };
 
 // ============================================================
-// DARK MODE
+// THEME MANAGER — FIXED: Professional theme system, no white flash
 // ============================================================
-function initDarkMode() {
-  const saved = localStorage.getItem('darkMode');
-  if (saved === 'true') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.add('on');
+const Theme = {
+  KEY: 'theme',
+
+  init() {
+    // Apply theme BEFORE page renders to prevent white flash
+    const saved = localStorage.getItem(this.KEY);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
+    this._apply(theme, false); // false = no transition on initial load
+  },
+
+  toggle() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    this._apply(isDark ? 'light' : 'dark', true);
+  },
+
+  _apply(theme, animate) {
+    if (!animate) {
+      document.body.classList.add('theme-switching'); // Disable transitions
+    }
+
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem(this.KEY, theme);
+
+    // Sync toggle switch
+    if (DOM.darkToggleSwitch) {
+      DOM.darkToggleSwitch.classList.toggle('on', theme === 'dark');
+    }
+
+    if (!animate) {
+      requestAnimationFrame(() => {
+        document.body.classList.remove('theme-switching');
+      });
+    }
+  },
+
+  isDark() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
   }
+};
+
+// Backward-compatible init function
+function initDarkMode() {
+  Theme.init();
 }
 
+// Event listener for toggle
 if (DOM.darkModeToggle) {
-  DOM.darkModeToggle.addEventListener('click', () => {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    if (isDark) {
-      document.documentElement.removeAttribute('data-theme');
-      if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.remove('on');
-      localStorage.setItem('darkMode', 'false');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      if (DOM.darkToggleSwitch) DOM.darkToggleSwitch.classList.add('on');
-      localStorage.setItem('darkMode', 'true');
-    }
-  });
+  DOM.darkModeToggle.addEventListener('click', () => Theme.toggle());
 }
 
 // ============================================================
@@ -1518,6 +1637,7 @@ if (DOM.saveGirlBtn) {
       };
 
       const isNewGirl = !state.editingGirlId;
+      const wasEditing = !!state.editingGirlId; // FIXED: Capture before any changes
 
       // FIXED: Firestore write FIRST, then update state on success
       if (firebaseReady) {
@@ -1537,7 +1657,7 @@ if (DOM.saveGirlBtn) {
         setStateGirls([...state.girls, girlData]);
       }
 
-      await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
+      await logHistory(wasEditing ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`); // FIXED: Use wasEditing
 
       // Auto-mark absent on service days for new girls only
       if (isNewGirl) {
@@ -1548,7 +1668,7 @@ if (DOM.saveGirlBtn) {
       }
 
       closeModal('girlModal');
-      showToast(state.editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
+      showToast(wasEditing ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success'); // FIXED: Use wasEditing
       state.editingGirlId = null;
       renderPage();
     } catch (err) {
@@ -1796,8 +1916,8 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
       updatedByEmail: state.currentUser?.email || ''
     };
 
-    // Update state
-    setStateAttendanceData({ ...state.attendanceData, [key]: rec });
+    // Update state - FIXED: Use functional pattern to avoid race conditions
+    setStateAttendanceData(prev => { const next = { ...prev, [key]: rec }; return next; });
 
     if (firebaseReady) {
       try { await FB.setDoc(FB.doc(db, 'attendance', key), rec); }
@@ -2343,7 +2463,9 @@ function getPeriodBounds(period, customDate) {
   switch (period) {
     case 'today': return { start: selectedDate, end: selectedDate };
     case 'month': {
-      const lastDay = new Date(selYear, selMonth, 0).getDate();
+      // FIXED: selMonth is 1-based (from substring), JS Date month is 0-based
+      const monthIndex = selMonth - 1;
+      const lastDay = new Date(selYear, monthIndex + 1, 0).getDate();
       return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
     }
     case 'year': return { start: selectedDate.substring(0, 4) + '-01-01', end: selectedDate.substring(0, 4) + '-12-31' };
@@ -2419,9 +2541,9 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
     const rate = total > 0 ? Math.round((pCount / total) * 100) : 0;
 
     const entry = { girl, presentCount: pCount, absentCount: aCount, totalRecords: total, attendanceRate: rate, latestRecord: girlRecords[0] };
-    // FIXED: Classification is based on majority presence count (not percentage threshold)
-    // A girl with ANY presence is considered "present" in the activity context
-    if (pCount > aCount) presentGirls.push(entry);
+    // FIXED: Classification - girl with equal or more presence counts as present
+    // Changed from pCount > aCount to pCount >= aCount to handle tie correctly
+    if (pCount >= aCount) presentGirls.push(entry);
     else absentGirls.push(entry);
   });
 
@@ -2643,7 +2765,9 @@ function renderStats() {
   // Absence chart — use precomputed sets
   const absenceCounts = {};
   Object.keys(absenceByGirl).forEach(id => { absenceCounts[id] = absenceByGirl[id].size; });
-  const maxAbs = Math.max(...Object.values(absenceCounts), 1);
+  // FIXED: Protect against empty array - Math.max(...[]) returns -Infinity
+  const absValues = Object.values(absenceCounts);
+  const maxAbs = absValues.length > 0 ? Math.max(...absValues, 1) : 1;
   const sortedAbs = Object.entries(absenceCounts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   if (DOM.absenceChart) {
@@ -3273,6 +3397,12 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventL
 // EVENT DELEGATION — FIXED: Use Cache instead of state.girls.find
 // ============================================================
 function setupDelegation() {
+  // FIXED: Prevent duplicate listeners / memory leak
+  if (window.__delegationInit) {
+    console.warn('setupDelegation called twice - skipping');
+    return;
+  }
+  window.__delegationInit = true;
   if (DOM.needsFollowup) {
     DOM.needsFollowup.addEventListener('click', e => {
       const item = e.target.closest('.followup-item');
@@ -3423,12 +3553,42 @@ if (girlsSearchInput) {
 
 setupDelegation();
 
-// Subscribe all major render functions to TimeContext date changes
+// FIXED: Page-aware render scheduler - only renders current page, with dedup
+const PageRenderScheduler = {
+  _pending: false,
+  _lastRenderedDate: null,
+
+  schedule() {
+    const currentDate = TimeContext.getDate();
+    // Skip if already rendered for this date
+    if (this._lastRenderedDate === currentDate) return;
+
+    if (this._pending) return; // Already scheduled
+    this._pending = true;
+
+    requestAnimationFrame(() => {
+      this._pending = false;
+      const date = TimeContext.getDate();
+      if (this._lastRenderedDate === date) return; // Double-check after frame
+      this._lastRenderedDate = date;
+
+      // FIXED: Only render the CURRENT page, not all pages
+      switch (state.currentPage) {
+        case 'home': renderHome(); break;
+        case 'attendance': renderAttendancePage(); break;
+        case 'girls': renderGirlsList(); break;
+        case 'calendar': renderCalendar(); break;
+        case 'stats': renderStats(); break;
+        case 'history': renderHistory(false); break;
+        case 'export': renderExport(); break;
+      }
+    });
+  }
+};
+
+// Subscribe to TimeContext - only renders current visible page
 TimeContext.subscribe(() => {
-  if (state.currentPage === 'home') renderHome();
-  if (state.currentPage === 'girls') renderGirlsList();
-  if (state.currentPage === 'stats') renderStats();
-  if (state.currentPage === 'export') renderExport();
+  PageRenderScheduler.schedule();
 });
 
 // ============================================================
