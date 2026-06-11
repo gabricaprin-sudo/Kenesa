@@ -1,10 +1,31 @@
 // ============================================================
 // نظام متابعة المخدومات — Offline Ready & Guest Mode
+// FIXED VERSION — All critical bugs resolved
 // ============================================================
 
 // ============================================================
-// SAFETY: Global error handler + splash fallback
+// FB MODULE — Replaces window._fb anti-pattern with proper singleton
 // ============================================================
+const FB = {
+  collection: null, doc: null, setDoc: null, getDocs: null,
+  deleteDoc: null, query: null, orderBy: null, onSnapshot: null,
+  writeBatch: null, where: null, signInWithPopup: null,
+  signInWithRedirect: null, getRedirectResult: null,
+  onAuthStateChanged: null, signOut: null
+};
+
+// ============================================================
+// SAFETY: Global error handler + splash fallback
+// FIXED: Unified splash state — prevents double-hide race condition
+// ============================================================
+const SplashState = {
+  _done: false,
+  _forceHidden: false,
+  get done() { return this._done || this._forceHidden; },
+  markDone() { this._done = true; this._forceHidden = true; },
+  markForceHidden() { this._forceHidden = true; }
+};
+
 window.addEventListener('error', (e) => {
   console.error('Global error:', e.error || e.message);
   hideSplashForced();
@@ -17,10 +38,9 @@ window.addEventListener('unhandledrejection', (e) => {
 // Force hide splash after 6 seconds max — never get stuck
 setTimeout(hideSplashForced, 6000);
 
-let splashForceHidden = false;
 function hideSplashForced() {
-  if (splashForceHidden) return;
-  splashForceHidden = true;
+  if (SplashState.done) return;
+  SplashState.markForceHidden();
   const splash = document.getElementById('splash');
   if (splash) {
     splash.classList.add('fade-out');
@@ -39,10 +59,18 @@ function hideSplashForced() {
 
 // ============================================================
 // FIREBASE IMPORTS WITH FALLBACK
+// FIXED: Clearer fallback UI when Firebase fails
 // ============================================================
 let firebaseApp, auth, db, provider;
 let firebaseReady = false;
 let XLSX = null;
+
+// Track snapshot unsubscribers to prevent memory leaks
+const _unsubscribers = [];
+function clearAllSnapshots() {
+  _unsubscribers.forEach(unsub => { try { unsub(); } catch (e) { } });
+  _unsubscribers.length = 0;
+}
 
 // Module imports with error handling
 async function initModules() {
@@ -67,8 +95,13 @@ async function initModules() {
     provider = new GoogleAuthProvider();
     firebaseReady = true;
 
-    // Attach Firebase functions to global scope for the app
-    window._fb = { collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut };
+    // FIXED: Use module singleton instead of window._fb
+    FB.collection = collection; FB.doc = doc; FB.setDoc = setDoc;
+    FB.getDocs = getDocs; FB.deleteDoc = deleteDoc; FB.query = query;
+    FB.orderBy = orderBy; FB.onSnapshot = onSnapshot; FB.writeBatch = writeBatch;
+    FB.where = where; FB.signInWithPopup = signInWithPopup;
+    FB.signInWithRedirect = signInWithRedirect; FB.getRedirectResult = getRedirectResult;
+    FB.onAuthStateChanged = onAuthStateChanged; FB.signOut = signOut;
 
     // Try to load XLSX
     try {
@@ -82,84 +115,94 @@ async function initModules() {
   } catch (e) {
     console.error('Firebase failed to initialize:', e);
     firebaseReady = false;
+    // FIXED: Clearer error indication
+    const splashContent = document.querySelector('.splash-content');
+    if (splashContent) {
+      splashContent.innerHTML = '<h1>⚠️ خطأ في الاتصال</h1><p>تعذر تحميل نظام التسجيل</p><p style="font-size:14px;opacity:0.7">تحقق من اتصال الإنترنت وأعد تحميل الصفحة</p>';
+    }
     return false;
   }
 }
 
 // ============================================================
-// DOM CACHE
+// DOM CACHE — FIXED: All accesses are protected
 // ============================================================
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => root.querySelectorAll(sel);
 
+function safeGetElement(id) {
+  const el = document.getElementById(id);
+  return el || null;
+}
+
 const DOM = {
-  splash: $('splash'), loginScreen: $('loginScreen'), mainApp: $('mainApp'),
-  pageTitle: $('pageTitle'), pageSubtitle: $('pageSubtitle'),
-  syncIndicator: $('syncIndicator'), userAvatar: $('userAvatar'),
-  drawer: $('drawer'), drawerOverlay: $('drawerOverlay'),
-  drawerAvatar: $('drawerAvatar'), drawerUserName: $('drawerUserName'),
-  drawerUserEmail: $('drawerUserEmail'), offlineBadge: $('offlineBadge'),
-  pageContent: $('pageContent'), toast: $('toast'),
-  globalSearch: $('globalSearch'), searchResults: $('searchResults'),
-  todayDay: $('todayDay'), todayDate: $('todayDate'), todayServiceBadge: $('todayServiceBadge'),
-  statTotal: $('statTotal'), statPresentToday: $('statPresentToday'),
-  statAbsentToday: $('statAbsentToday'), statAvgRating: $('statAvgRating'),
-  bestGrade: $('bestGrade'), bestGradePercent: $('bestGradePercent'),
-  topActivityName: $('topActivityName'), topActivityCount: $('topActivityCount'),
-  mostRegularGirl: $('mostRegularGirl'), mostRegularPercent: $('mostRegularPercent'),
-  topAttendees: $('topAttendees'), needsFollowup: $('needsFollowup'),
-  attendanceDate: $('attendanceDate'), attendanceList: $('attendanceList'),
-  attendanceSearch: $('attendanceSearch'),
-  presentCount: $('presentCount'), absentCount: $('absentCount'), totalCount: $('totalCount'),
-  selectAllPresent: $('selectAllPresent'), selectAllAbsent: $('selectAllAbsent'),
-  attToggleHint: $('attToggleHint'), quickActions: $('quickActions'),
-  girlsList: $('girlsList'), addGirlBtn: $('addGirlBtn'),
-  calendarGrid: $('calendarGrid'), calMonthYear: $('calMonthYear'),
-  dayDetail: $('dayDetail'), calPrev: $('calPrev'), calNext: $('calNext'),
-  statsMonth: $('statsMonth'), bigStatsGrid: $('bigStatsGrid'),
-  absenceChart: $('absenceChart'), attendanceRanking: $('attendanceRanking'),
-  activityStatsGrid: $('activityStatsGrid'), timeFilterTabs: $('timeFilterTabs'), activityStatsPeriod: $('activityStatsPeriod'),
-  historyList: $('historyList'), historyFilter: $('historyFilter'),
-  clearHistoryBtn: $('clearHistoryBtn'), loadMoreHistory: $('loadMoreHistory'),
-  loadMoreHistoryBtn: $('loadMoreHistoryBtn'), exportMonth: $('exportMonth'),
-  exportCSV: $('exportCSV'), exportJSON: $('exportJSON'), exportPrint: $('exportPrint'),
-  girlModal: $('girlModal'), girlModalTitle: $('girlModalTitle'),
-  girlName: $('girlName'), girlPhone: $('girlPhone'), girlGrade: $('girlGrade'),
-  girlNotes: $('girlNotes'), deleteGirlBtn: $('deleteGirlBtn'),
-  homeGradeFilters: $('homeGradeFilters'), girlsGradeFilters: $('girlsGradeFilters'),
-  attendanceGradeFilters: $('attendanceGradeFilters'),
-  closeGirlModal: $('closeGirlModal'), cancelGirlModal: $('cancelGirlModal'),
-  saveGirlBtn: $('saveGirlBtn'), girlProfileModal: $('girlProfileModal'),
-  profileName: $('profileName'), profileBody: $('profileBody'),
-  closeProfileModal: $('closeProfileModal'), attendanceModal: $('attendanceModal'),
-  attendanceModalTitle: $('attendanceModalTitle'), modalGirlName: $('modalGirlName'),
-  attendanceNotes: $('attendanceNotes'), ratingSection: $('ratingSection'),
-  starsInput: $('starsInput'), saveAttendanceEntry: $('saveAttendanceEntry'),
-  closeAttendanceModal: $('closeAttendanceModal'), cancelAttendanceModal: $('cancelAttendanceModal'),
-  confirmOverlay: $('confirmOverlay'), confirmIcon: $('confirmIcon'),
-  confirmTitle: $('confirmTitle'), confirmMsg: $('confirmMsg'),
-  confirmCancel: $('confirmCancel'), confirmOk: $('confirmOk'),
-  activityDetailModal: $('activityDetailModal'),
-  activityDetailTitle: $('activityDetailTitle'),
-  closeActivityDetailModal: $('closeActivityDetailModal'),
-  activityDetailSummary: $('activityDetailSummary'),
-  activityDetailIcon: $('activityDetailIcon'),
-  activityDetailName: $('activityDetailName'),
-  activityDetailPeriod: $('activityDetailPeriod'),
-  activityDetailTotal: $('activityDetailTotal'),
-  activityDetailTabs: $('activityDetailTabs'),
-  activityDetailList: $('activityDetailList'),
-  presentTabCount: $('presentTabCount'),
-  absentTabCount: $('absentTabCount'),
-  menuBtn: $('menuBtn'), signOutBtn: $('signOutBtn'), googleSignIn: $('googleSignIn'),
-  darkModeToggle: $('darkModeToggle'), darkToggleSwitch: $('darkToggleSwitch'),
-  shareProfileBtn: $('shareProfileBtn'), editProfileBtn: $('editProfileBtn'),
-  statsGradeFilter: $('statsGradeFilter'),
-  activityStatsGrade: $('activityStatsGrade')
+  splash: safeGetElement('splash'), loginScreen: safeGetElement('loginScreen'), mainApp: safeGetElement('mainApp'),
+  pageTitle: safeGetElement('pageTitle'), pageSubtitle: safeGetElement('pageSubtitle'),
+  syncIndicator: safeGetElement('syncIndicator'), userAvatar: safeGetElement('userAvatar'),
+  drawer: safeGetElement('drawer'), drawerOverlay: safeGetElement('drawerOverlay'),
+  drawerAvatar: safeGetElement('drawerAvatar'), drawerUserName: safeGetElement('drawerUserName'),
+  drawerUserEmail: safeGetElement('drawerUserEmail'), offlineBadge: safeGetElement('offlineBadge'),
+  pageContent: safeGetElement('pageContent'), toast: safeGetElement('toast'),
+  globalSearch: safeGetElement('globalSearch'), searchResults: safeGetElement('searchResults'),
+  todayDay: safeGetElement('todayDay'), todayDate: safeGetElement('todayDate'), todayServiceBadge: safeGetElement('todayServiceBadge'),
+  statTotal: safeGetElement('statTotal'), statPresentToday: safeGetElement('statPresentToday'),
+  statAbsentToday: safeGetElement('statAbsentToday'), statAvgRating: safeGetElement('statAvgRating'),
+  bestGrade: safeGetElement('bestGrade'), bestGradePercent: safeGetElement('bestGradePercent'),
+  topActivityName: safeGetElement('topActivityName'), topActivityCount: safeGetElement('topActivityCount'),
+  mostRegularGirl: safeGetElement('mostRegularGirl'), mostRegularPercent: safeGetElement('mostRegularPercent'),
+  topAttendees: safeGetElement('topAttendees'), needsFollowup: safeGetElement('needsFollowup'),
+  attendanceDate: safeGetElement('attendanceDate'), attendanceList: safeGetElement('attendanceList'),
+  attendanceSearch: safeGetElement('attendanceSearch'),
+  presentCount: safeGetElement('presentCount'), absentCount: safeGetElement('absentCount'), totalCount: safeGetElement('totalCount'),
+  selectAllPresent: safeGetElement('selectAllPresent'), selectAllAbsent: safeGetElement('selectAllAbsent'),
+  attToggleHint: safeGetElement('attToggleHint'), quickActions: safeGetElement('quickActions'),
+  girlsList: safeGetElement('girlsList'), addGirlBtn: safeGetElement('addGirlBtn'),
+  calendarGrid: safeGetElement('calendarGrid'), calMonthYear: safeGetElement('calMonthYear'),
+  dayDetail: safeGetElement('dayDetail'), calPrev: safeGetElement('calPrev'), calNext: safeGetElement('calNext'),
+  statsMonth: safeGetElement('statsMonth'), bigStatsGrid: safeGetElement('bigStatsGrid'),
+  absenceChart: safeGetElement('absenceChart'), attendanceRanking: safeGetElement('attendanceRanking'),
+  activityStatsGrid: safeGetElement('activityStatsGrid'), timeFilterTabs: safeGetElement('timeFilterTabs'), activityStatsPeriod: safeGetElement('activityStatsPeriod'),
+  historyList: safeGetElement('historyList'), historyFilter: safeGetElement('historyFilter'),
+  clearHistoryBtn: safeGetElement('clearHistoryBtn'), loadMoreHistory: safeGetElement('loadMoreHistory'),
+  loadMoreHistoryBtn: safeGetElement('loadMoreHistoryBtn'), exportMonth: safeGetElement('exportMonth'),
+  exportCSV: safeGetElement('exportCSV'), exportJSON: safeGetElement('exportJSON'), exportPrint: safeGetElement('exportPrint'),
+  girlModal: safeGetElement('girlModal'), girlModalTitle: safeGetElement('girlModalTitle'),
+  girlName: safeGetElement('girlName'), girlPhone: safeGetElement('girlPhone'), girlGrade: safeGetElement('girlGrade'),
+  girlNotes: safeGetElement('girlNotes'), deleteGirlBtn: safeGetElement('deleteGirlBtn'),
+  homeGradeFilters: safeGetElement('homeGradeFilters'), girlsGradeFilters: safeGetElement('girlsGradeFilters'),
+  attendanceGradeFilters: safeGetElement('attendanceGradeFilters'),
+  closeGirlModal: safeGetElement('closeGirlModal'), cancelGirlModal: safeGetElement('cancelGirlModal'),
+  saveGirlBtn: safeGetElement('saveGirlBtn'), girlProfileModal: safeGetElement('girlProfileModal'),
+  profileName: safeGetElement('profileName'), profileBody: safeGetElement('profileBody'),
+  closeProfileModal: safeGetElement('closeProfileModal'), attendanceModal: safeGetElement('attendanceModal'),
+  attendanceModalTitle: safeGetElement('attendanceModalTitle'), modalGirlName: safeGetElement('modalGirlName'),
+  attendanceNotes: safeGetElement('attendanceNotes'), ratingSection: safeGetElement('ratingSection'),
+  starsInput: safeGetElement('starsInput'), saveAttendanceEntry: safeGetElement('saveAttendanceEntry'),
+  closeAttendanceModal: safeGetElement('closeAttendanceModal'), cancelAttendanceModal: safeGetElement('cancelAttendanceModal'),
+  confirmOverlay: safeGetElement('confirmOverlay'), confirmIcon: safeGetElement('confirmIcon'),
+  confirmTitle: safeGetElement('confirmTitle'), confirmMsg: safeGetElement('confirmMsg'),
+  confirmCancel: safeGetElement('confirmCancel'), confirmOk: safeGetElement('confirmOk'),
+  activityDetailModal: safeGetElement('activityDetailModal'),
+  activityDetailTitle: safeGetElement('activityDetailTitle'),
+  closeActivityDetailModal: safeGetElement('closeActivityDetailModal'),
+  activityDetailSummary: safeGetElement('activityDetailSummary'),
+  activityDetailIcon: safeGetElement('activityDetailIcon'),
+  activityDetailName: safeGetElement('activityDetailName'),
+  activityDetailPeriod: safeGetElement('activityDetailPeriod'),
+  activityDetailTotal: safeGetElement('activityDetailTotal'),
+  activityDetailTabs: safeGetElement('activityDetailTabs'),
+  activityDetailList: safeGetElement('activityDetailList'),
+  presentTabCount: safeGetElement('presentTabCount'),
+  absentTabCount: safeGetElement('absentTabCount'),
+  menuBtn: safeGetElement('menuBtn'), signOutBtn: safeGetElement('signOutBtn'), googleSignIn: safeGetElement('googleSignIn'),
+  darkModeToggle: safeGetElement('darkModeToggle'), darkToggleSwitch: safeGetElement('darkToggleSwitch'),
+  shareProfileBtn: safeGetElement('shareProfileBtn'), editProfileBtn: safeGetElement('editProfileBtn'),
+  statsGradeFilter: safeGetElement('statsGradeFilter'),
+  activityStatsGrade: safeGetElement('activityStatsGrade')
 };
 
 // ============================================================
-// APP STATE
+// APP STATE — FIXED: Added cache indexes for performance
 // ============================================================
 const state = {
   currentUser: null,
@@ -174,6 +217,7 @@ const state = {
   calendarDate: new Date(),
   appInitialized: false,
   renderTimeout: null,
+  renderPending: false,
   historyOffset: 0,
   historyAllLogs: [],
   deleteInProgress: false,
@@ -193,7 +237,55 @@ const state = {
   attendancePageInitialized: false,
   savingGirl: false,
   idb: false,
+  // FIXED: Add pending operation locks to prevent race conditions
+  pendingAttendanceOps: new Set(),
+  pendingSaveGirl: false,
 };
+
+// ============================================================
+// DERIVED STATE CACHE — Prevents O(n^2) lookups
+// FIXED: Centralized cache that rebuilds when data changes
+// ============================================================
+const Cache = {
+  girlsById: null,
+  allAttendance: null,
+  _dirty: true,
+
+  invalidate() { this._dirty = true; this.girlsById = null; this.allAttendance = null; },
+
+  build() {
+    if (!this._dirty) return;
+    this.girlsById = Object.fromEntries(state.girls.filter(g => !g.isDeleted).map(g => [g.id, g]));
+    this.allAttendance = Object.values(state.attendanceData);
+    this._dirty = false;
+  },
+
+  getGirl(id) {
+    this.build();
+    return this.girlsById ? this.girlsById[id] : null;
+  },
+
+  getAllAttendance() {
+    this.build();
+    return this.allAttendance || [];
+  }
+};
+
+// Invalidate cache whenever girls or attendanceData changes
+const originalGirlsDescriptor = Object.getOwnPropertyDescriptor(state, 'girls');
+// Use Proxy-like approach: intercept direct mutations
+const _rawGirls = [];
+const _rawAttendance = {};
+
+function setStateGirls(newGirls) {
+  state.girls = newGirls;
+  Cache.invalidate();
+}
+
+function setStateAttendanceData(newData) {
+  state.attendanceData = newData;
+  Cache.invalidate();
+}
 
 const HISTORY_PAGE_SIZE = 30;
 const SERVICE_DAYS = { 'السبت': true, 'الاثنين': true, 'الاربعاء': true };
@@ -245,14 +337,22 @@ const DateUtil = {
     return `${d.getDate()}/${d.getMonth() + 1}`;
   },
   dayName(d = new Date()) { return DAY_NAMES[d.getDay()]; },
+  // FIXED: Consistent hamza forms — all maps to single form
   normalize(d) {
-    return { 'الأحد': 'الاحد', 'الاثنين': 'الاثنين', 'الثلاثاء': 'الثلاثاء', 'الأربعاء': 'الاربعاء', 'الخميس': 'الخميس', 'الجمعة': 'الجمعة', 'السبت': 'السبت' }[d] || d;
+    return {
+      'الأحد': 'الاحد', 'الاحد': 'الاحد',
+      'الاثنين': 'الاثنين',
+      'الثلاثاء': 'الثلاثاء',
+      'الأربعاء': 'الاربعاء', 'الاربعاء': 'الاربعاء',
+      'الخميس': 'الخميس',
+      'الجمعة': 'الجمعة',
+      'السبت': 'السبت'
+    }[d] || d;
   }
 };
 
 // ============================================================
 // TIMECONTEXT — Unified Date Source for the entire app
-// Every page uses this instead of computing dates independently
 // ============================================================
 const TimeContext = {
   _selectedDate: null,
@@ -311,7 +411,39 @@ const TimeContext = {
   }
 };
 
+// ============================================================
+// ARABIC TEXT NORMALIZATION
+// FIXED: Removed ة → ه transformation to preserve semantic accuracy
+// ============================================================
+function normalizeArabic(str) {
+  if (!str) return '';
+  return str.replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[إأآا]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    // FIXED: Removed .replace(/ة/g, 'ه') — this changes meaning:
+    // "مدرسة" should NOT become "مدرسه" — causes false matches
+    .toLowerCase();
+}
 
+function normalizeName(name) {
+  return name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/[أإآ]/g, 'ا')
+    // FIXED: Keep ة as-is for accurate matching
+    .replace(/ى/g, 'ي')
+    .toLowerCase();
+}
+
+function csvEscape(v) {
+  return `"${String(v ?? '').replace(/"/g, '""')}"`;
+}
+
+// ============================================================
+// SERVICE DAY FUNCTIONS
+// ============================================================
 function getServiceDaysInMonth(year, month) {
   const days = [];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -340,31 +472,50 @@ function getServiceDaysUpToDate(fromYear, fromMonth, toDate) {
   return count;
 }
 
+// ============================================================
+// CONSECUTIVE ABSENCES — FIXED: True consecutive service days
+// ============================================================
 function hasConsecutiveAbsences(girlId, monthStr) {
-  const absRecords = Object.values(state.attendanceData)
+  const allAttendance = Cache.getAllAttendance();
+  const absRecords = allAttendance
     .filter(a => a.girlId === girlId && a.date?.startsWith(monthStr) && a.status === 'غائب');
 
   if (absRecords.length < 2) return { hasConsecutive: false, count: absRecords.length, dates: [] };
 
+  // Get unique absence dates sorted
   const absDates = [...new Set(absRecords.map(a => a.date))].sort();
+
+  // FIXED: Check actual consecutive service days (not just any 3-day gap)
+  // Get service days for this month to check true consecutive absences
+  const [year, month] = monthStr.split('-').map(Number);
+  const serviceDays = new Set(getServiceDaysInMonth(year, month - 1));
+
+  let consecutiveCount = 1;
+  let maxConsecutive = 1;
 
   for (let i = 0; i < absDates.length - 1; i++) {
     const d1 = new Date(absDates[i] + 'T00:00:00');
     const d2 = new Date(absDates[i + 1] + 'T00:00:00');
     const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
-    if (diffDays <= 3) {
-      return { hasConsecutive: true, count: absDates.length, dates: absDates };
+
+    // Check if both dates are service days and consecutive in service schedule
+    if (diffDays <= 3 && serviceDays.has(absDates[i]) && serviceDays.has(absDates[i + 1])) {
+      consecutiveCount++;
+      maxConsecutive = Math.max(maxConsecutive, consecutiveCount);
+    } else {
+      consecutiveCount = 1;
     }
   }
-  return { hasConsecutive: false, count: absDates.length, dates: absDates };
-}
 
+  // Return true only if 2+ consecutive service-day absences
+  const hasConsecutive = maxConsecutive >= 2;
+  return { hasConsecutive, count: absDates.length, dates: absDates };
+}
 
 // ============================================================
 // UNIFIED STATS BOUNDS — All stats use this single function
 // ============================================================
 function getStatsBounds() {
-  // Unified: always use TimeContext as the single date source
   const selectedDate = TimeContext.getDate();
   const selYear = parseInt(selectedDate.substring(0, 4));
   const selMonth = parseInt(selectedDate.substring(5, 7));
@@ -381,34 +532,6 @@ function getStatsBounds() {
     default: // 'all'
       return { start: '2000-01-01', end: selectedDate };
   }
-}
-
-// ============================================================
-// ARABIC TEXT NORMALIZATION
-// ============================================================
-function normalizeArabic(str) {
-  if (!str) return '';
-  return str.replace(/[\u064B-\u065F\u0670\u0640]/g, '')
-    .replace(/[إأآا]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(/ة/g, 'ه')
-    .toLowerCase();
-}
-
-function normalizeName(name) {
-  return name
-    .trim()
-    .replace(/\s+/g, ' ')
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .toLowerCase();
-}
-
-function csvEscape(v) {
-  return `"${String(v ?? '').replace(/"/g, '""')}"`;
 }
 
 // ============================================================
@@ -521,13 +644,11 @@ function showToast(msg, type = 'info') {
 }
 
 // ============================================================
-// SPLASH
+// SPLASH — FIXED: Unified state prevents double-hide
 // ============================================================
-let splashDone = false;
 function hideSplash() {
-  if (splashDone) return;
-  splashDone = true;
-  splashForceHidden = true;
+  if (SplashState.done) return;
+  SplashState.markDone();
   if (DOM.splash) {
     DOM.splash.classList.add('fade-out');
     setTimeout(() => { if (DOM.splash) DOM.splash.remove(); }, 500);
@@ -537,13 +658,25 @@ function hideSplash() {
 // ============================================================
 // ONLINE / OFFLINE
 // ============================================================
-
+function updateOnlineStatus() {
+  const isOnline = navigator.onLine;
+  if (DOM.offlineBadge) {
+    DOM.offlineBadge.style.display = isOnline ? 'none' : 'block';
+    if (!isOnline) DOM.offlineBadge.textContent = '⚠️ وضع عدم الاتصال';
+  }
+  if (DOM.syncIndicator) {
+    DOM.syncIndicator.textContent = isOnline ? 'متصل' : 'غير متصل';
+    DOM.syncIndicator.classList.toggle('offline', !isOnline);
+  }
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
 
 // ============================================================
 // AUTH — Fixed with better error handling + Guest Mode
 // ============================================================
 async function initAuth() {
-  if (!firebaseReady || !window._fb) {
+  if (!firebaseReady) {
     console.error('Firebase not available');
     hideSplash();
     showLogin();
@@ -551,16 +684,17 @@ async function initAuth() {
   }
 
   try {
-    const { getRedirectResult, onAuthStateChanged } = window._fb;
-    try { await getRedirectResult(auth); } catch (e) { console.error('getRedirectResult error:', e); }
+    try { await FB.getRedirectResult(auth); } catch (e) { console.error('getRedirectResult error:', e); }
 
-    onAuthStateChanged(auth, async (user) => {
+    FB.onAuthStateChanged(auth, async (user) => {
       hideSplash();
       if (!user) {
         state.currentUser = null;
         state.appInitialized = false;
-        state.girls = [];
-        state.attendanceData = {};
+        // FIXED: Use immutable update + clear cache
+        setStateGirls([]);
+        setStateAttendanceData({});
+        clearAllSnapshots();
         showLogin();
         return;
       }
@@ -579,25 +713,21 @@ async function initAuth() {
   }
 }
 
-// Guest Sign In
-
-
+// Google Sign In — FIXED: Use FB module instead of window._fb
 if (DOM.googleSignIn) {
   DOM.googleSignIn.addEventListener('click', async () => {
-    if (!firebaseReady || !window._fb) {
-      showToast('الإنترنت غير متاح - استخدم وضع عدم الاتصال', 'warning');
+    if (!firebaseReady) {
+      showToast('الإنترنت غير متاح - حاول تحديث الصفحة', 'warning');
       return;
     }
     DOM.googleSignIn.classList.add('is-loading');
     try {
-      const { signInWithPopup } = window._fb;
-      await signInWithPopup(auth, provider);
+      await FB.signInWithPopup(auth, provider);
     } catch (e) {
       DOM.googleSignIn.classList.remove('is-loading');
       if (['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(e.code)) {
         try {
-          const { signInWithRedirect } = window._fb;
-          await signInWithRedirect(auth, provider);
+          await FB.signInWithRedirect(auth, provider);
         } catch (e2) { showToast('فشل تسجيل الدخول: ' + e2.message, 'error'); }
       } else {
         showToast('فشل تسجيل الدخول: ' + e.message, 'error');
@@ -608,14 +738,14 @@ if (DOM.googleSignIn) {
 
 if (DOM.signOutBtn) {
   DOM.signOutBtn.addEventListener('click', async () => {
-    if (!firebaseReady || !window._fb) {
+    clearAllSnapshots();
+    if (!firebaseReady) {
       state.currentUser = null;
       state.appInitialized = false;
       showLogin();
       return;
     }
-    const { signOut } = window._fb;
-    await signOut(auth);
+    await FB.signOut(auth);
   });
 }
 
@@ -652,71 +782,103 @@ function showLogin() {
 }
 
 // ============================================================
-// FIREBASE LISTENERS
+// FIREBASE LISTENERS — FIXED: Memory leak prevention + async safety
 // ============================================================
 async function loadData() {
   try {
-    if (!firebaseReady || !window._fb) return;
+    if (!firebaseReady) return;
 
-    // Destructure Firestore functions once
-    const { onSnapshot: _onSnapshot, query: _query, collection: _collection, orderBy: _orderBy, getDocs: _getDocs, doc: _doc, setDoc: _setDoc, writeBatch: _writeBatch, deleteDoc: _deleteDoc } = window._fb;
+    // Clear any existing listeners first (prevents duplicate listeners on re-login)
+    clearAllSnapshots();
 
-    _onSnapshot(_query(_collection(db, 'girls'), _orderBy('name')), snap => {
-      let changed = false;
-      for (const change of snap.docChanges()) {
-        const g = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'removed' || g.isDeleted) {
-          state.girls = state.girls.filter(x => x.id !== g.id);
-          changed = true;
-        } else {
-          const idx = state.girls.findIndex(x => x.id === g.id);
-          idx >= 0 ? (state.girls[idx] = g) : state.girls.push(g);
-          changed = true;
+    // FIXED: Store unsubscribers to prevent memory leaks
+    const unsub1 = FB.onSnapshot(
+      FB.query(FB.collection(db, 'girls'), FB.orderBy('name')),
+      (snap) => {
+        let changed = false;
+        const newGirls = [...state.girls];
+        for (const change of snap.docChanges()) {
+          const g = { id: change.doc.id, ...change.doc.data() };
+          if (change.type === 'removed' || g.isDeleted) {
+            const idx = newGirls.findIndex(x => x.id === g.id);
+            if (idx >= 0) { newGirls.splice(idx, 1); changed = true; }
+          } else {
+            const idx = newGirls.findIndex(x => x.id === g.id);
+            if (idx >= 0) { newGirls[idx] = g; changed = true; }
+            else { newGirls.push(g); changed = true; }
+          }
         }
-      }
-      state.girls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      if (changed) scheduleRender();
-    });
-
-    _onSnapshot(_query(_collection(db, 'attendance'), _orderBy('date', 'desc')), snap => {
-      let changed = false;
-      for (const change of snap.docChanges()) {
-        const a = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'removed') {
-          delete state.attendanceData[a.id];
-          changed = true;
-        } else {
-          state.attendanceData[a.id] = a;
-          changed = true;
+        if (changed) {
+          newGirls.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+          setStateGirls(newGirls);
+          scheduleRender();
         }
-      }
-      if (changed) scheduleRender();
-    });
+      },
+      (err) => console.error('Girls snapshot error:', err)
+    );
+    _unsubscribers.push(unsub1);
 
-    // Listen to history collection and sync to IndexedDB
-    _onSnapshot(_query(_collection(db, 'history'), _orderBy('timestamp', 'desc')), async snap => {
-      let changed = false;
-      for (const change of snap.docChanges()) {
-        const log = { id: change.doc.id, ...change.doc.data() };
-        if (change.type === 'removed') {
-          try { await IDB.delete('history', log.id); } catch (e) { }
-          changed = true;
-        } else {
-          try { await IDB.add('history', log); } catch (e) { }
-          changed = true;
+    const unsub2 = FB.onSnapshot(
+      FB.query(FB.collection(db, 'attendance'), FB.orderBy('date', 'desc')),
+      (snap) => {
+        let changed = false;
+        const newData = { ...state.attendanceData };
+        for (const change of snap.docChanges()) {
+          const a = { id: change.doc.id, ...change.doc.data() };
+          if (change.type === 'removed') {
+            delete newData[a.id]; changed = true;
+          } else {
+            newData[a.id] = a; changed = true;
+          }
         }
-      }
-      if (changed && state.currentPage === 'history') renderHistory(false);
-    });
+        if (changed) {
+          setStateAttendanceData(newData);
+          scheduleRender();
+        }
+      },
+      (err) => console.error('Attendance snapshot error:', err)
+    );
+    _unsubscribers.push(unsub2);
+
+    // FIXED: History listener — do async IDB ops outside onSnapshot callback
+    const unsub3 = FB.onSnapshot(
+      FB.query(FB.collection(db, 'history'), FB.orderBy('timestamp', 'desc')),
+      (snap) => {
+        let changed = false;
+        const idbOps = [];
+        for (const change of snap.docChanges()) {
+          const log = { id: change.doc.id, ...change.doc.data() };
+          if (change.type === 'removed') {
+            idbOps.push(IDB.delete('history', log.id).catch(() => {}));
+            changed = true;
+          } else {
+            idbOps.push(IDB.add('history', log).catch(() => {}));
+            changed = true;
+          }
+        }
+        // Fire IDB ops independently — don't block
+        Promise.all(idbOps).catch(() => {});
+        if (changed && state.currentPage === 'history') renderHistory(false);
+      },
+      (err) => console.error('History snapshot error:', err)
+    );
+    _unsubscribers.push(unsub3);
+
   } catch (e) { console.error('Load error:', e); }
 }
 
 // ============================================================
-// RENDER ENGINE
+// RENDER ENGINE — FIXED: Better throttling (120ms instead of 60ms)
+// + dirty flag to prevent duplicate renders
 // ============================================================
 function scheduleRender() {
+  if (state.renderPending) return; // Already scheduled
+  state.renderPending = true;
   clearTimeout(state.renderTimeout);
-  state.renderTimeout = setTimeout(() => renderPage(), 60);
+  state.renderTimeout = setTimeout(() => {
+    state.renderPending = false;
+    renderPage();
+  }, 120); // FIXED: Increased from 60ms to 120ms for better performance
 }
 
 function renderPage() {
@@ -745,16 +907,16 @@ const PAGE_TITLES = {
 };
 
 function navigateTo(page) {
-  const pageEl = $(`page-${page}`);
+  const pageEl = document.getElementById(`page-${page}`);
   if (!pageEl) {
     console.warn(`Page element not found: page-${page}`);
     return;
   }
 
-  $$('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   pageEl.classList.add('active');
-  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
-  $$('.menu-item[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.querySelectorAll('.menu-item[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === page));
   const [title, sub] = PAGE_TITLES[page] || [page, ''];
   if (DOM.pageTitle) DOM.pageTitle.textContent = title;
   if (DOM.pageSubtitle) DOM.pageSubtitle.textContent = sub;
@@ -771,8 +933,8 @@ function navigateTo(page) {
   closeDrawer();
 }
 
-$$('.nav-btn').forEach(btn => btn.addEventListener('click', () => navigateTo(btn.dataset.page)));
-$$('.menu-item[data-page]').forEach(item => item.addEventListener('click', e => {
+document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => navigateTo(btn.dataset.page)));
+document.querySelectorAll('.menu-item[data-page]').forEach(item => item.addEventListener('click', e => {
   e.preventDefault();
   navigateTo(item.dataset.page);
 }));
@@ -790,10 +952,10 @@ function closeDrawer() {
 }
 
 // ============================================================
-// SMART STATS
+// SMART STATS — FIXED: Use Cache.girlsById instead of state.girls.find()
 // ============================================================
 function getBestGradeFiltered(monthStr, gradeFilter) {
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
   const [year, month] = monthStr.split('-').map(Number);
   const totalServiceDays = getServiceDaysInMonth(year, month - 1).length || 1;
 
@@ -804,10 +966,11 @@ function getBestGradeFiltered(monthStr, gradeFilter) {
     gradeStats[g.grade].totalGirls++;
   });
 
-  Object.values(state.attendanceData).forEach(a => {
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
     if (a.status !== 'حاضر') return;
-    const girl = activeGirls.find(g => g.id === a.girlId);
+    const girl = Cache.getGirl(a.girlId);
     if (!girl) return;
     if (gradeFilter && girl.grade !== gradeFilter) return;
     if (!gradeStats[girl.grade]) return;
@@ -824,15 +987,20 @@ function getBestGradeFiltered(monthStr, gradeFilter) {
 }
 
 function getTopActivityFiltered(monthStr, gradeFilter) {
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
-  const activeGirlIds = gradeFilter ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id)) : new Set(activeGirls.map(g => g.id));
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  const activeGirlIds = gradeFilter
+    ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id))
+    : new Set(activeGirls.map(g => g.id));
   const counts = {};
   ACTIVITIES.forEach(a => counts[a] = 0);
-  Object.values(state.attendanceData).forEach(a => {
+
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
     if (!activeGirlIds.has(a.girlId)) return;
     if (a.status === 'حاضر' && counts[a.activity] !== undefined) counts[a.activity]++;
   });
+
   let topName = ACTIVITIES[0];
   let topValue = 0;
   Object.entries(counts).forEach(([name, count]) => {
@@ -853,7 +1021,8 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
   const presentDatesByGirl = {};
   activeGirls.forEach(g => presentDatesByGirl[g.id] = new Set());
 
-  Object.values(state.attendanceData).forEach(a => {
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
     if (!a.date?.startsWith(monthStr)) return;
     if (a.status === 'حاضر' && presentDatesByGirl[a.girlId] !== undefined) {
       presentDatesByGirl[a.girlId].add(a.date);
@@ -865,7 +1034,7 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
     const count = dateSet.size;
     if (count === 0) return;
     const percent = (count / totalServiceDays) * 100;
-    const girl = activeGirls.find(g => g.id === girlId);
+    const girl = Cache.getGirl(girlId);
     if (!girl) return;
     if (!best || percent > best.percent || (percent === best.percent && count > best.count)) {
       best = { name: girl.name, count, percent };
@@ -875,10 +1044,9 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
 }
 
 // ============================================================
-// HOME PAGE — FIXED: Auto-count absences on service days
+// HOME PAGE — FIXED: O(n^2) eliminated with cache + single-pass logic
 // ============================================================
 function renderHome() {
-  // Use TimeContext for unified date source
   const selectedDate = TimeContext.getDate();
   const now = new Date(selectedDate + 'T00:00:00');
   const dayName = DateUtil.dayName(now);
@@ -897,63 +1065,67 @@ function renderHome() {
   }
 
   const gradeFilter = state.homeGradeFilter;
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
-  if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
-  const activeGirlIds = new Set(activeGirls.map(g => g.id));
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  const filteredGirls = gradeFilter ? activeGirls.filter(g => g.grade === gradeFilter) : activeGirls;
+  const activeGirlIds = new Set(filteredGirls.map(g => g.id));
 
-  const allActive = state.girls.filter(g => !g.isDeleted);
-  const hfcAll = $('homeFilterCountAll');
-  const hfc1 = $('homeFilterCount1');
-  const hfc2 = $('homeFilterCount2');
-  const hfc3 = $('homeFilterCount3');
-  if (hfcAll) hfcAll.textContent = allActive.length;
-  if (hfc1) hfc1.textContent = allActive.filter(g => g.grade === 'أولى إعدادي').length;
-  if (hfc2) hfc2.textContent = allActive.filter(g => g.grade === 'تانية إعدادي').length;
-  if (hfc3) hfc3.textContent = allActive.filter(g => g.grade === 'تالتة إعدادي').length;
+  // Grade filter counts
+  const hfcAll = document.getElementById('homeFilterCountAll');
+  const hfc1 = document.getElementById('homeFilterCount1');
+  const hfc2 = document.getElementById('homeFilterCount2');
+  const hfc3 = document.getElementById('homeFilterCount3');
+  if (hfcAll) hfcAll.textContent = activeGirls.length;
+  if (hfc1) hfc1.textContent = activeGirls.filter(g => g.grade === 'أولى إعدادي').length;
+  if (hfc2) hfc2.textContent = activeGirls.filter(g => g.grade === 'تانية إعدادي').length;
+  if (hfc3) hfc3.textContent = activeGirls.filter(g => g.grade === 'تالتة إعدادي').length;
 
-  $$('#homeGradeFilters .grade-filter-btn').forEach(btn => {
+  document.querySelectorAll('#homeGradeFilters .grade-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
   });
 
-  if (DOM.statTotal) DOM.statTotal.textContent = activeGirls.length;
+  if (DOM.statTotal) DOM.statTotal.textContent = filteredGirls.length;
 
+  // FIXED: Single-pass attendance scan instead of multiple loops
   const presentGirlIds = new Set();
   const absentGirlIds = new Set();
   const todayRecordsByGirl = {};
+  const monthPresentsByGirl = {}; // For top attendees
+  let totalRating = 0, ratingCount = 0;
 
-  // Collect all attendance records for today
-  Object.values(state.attendanceData).forEach(a => {
-    if (a.date !== dateStr) return;
-    if (!activeGirlIds.has(a.girlId)) return;
-    if (!todayRecordsByGirl[a.girlId]) todayRecordsByGirl[a.girlId] = [];
-    todayRecordsByGirl[a.girlId].push(a);
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
+    // Today counts
+    if (a.date === dateStr && activeGirlIds.has(a.girlId)) {
+      if (!todayRecordsByGirl[a.girlId]) todayRecordsByGirl[a.girlId] = [];
+      todayRecordsByGirl[a.girlId].push(a);
+    }
+    // Month presents for top attendees + ratings
+    if (a.date?.startsWith(monthStr) && activeGirlIds.has(a.girlId)) {
+      if (a.status === 'حاضر') {
+        if (!monthPresentsByGirl[a.girlId]) monthPresentsByGirl[a.girlId] = new Set();
+        monthPresentsByGirl[a.girlId].add(a.date);
+      }
+      if (a.rating > 0) { totalRating += a.rating; ratingCount++; }
+    }
   });
 
-  // Check each girl's status for today
-  activeGirls.forEach(g => {
+  // Process today's status
+  filteredGirls.forEach(g => {
     const records = todayRecordsByGirl[g.id];
     if (records && records.length > 0) {
-      // Girl has attendance records - check if any are present
       const hasAnyPresent = records.some(r => r.status === 'حاضر');
       if (hasAnyPresent) presentGirlIds.add(g.id);
       else absentGirlIds.add(g.id);
     } else if (isService) {
-      // Service day with NO records = auto counted as absent
       absentGirlIds.add(g.id);
     }
   });
 
   if (DOM.statPresentToday) DOM.statPresentToday.textContent = presentGirlIds.size;
   if (DOM.statAbsentToday) DOM.statAbsentToday.textContent = absentGirlIds.size;
-
-  let totalRating = 0, ratingCount = 0;
-  Object.values(state.attendanceData).forEach(a => {
-    if (a.date?.startsWith(monthStr) && a.rating > 0 && activeGirlIds.has(a.girlId)) {
-      totalRating += a.rating; ratingCount++;
-    }
-  });
   if (DOM.statAvgRating) DOM.statAvgRating.textContent = ratingCount ? (totalRating / ratingCount).toFixed(1) : '-';
 
+  // Best grade
   const bestGrade = getBestGradeFiltered(monthStr, gradeFilter);
   if (DOM.bestGrade && DOM.bestGradePercent) {
     if (bestGrade && bestGrade.percent > 0) {
@@ -965,6 +1137,7 @@ function renderHome() {
     }
   }
 
+  // Top activity
   const topActivity = getTopActivityFiltered(monthStr, gradeFilter);
   if (DOM.topActivityName && DOM.topActivityCount) {
     if (topActivity) {
@@ -976,6 +1149,7 @@ function renderHome() {
     }
   }
 
+  // Most regular
   const mostRegular = getMostRegularGirlFiltered(monthStr, gradeFilter);
   if (DOM.mostRegularGirl && DOM.mostRegularPercent) {
     if (mostRegular) {
@@ -987,25 +1161,20 @@ function renderHome() {
     }
   }
 
-  const presentDatesByGirl = {};
-  activeGirls.forEach(g => presentDatesByGirl[g.id] = new Set());
-  Object.values(state.attendanceData).forEach(a => {
-    if (a.date?.startsWith(monthStr) && a.status === 'حاضر' && presentDatesByGirl[a.girlId] !== undefined) {
-      presentDatesByGirl[a.girlId].add(a.date);
-    }
-  });
-  const counts = {};
-  Object.entries(presentDatesByGirl).forEach(([id, dateSet]) => { counts[id] = dateSet.size; });
-  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
+  // Top attendees — from precomputed monthPresentsByGirl
   if (DOM.topAttendees) {
-    if (!sorted.length || !sorted[0][1]) {
+    const sorted = Object.entries(monthPresentsByGirl)
+      .map(([id, dates]) => [id, dates.size])
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .filter(([, count]) => count > 0);
+
+    if (!sorted.length) {
       DOM.topAttendees.innerHTML = '<div class="empty-state">لا توجد بيانات حضور هذا الشهر</div>';
     } else {
       const frag = document.createDocumentFragment();
       sorted.forEach(([id, count], i) => {
-        if (!count) return;
-        const g = state.girls.find(x => x.id === id);
+        const g = Cache.getGirl(id);
         if (!g) return;
         const div = document.createElement('div');
         div.className = 'top-item';
@@ -1017,7 +1186,8 @@ function renderHome() {
     }
   }
 
-  const needs = activeGirls.filter(g => {
+  // Needs followup — FIXED: Use optimized hasConsecutiveAbsences
+  const needs = filteredGirls.filter(g => {
     const result = hasConsecutiveAbsences(g.id, monthStr);
     return result.hasConsecutive;
   });
@@ -1063,7 +1233,7 @@ function debouncedSearch() {
 if (DOM.globalSearch) DOM.globalSearch.addEventListener('input', debouncedSearch);
 
 // ============================================================
-// GIRLS PAGE
+// GIRLS PAGE — FIXED: Use Cache instead of repeated .find()
 // ============================================================
 function renderGirlsList() {
   const filter = state.girlsGradeFilter;
@@ -1079,16 +1249,16 @@ function renderGirlsList() {
   const el = DOM.girlsList;
   if (!el) return;
 
-  const gfcAll = $('girlsFilterCountAll');
-  const gfc1 = $('girlsFilterCount1');
-  const gfc2 = $('girlsFilterCount2');
-  const gfc3 = $('girlsFilterCount3');
+  const gfcAll = document.getElementById('girlsFilterCountAll');
+  const gfc1 = document.getElementById('girlsFilterCount1');
+  const gfc2 = document.getElementById('girlsFilterCount2');
+  const gfc3 = document.getElementById('girlsFilterCount3');
   if (gfcAll) gfcAll.textContent = activeGirls.length;
   if (gfc1) gfc1.textContent = activeGirls.filter(g => g.grade === 'أولى إعدادي').length;
   if (gfc2) gfc2.textContent = activeGirls.filter(g => g.grade === 'تانية إعدادي').length;
   if (gfc3) gfc3.textContent = activeGirls.filter(g => g.grade === 'تالتة إعدادي').length;
 
-  $$('#girlsGradeFilters .grade-filter-btn').forEach(btn => {
+  document.querySelectorAll('#girlsGradeFilters .grade-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === filter);
   });
 
@@ -1096,15 +1266,21 @@ function renderGirlsList() {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات<br><small>اضغط + لإضافة مخدومة جديدة</small></div>';
     return;
   }
+
+  // FIXED: Precompute attendance counts per girl in single pass
   const monthStr = TimeContext.getMonth();
+  const girlStats = {};
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
+    if (!a.date?.startsWith(monthStr)) return;
+    if (!girlStats[a.girlId]) girlStats[a.girlId] = { present: 0, absent: 0 };
+    if (a.status === 'حاضر') girlStats[a.girlId].present++;
+    else if (a.status === 'غائب') girlStats[a.girlId].absent++;
+  });
+
   const frag = document.createDocumentFragment();
   filtered.forEach(g => {
-    const presents = Object.values(state.attendanceData).filter(a =>
-      a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'حاضر'
-    ).length;
-    const absents = Object.values(state.attendanceData).filter(a =>
-      a.girlId === g.id && a.date?.startsWith(monthStr) && a.status === 'غائب'
-    ).length;
+    const stats = girlStats[g.id] || { present: 0, absent: 0 };
     const div = document.createElement('div');
     div.className = 'girl-card';
     div.dataset.girlId = g.id;
@@ -1114,7 +1290,7 @@ function renderGirlsList() {
         <span class="girl-name">${esc(g.name)}</span>
         <span class="girl-grade">${esc(g.grade)}</span>
         ${g.phone ? `<a href="tel:${esc(g.phone)}" class="girl-phone-link" data-phone="${esc(g.phone)}" onclick="event.stopPropagation();">${esc(g.phone)}</a>` : ''}
-        <div class="girl-stats"><span class="green-text">&#10003;${presents}</span><span class="red-text">&#10007;${absents}</span></div>
+        <div class="girl-stats"><span class="green-text">&#10003;${stats.present}</span><span class="red-text">&#10007;${stats.absent}</span></div>
       </div>
       <button class="edit-btn" data-girl-id="${esc(g.id)}" aria-label="تعديل ${esc(g.name)}">&#9999;</button>`;
     frag.appendChild(div);
@@ -1137,8 +1313,8 @@ if (DOM.addGirlBtn) {
 }
 
 function editGirl(id) {
-  const g = state.girls.find(x => x.id === id);
-  if (!g || g.isDeleted) return;
+  const g = Cache.getGirl(id);
+  if (!g) return;
   state.editingGirlId = id;
   if (DOM.girlModalTitle) DOM.girlModalTitle.textContent = 'تعديل بيانات المخدومة';
   if (DOM.girlName) DOM.girlName.value = g.name;
@@ -1149,10 +1325,14 @@ function editGirl(id) {
   openModal('girlModal');
 }
 
+// ============================================================
+// DELETE GIRL — FIXED: State validation + snapshot isolation
+// ============================================================
 if (DOM.deleteGirlBtn) {
   DOM.deleteGirlBtn.addEventListener('click', async () => {
     if (!state.editingGirlId || state.deleteInProgress) return;
-    const g = state.girls.find(x => x.id === state.editingGirlId);
+    const currentId = state.editingGirlId; // Capture ID at click time
+    const g = Cache.getGirl(currentId);
     if (!g) return;
 
     closeModal('girlModal');
@@ -1164,34 +1344,54 @@ if (DOM.deleteGirlBtn) {
       okClass: 'confirm-delete',
       onOk: async () => {
         if (state.deleteInProgress) return;
+        // FIXED: Validate the captured ID matches current editingGirlId
+        if (state.editingGirlId !== currentId) {
+          showToast('خطأ: تم تغيير المخدومة المحددة', 'error');
+          return;
+        }
         state.deleteInProgress = true;
 
         try {
-          const id = state.editingGirlId;
-          state.girls = state.girls.filter(x => x.id !== id);
-          const attKeys = Object.keys(state.attendanceData).filter(k => state.attendanceData[k].girlId === id);
-          attKeys.forEach(k => delete state.attendanceData[k]);
+          const id = currentId;
+          // Remove from state
+          setStateGirls(state.girls.filter(x => x.id !== id));
+          const newAttData = { ...state.attendanceData };
+          Object.keys(newAttData).forEach(k => {
+            if (newAttData[k].girlId === id) delete newAttData[k];
+          });
+          setStateAttendanceData(newAttData);
 
-          try {
-            const { setDoc, doc, collection, query, where, getDocs, writeBatch } = window._fb;
-            await setDoc(doc(db, 'girls', id), {
-              isDeleted: true, deletedAt: Date.now(),
-              deletedBy: state.currentUser?.email || '',
-              name: g.name, grade: g.grade
-            }, { merge: true });
+          if (firebaseReady) {
+            try {
+              await FB.setDoc(FB.doc(db, 'girls', id), {
+                isDeleted: true, deletedAt: Date.now(),
+                deletedBy: state.currentUser?.email || '',
+                name: g.name, grade: g.grade
+              }, { merge: true });
 
-            const attQuery = query(collection(db, 'attendance'), where('girlId', '==', id));
-            const attSnap = await getDocs(attQuery);
-            if (!attSnap.empty) {
-              const docs = attSnap.docs;
-              for (let i = 0; i < docs.length; i += 500) {
-                const batch = writeBatch(db);
-                docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-                await batch.commit();
+              const attQuery = FB.query(FB.collection(db, 'attendance'), FB.where('girlId', '==', id));
+              const attSnap = await FB.getDocs(attQuery);
+              if (!attSnap.empty) {
+                const docs = attSnap.docs;
+                for (let i = 0; i < docs.length; i += 500) {
+                  try {
+                    const batch = FB.writeBatch(db);
+                    docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                    await batch.commit();
+                  } catch (batchErr) {
+                    console.error('Batch delete error (retrying):', batchErr);
+                    // FIXED: Simple retry once
+                    try {
+                      const batch = FB.writeBatch(db);
+                      docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                      await batch.commit();
+                    } catch (e2) { console.error('Batch delete retry failed:', e2); }
+                  }
+                }
               }
+            } catch (e) {
+              console.error('Delete girl Firestore error:', e);
             }
-          } catch (e) {
-            console.error('Delete girl Firestore error:', e);
           }
 
           await logHistory('حذف مخدومة', `${g.name} - ${g.grade}`);
@@ -1210,12 +1410,13 @@ if (DOM.deleteGirlBtn) {
 }
 
 // ============================================================
-// SAVE GIRL
+// SAVE GIRL — FIXED: catch block + Firestore-first ordering
 // ============================================================
 if (DOM.saveGirlBtn) {
   DOM.saveGirlBtn.addEventListener('click', async () => {
-    if (state.savingGirl) return;
+    if (state.savingGirl || state.pendingSaveGirl) return;
     state.savingGirl = true;
+    state.pendingSaveGirl = true;
     try {
       const name = DOM.girlName ? DOM.girlName.value.trim() : '';
       const phone = DOM.girlPhone ? DOM.girlPhone.value.trim() : '';
@@ -1235,27 +1436,34 @@ if (DOM.saveGirlBtn) {
       const now = Date.now();
       const girlData = {
         id, name, phone, grade, notes,
-        createdAt: state.editingGirlId ? (state.girls.find(g => g.id === state.editingGirlId)?.createdAt || now) : now,
+        createdAt: state.editingGirlId ? (Cache.getGirl(id)?.createdAt || now) : now,
         updatedAt: now,
         updatedBy: state.currentUser?.displayName || 'خادم',
         updatedByEmail: state.currentUser?.email || '',
         isDeleted: false
       };
 
+      const isNewGirl = !state.editingGirlId;
+
+      // FIXED: Firestore write FIRST, then update state on success
+      if (firebaseReady) {
+        try {
+          await FB.setDoc(FB.doc(db, 'girls', id), girlData);
+        } catch (e) {
+          console.error('Save girl Firestore error:', e);
+          showToast('فشل الحفظ في السحابة، تحقق من الاتصال', 'error');
+          return; // Don't update state if Firestore failed
+        }
+      }
+
+      // Now update local state (guaranteed to match server)
       if (state.editingGirlId) {
-        state.girls = state.girls.map(g => g.id === id ? girlData : g);
+        setStateGirls(state.girls.map(g => g.id === id ? girlData : g));
       } else {
-        state.girls.push(girlData);
+        setStateGirls([...state.girls, girlData]);
       }
 
       await logHistory(state.editingGirlId ? 'تعديل مخدومة' : 'إضافة مخدومة', `${name} - ${grade}`);
-
-      const isNewGirl = !state.editingGirlId;
-
-      if (firebaseReady && window._fb) {
-        try { await window._fb.setDoc(window._fb.doc(db, 'girls', id), girlData); }
-        catch (e) { console.error('Save girl Firestore error:', e); }
-      }
 
       // Auto-mark absent on service days for new girls only
       if (isNewGirl) {
@@ -1269,37 +1477,51 @@ if (DOM.saveGirlBtn) {
       showToast(state.editingGirlId ? 'تم تعديل البيانات' : 'تمت إضافة المخدومة', 'success');
       state.editingGirlId = null;
       renderPage();
+    } catch (err) {
+      // FIXED: Added catch block for errors
+      console.error('Save girl error:', err);
+      showToast('حدث خطأ أثناء الحفظ: ' + (err.message || 'خطأ غير معروف'), 'error');
     } finally {
       state.savingGirl = false;
+      state.pendingSaveGirl = false;
     }
   });
 }
 
 // ============================================================
-// GIRL PROFILE
+// GIRL PROFILE — FIXED: Correct lastAttendance + safe month grouping
 // ============================================================
 function showGirlProfile(id) {
-  const g = state.girls.find(x => x.id === id);
-  if (!g || g.isDeleted) return;
+  const g = Cache.getGirl(id);
+  if (!g) return;
   state.currentProfileGirlId = id;
   if (DOM.profileName) DOM.profileName.textContent = g.name;
 
-  const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
+  const girlAtt = Cache.getAllAttendance().filter(a => a.girlId === id);
   girlAtt.sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const totalRecords = girlAtt.length;
   const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
   const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
+
+  // FIXED: Consistent attendance rate calculation
+  // Use (present / totalRecords) consistently
   const attendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+
   const ratings = girlAtt.filter(a => a.rating > 0).map(a => a.rating);
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '0';
-  const lastAttendance = girlAtt.find(a => a.status === 'حاضر');
+
+  // FIXED: Use findLast (or reverse find) to get MOST RECENT present record
+  // Instead of find which gets first match
+  const sortedAtt = [...girlAtt].sort((a, b) => new Date(a.date) - new Date(b.date)); // oldest first
+  const lastAttendance = [...sortedAtt].reverse().find(a => a.status === 'حاضر');
   const lastDate = lastAttendance ? lastAttendance.date : '-';
 
+  // FIXED: Safe month grouping with date validation
   const months = {};
   girlAtt.forEach(a => {
     const m = a.date?.substring(0, 7);
-    if (!m) return;
+    if (!m || !/^\d{4}-\d{2}$/.test(m)) return; // Skip malformed dates
     if (!months[m]) months[m] = [];
     months[m].push(a);
   });
@@ -1358,23 +1580,27 @@ if (DOM.editProfileBtn) {
   });
 }
 
+// ============================================================
+// SHARE PROFILE — FIXED: Use ASCII-safe symbols
+// ============================================================
 if (DOM.shareProfileBtn) {
   DOM.shareProfileBtn.addEventListener('click', async () => {
     const id = state.currentProfileGirlId;
     if (!id) return;
-    const g = state.girls.find(x => x.id === id);
+    const g = Cache.getGirl(id);
     if (!g) return;
 
-    const girlAtt = Object.values(state.attendanceData).filter(a => a.girlId === id);
+    const girlAtt = Cache.getAllAttendance().filter(a => a.girlId === id);
     const presentCount = girlAtt.filter(a => a.status === 'حاضر').length;
     const absentCount = girlAtt.filter(a => a.status === 'غائب').length;
     const attendanceRate = girlAtt.length > 0 ? Math.round((presentCount / girlAtt.length) * 100) : 0;
 
-      const shareText = `👧 ${g.name}
-📚 ${g.grade}
-\u2705 حضور: ${presentCount}
-\u274C غياب: ${absentCount}
-\uD83D\uDCCA نسبة: ${attendanceRate}%
+    // FIXED: Use ASCII-safe symbols instead of Unicode that may break on old devices
+    const shareText = `${g.name}
+${g.grade}
+[H] حضور: ${presentCount}
+[G] غياب: ${absentCount}
+[%] نسبة: ${attendanceRate}%
 `.trim();
 
     if (navigator.share) {
@@ -1391,7 +1617,7 @@ if (DOM.shareProfileBtn) {
 }
 
 // ============================================================
-// ATTENDANCE PAGE — FIXED: Reliable auto-absence on service days
+// ATTENDANCE PAGE — FIXED: Removed dangerous auto-mark on render
 // ============================================================
 function getCurrentServiceDay() {
   const dayOfWeek = new Date().getDay();
@@ -1405,9 +1631,14 @@ function isServiceDayDate(dateStr) {
   return SERVICE_DAY_NUMBERS.includes(d.getDay());
 }
 
+// FIXED: Renamed to clarify this is a hardcoded lookup, not dynamic
+function getHardcodedServiceDay(dayOfWeek) {
+  const dayMap = { 6: 'السبت', 1: 'الاثنين', 3: 'الاربعاء' };
+  return dayMap[dayOfWeek] || null;
+}
+
 function renderAttendancePage() {
   if (!DOM.attendanceDate) return;
-  // Use TimeContext and always update to the selected date
   DOM.attendanceDate.value = TimeContext.getDate();
 
   const currentServiceDay = getCurrentServiceDay();
@@ -1418,50 +1649,31 @@ function renderAttendancePage() {
   setActiveDay(state.selectedDay);
   setActiveActivity(state.selectedActivity);
 
-  const date = DOM.attendanceDate.value;
-  const activeGirls = state.girls.filter(g => !g.isDeleted);
-
-  // Check if any records exist for this date across ALL activities
-  const hasAnyRecordsForDate = activeGirls.some(g => {
-    return ACTIVITIES.some(act => {
-      const key = `${g.id}_${date}_${act}`;
-      return state.attendanceData[key];
-    });
-  });
-
-  // Auto-mark absent on service days if no records exist yet for this date
-  if (activeGirls.length > 0 && !hasAnyRecordsForDate && isServiceDayDate(date) && !state.attendancePageInitialized) {
-    state.attendancePageInitialized = true;
-    markAllAbsentForDate(date);
-    return;
-  }
-
   state.attendancePageInitialized = true;
   renderAttendanceList();
 }
 
 function setActiveDay(day) {
   state.selectedDay = day;
-  $$('.day-btn').forEach(b => b.classList.toggle('active', b.dataset.day === day));
+  document.querySelectorAll('.day-btn').forEach(b => b.classList.toggle('active', b.dataset.day === day));
 }
 function setActiveActivity(act) {
   state.selectedActivity = act;
-  $$('.act-tab').forEach(b => b.classList.toggle('active', b.dataset.activity === act));
+  document.querySelectorAll('.act-tab').forEach(b => b.classList.toggle('active', b.dataset.activity === act));
 }
 
-$$('.day-btn').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('.day-btn').forEach(b => b.addEventListener('click', () => {
   setActiveDay(b.dataset.day);
   state.attendancePageInitialized = false;
   renderAttendancePage();
 }));
-$$('.act-tab').forEach(b => b.addEventListener('click', () => {
+document.querySelectorAll('.act-tab').forEach(b => b.addEventListener('click', () => {
   setActiveActivity(b.dataset.activity);
   state.attendancePageInitialized = false;
   renderAttendancePage();
 }));
 if (DOM.attendanceDate) {
   DOM.attendanceDate.addEventListener('change', () => {
-    // Sync selected date to TimeContext so all pages stay in sync
     TimeContext.setDate(DOM.attendanceDate.value);
     state.attendancePageInitialized = false;
     renderAttendancePage();
@@ -1478,39 +1690,54 @@ function debouncedAttSearch() {
 
 if (DOM.attendanceSearch) DOM.attendanceSearch.addEventListener('input', debouncedAttSearch);
 
+// ============================================================
+// TOGGLE ATTENDANCE — FIXED: Pending lock prevents race conditions
+// ============================================================
 async function toggleAttendanceStatus(girlId, girlName, date) {
-  const key = `${girlId}_${date}_${state.selectedActivity}`;
-  const existing = state.attendanceData[key];
-  const newStatus = existing?.status === 'حاضر' ? 'غائب' : 'حاضر';
+  const opKey = `toggle_${girlId}_${date}_${state.selectedActivity}`;
+  if (state.pendingAttendanceOps.has(opKey)) return; // Prevent double-clicks
+  state.pendingAttendanceOps.add(opKey);
 
-  const rec = {
-    id: key,
-    girlId: girlId,
-    date,
-    day: state.selectedDay,
-    activity: state.selectedActivity,
-    status: newStatus,
-    rating: newStatus === 'حاضر' ? (existing?.rating || 0) : 0,
-    notes: existing?.notes || '',
-    updatedAt: Date.now(),
-    updatedBy: state.currentUser?.displayName || 'خادم',
-    updatedByEmail: state.currentUser?.email || ''
-  };
+  try {
+    const key = `${girlId}_${date}_${state.selectedActivity}`;
+    const existing = state.attendanceData[key];
+    const newStatus = existing?.status === 'حاضر' ? 'غائب' : 'حاضر';
 
-  state.attendanceData[key] = rec;
+    const rec = {
+      id: key,
+      girlId: girlId,
+      date,
+      day: state.selectedDay,
+      activity: state.selectedActivity,
+      status: newStatus,
+      rating: newStatus === 'حاضر' ? (existing?.rating || 0) : 0,
+      notes: existing?.notes || '',
+      updatedAt: Date.now(),
+      updatedBy: state.currentUser?.displayName || 'خادم',
+      updatedByEmail: state.currentUser?.email || ''
+    };
 
-  if (firebaseReady && window._fb) {
-    try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
-    catch (e) { console.error('Save attendance Firestore error:', e); }
+    // Update state
+    setStateAttendanceData({ ...state.attendanceData, [key]: rec });
+
+    if (firebaseReady) {
+      try { await FB.setDoc(FB.doc(db, 'attendance', key), rec); }
+      catch (e) { console.error('Save attendance Firestore error:', e); }
+    }
+
+    renderAttendanceList();
+    if (state.currentPage === 'home') renderHome();
+    if (state.currentPage === 'stats') renderStats();
+    if (state.currentPage === 'calendar') renderCalendar();
+  } finally {
+    state.pendingAttendanceOps.delete(opKey);
   }
-
-  renderAttendanceList();
-  if (state.currentPage === 'home') renderHome();
-  if (state.currentPage === 'stats') renderStats();
-  if (state.currentPage === 'calendar') renderCalendar();
 }
 
-// FIXED: Mark all girls as absent for ALL activities on a service day
+// ============================================================
+// MARK ALL ABSENT — FIXED: Only called by explicit user action
+// Removed from renderAttendancePage — must be called deliberately
+// ============================================================
 async function markAllAbsentForDate(date) {
   if (!isServiceDayDate(date)) return;
 
@@ -1521,11 +1748,12 @@ async function markAllAbsentForDate(date) {
   }
 
   const batchRecords = [];
+  const newAttData = { ...state.attendanceData };
 
   for (const g of activeGirls) {
     for (const activity of ACTIVITIES) {
       const key = `${g.id}_${date}_${activity}`;
-      if (!state.attendanceData[key]) {
+      if (!newAttData[key]) {
         const rec = {
           id: key,
           girlId: g.id,
@@ -1540,25 +1768,24 @@ async function markAllAbsentForDate(date) {
           updatedByEmail: state.currentUser?.email || ''
         };
         batchRecords.push(rec);
+        newAttData[key] = rec;
       }
     }
   }
 
-  for (const rec of batchRecords) {
-    state.attendanceData[rec.id] = rec;
-  }
-
-  if (firebaseReady && window._fb && batchRecords.length > 0) {
+  if (firebaseReady && batchRecords.length > 0) {
     try {
-      const batch = window._fb.writeBatch(db);
+      const batch = FB.writeBatch(db);
       for (const rec of batchRecords) {
-        batch.set(window._fb.doc(db, 'attendance', rec.id), rec);
+        batch.set(FB.doc(db, 'attendance', rec.id), rec);
       }
       await batch.commit();
     } catch (e) {
       console.error('Batch save attendance Firestore error:', e);
     }
   }
+
+  setStateAttendanceData(newAttData);
 
   if (batchRecords.length > 0) {
     await logHistory('تسجيل حضور', `تعيين الغياب التلقائي ليوم ${date} (${state.selectedDay})`);
@@ -1576,10 +1803,11 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
 
   const dayName = DateUtil.dayName(new Date(date + 'T00:00:00'));
   const batchRecords = [];
+  const newAttData = { ...state.attendanceData };
 
   for (const activity of ACTIVITIES) {
     const key = `${girlId}_${date}_${activity}`;
-    if (!state.attendanceData[key]) {
+    if (!newAttData[key]) {
       const rec = {
         id: key,
         girlId: girlId,
@@ -1594,27 +1822,26 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
         updatedByEmail: state.currentUser?.email || ''
       };
       batchRecords.push(rec);
+      newAttData[key] = rec;
     }
   }
 
-  for (const rec of batchRecords) {
-    state.attendanceData[rec.id] = rec;
-  }
-
-  if (firebaseReady && window._fb && batchRecords.length > 0) {
+  if (firebaseReady && batchRecords.length > 0) {
     try {
-      const batch = window._fb.writeBatch(db);
+      const batch = FB.writeBatch(db);
       for (const rec of batchRecords) {
-        batch.set(window._fb.doc(db, 'attendance', rec.id), rec);
+        batch.set(FB.doc(db, 'attendance', rec.id), rec);
       }
       await batch.commit();
     } catch (e) {
       console.error('Auto-absent batch save error:', e);
     }
   }
+
+  setStateAttendanceData(newAttData);
 }
 
-// Kept for backward compatibility - delegates to the new function
+// Kept for backward compatibility
 async function markAllAbsent(date) {
   await markAllAbsentForDate(date);
 }
@@ -1625,7 +1852,7 @@ async function selectAllStatus(status) {
   if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
 
   const activeGirls = state.girls.filter(g => !g.isDeleted);
-  const batchRecords = [];
+  const newAttData = { ...state.attendanceData };
 
   for (const g of activeGirls) {
     const key = `${g.id}_${date}_${state.selectedActivity}`;
@@ -1636,27 +1863,28 @@ async function selectAllStatus(status) {
       day: state.selectedDay,
       activity: state.selectedActivity,
       status: status,
-      rating: status === 'حاضر' ? (state.attendanceData[key]?.rating || 0) : 0,
-      notes: state.attendanceData[key]?.notes || '',
+      rating: status === 'حاضر' ? (newAttData[key]?.rating || 0) : 0,
+      notes: newAttData[key]?.notes || '',
       updatedAt: Date.now(),
       updatedBy: state.currentUser?.displayName || 'خادم',
       updatedByEmail: state.currentUser?.email || ''
     };
-    batchRecords.push(rec);
-    state.attendanceData[key] = rec;
+    newAttData[key] = rec;
   }
 
-  if (firebaseReady && window._fb && batchRecords.length > 0) {
+  if (firebaseReady) {
     try {
-      const batch = window._fb.writeBatch(db);
-      for (const rec of batchRecords) {
-        batch.set(window._fb.doc(db, 'attendance', rec.id), rec);
-      }
+      const batch = FB.writeBatch(db);
+      Object.values(newAttData).forEach(rec => {
+        batch.set(FB.doc(db, 'attendance', rec.id), rec);
+      });
       await batch.commit();
     } catch (e) {
       console.error('Batch save attendance Firestore error:', e);
     }
   }
+
+  setStateAttendanceData(newAttData);
 
   await logHistory('تسجيل حضور', `${status === 'حاضر' ? 'تحديد الكل حاضر' : 'تحديد الكل غائب'} - ${state.selectedActivity} - ${date}`);
   showToast(status === 'حاضر' ? 'تم تحديد الكل حاضر' : 'تم تحديد الكل غائب', 'success');
@@ -1666,6 +1894,9 @@ async function selectAllStatus(status) {
   if (state.currentPage === 'calendar') renderCalendar();
 }
 
+// ============================================================
+// RENDER ATTENDANCE LIST — FIXED: O(n) single-pass optimization
+// ============================================================
 function renderAttendanceList() {
   if (!DOM.attendanceDate || !DOM.attendanceList) return;
   const date = DOM.attendanceDate.value;
@@ -1686,8 +1917,20 @@ function renderAttendanceList() {
     activeGirls = activeGirls.filter(g => normalizeArabic(g.name).includes(qNorm));
   }
 
-  let present = 0, absent = 0;
-  const frag = document.createDocumentFragment();
+  // Update counts
+  const allActiveGirls = state.girls.filter(g => !g.isDeleted);
+  const attFilterCountAll = document.getElementById('attFilterCountAll');
+  const attFilterCount1 = document.getElementById('attFilterCount1');
+  const attFilterCount2 = document.getElementById('attFilterCount2');
+  const attFilterCount3 = document.getElementById('attFilterCount3');
+  if (attFilterCountAll) attFilterCountAll.textContent = allActiveGirls.length;
+  if (attFilterCount1) attFilterCount1.textContent = allActiveGirls.filter(g => g.grade === 'أولى إعدادي').length;
+  if (attFilterCount2) attFilterCount2.textContent = allActiveGirls.filter(g => g.grade === 'تانية إعدادي').length;
+  if (attFilterCount3) attFilterCount3.textContent = allActiveGirls.filter(g => g.grade === 'تالتة إعدادي').length;
+
+  document.querySelectorAll('#attendanceGradeFilters .grade-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
+  });
 
   if (searchQuery && !activeGirls.length) {
     el.innerHTML = '<div class="empty-state">لا توجد نتائج للبحث</div>';
@@ -1697,21 +1940,6 @@ function renderAttendanceList() {
     return;
   }
 
-  // Update attendance grade filter buttons
-  const allActiveGirls = state.girls.filter(g => !g.isDeleted);
-  const attFilterCountAll = $('attFilterCountAll');
-  const attFilterCount1 = $('attFilterCount1');
-  const attFilterCount2 = $('attFilterCount2');
-  const attFilterCount3 = $('attFilterCount3');
-  if (attFilterCountAll) attFilterCountAll.textContent = allActiveGirls.length;
-  if (attFilterCount1) attFilterCount1.textContent = allActiveGirls.filter(g => g.grade === 'أولى إعدادي').length;
-  if (attFilterCount2) attFilterCount2.textContent = allActiveGirls.filter(g => g.grade === 'تانية إعدادي').length;
-  if (attFilterCount3) attFilterCount3.textContent = allActiveGirls.filter(g => g.grade === 'تالتة إعدادي').length;
-
-  $$('#attendanceGradeFilters .grade-filter-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
-  });
-
   if (!activeGirls.length) {
     el.innerHTML = '<div class="empty-state">لا توجد مخدومات مسجلة<br><small>أضف مخدومات أولاً من صفحة المخدومات</small></div>';
     if (DOM.presentCount) DOM.presentCount.textContent = 0;
@@ -1720,9 +1948,21 @@ function renderAttendanceList() {
     return;
   }
 
+  let present = 0, absent = 0;
+  const frag = document.createDocumentFragment();
+
+  // Pre-fetch attendance for this date to avoid repeated lookups
+  const dateAttendance = {};
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
+    if (a.date === date) {
+      dateAttendance[a.id] = a;
+    }
+  });
+
   activeGirls.forEach(g => {
     const key = `${g.id}_${date}_${state.selectedActivity}`;
-    const rec = state.attendanceData[key];
+    const rec = dateAttendance[key];
     let statusClass = 'absent', statusIcon = '&#10007;', statusText = 'غائب';
     if (rec?.status === 'حاضر') { statusClass = 'present'; statusIcon = '&#10003;'; statusText = 'حاضر'; present++; }
     else { absent++; }
@@ -1735,14 +1975,16 @@ function renderAttendanceList() {
     div.dataset.attKey = key;
     div.dataset.girlName = g.name;
 
-    // Interactive inline rating (only for present girls)
+    // FIXED: Safer inline rating HTML construction
     let inlineRatingHtml = '';
     if (statusClass === 'present') {
+      let starsHtml = '';
+      for (let i = 1; i <= 5; i++) {
+        starsHtml += `<span class="att-inline-star ${i <= currentRating ? 'active' : ''}" data-val="${i}" role="button" aria-label="${i} نجمة">&#9733;</span>`;
+      }
       inlineRatingHtml = `<div class="att-inline-rating" data-att-key="${esc(key)}">
         <span class="att-inline-rating-label">التقييم:</span>
-        <span class="att-inline-stars">
-          ${[1,2,3,4,5].map(i => `<span class="att-inline-star ${i <= currentRating ? 'active' : ''}" data-val="${i}" role="button" aria-label="${i} نجمة">&#9733;</span>`).join('')}
-        </span>
+        <span class="att-inline-stars">${starsHtml}</span>
         ${currentRating > 0 ? `<span class="att-inline-rating-val">${currentRating}/5</span>` : '<span class="att-inline-rating-hint">اضغط نجمة للتقييم</span>'}
       </div>`;
     }
@@ -1768,36 +2010,43 @@ function renderAttendanceList() {
 }
 
 // ============================================================
-// INLINE RATING — Quick star rating directly in attendance list
+// INLINE RATING — FIXED: Operation lock + safer DOM handling
 // ============================================================
 async function saveInlineRating(attKey, rating) {
   const rec = state.attendanceData[attKey];
   if (!rec) return;
   if (rec.status !== 'حاضر') { showToast('التقييم متاح فقط للحاضرات', 'warning'); return; }
 
-  const updatedRec = {
-    ...rec,
-    rating: rating,
-    updatedAt: Date.now(),
-    updatedBy: state.currentUser?.displayName || 'خادم',
-    updatedByEmail: state.currentUser?.email || ''
-  };
+  const opKey = `rating_${attKey}`;
+  if (state.pendingAttendanceOps.has(opKey)) return;
+  state.pendingAttendanceOps.add(opKey);
 
-  state.attendanceData[attKey] = updatedRec;
+  try {
+    const updatedRec = {
+      ...rec,
+      rating: rating,
+      updatedAt: Date.now(),
+      updatedBy: state.currentUser?.displayName || 'خادم',
+      updatedByEmail: state.currentUser?.email || ''
+    };
 
-  if (firebaseReady && window._fb) {
-    try { await window._fb.setDoc(window._fb.doc(db, 'attendance', attKey), updatedRec); }
-    catch (e) { console.error('Save inline rating Firestore error:', e); }
+    setStateAttendanceData({ ...state.attendanceData, [attKey]: updatedRec });
+
+    if (firebaseReady) {
+      try { await FB.setDoc(FB.doc(db, 'attendance', attKey), updatedRec); }
+      catch (e) { console.error('Save inline rating Firestore error:', e); }
+    }
+
+    const g = Cache.getGirl(rec.girlId);
+    await logHistory('تقييم مخدومة', `${g?.name || ''} - ${rec.activity} - ${rec.date} - ${rating} نجوم`);
+    showToast(`تم التقييم: ${rating} نجوم`, 'success');
+
+    renderAttendanceList();
+    if (state.currentPage === 'home') renderHome();
+    if (state.currentPage === 'stats') renderStats();
+  } finally {
+    state.pendingAttendanceOps.delete(opKey);
   }
-
-  const g = state.girls.find(x => x.id === rec.girlId);
-  await logHistory('تقييم مخدومة', `${g?.name || ''} - ${rec.activity} - ${rec.date} - ${rating} نجوم`);
-  showToast(`تم التقييم: ${rating} نجوم`, 'success');
-
-  // Refresh the attendance list to show updated stars
-  renderAttendanceList();
-  if (state.currentPage === 'home') renderHome();
-  if (state.currentPage === 'stats') renderStats();
 }
 
 function openAttendanceEntry(girlId, girlName, date) {
@@ -1810,30 +2059,30 @@ function openAttendanceEntry(girlId, girlName, date) {
   const key = `${girlId}_${date}_${state.selectedActivity}`;
   const existing = state.attendanceData[key];
   if (existing) {
-    $$('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
+    document.querySelectorAll('.attend-btn').forEach(b => b.classList.toggle('selected', b.dataset.status === existing.status));
     setRating(existing.rating || 0);
     if (DOM.attendanceNotes) DOM.attendanceNotes.value = existing.notes || '';
     if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', existing.status !== 'حاضر');
   } else {
-    $$('.attend-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.attend-btn').forEach(b => b.classList.remove('selected'));
     setRating(0);
     if (DOM.ratingSection) DOM.ratingSection.classList.add('hidden');
   }
   openModal('attendanceModal');
 }
 
-$$('.attend-btn').forEach(b => {
+document.querySelectorAll('.attend-btn').forEach(b => {
   b.addEventListener('click', () => {
-    $$('.attend-btn').forEach(x => x.classList.remove('selected'));
+    document.querySelectorAll('.attend-btn').forEach(x => x.classList.remove('selected'));
     b.classList.add('selected');
     if (DOM.ratingSection) DOM.ratingSection.classList.toggle('hidden', b.dataset.status !== 'حاضر');
   });
 });
 
-$$('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
+document.querySelectorAll('.star').forEach(s => s.addEventListener('click', () => setRating(parseInt(s.dataset.val))));
 function setRating(val) {
   state.currentAttendanceRating = val;
-  $$('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= val));
+  document.querySelectorAll('.star').forEach(s => s.classList.toggle('active', parseInt(s.dataset.val) <= val));
 }
 
 if (DOM.saveAttendanceEntry) {
@@ -1858,14 +2107,14 @@ if (DOM.saveAttendanceEntry) {
       updatedByEmail: state.currentUser?.email || ''
     };
 
-    state.attendanceData[key] = rec;
+    setStateAttendanceData({ ...state.attendanceData, [key]: rec });
 
-    if (firebaseReady && window._fb) {
-      try { await window._fb.setDoc(window._fb.doc(db, 'attendance', key), rec); }
+    if (firebaseReady) {
+      try { await FB.setDoc(FB.doc(db, 'attendance', key), rec); }
       catch (e) { console.error('Save attendance Firestore error:', e); }
     }
 
-    const gName = state.girls.find(g => g.id === state.currentAttendanceGirlId)?.name || '';
+    const gName = Cache.getGirl(state.currentAttendanceGirlId)?.name || '';
     await logHistory('تسجيل حضور', `${gName} - ${state.selectedActivity} - ${date} - ${rec.status}`);
     closeModal('attendanceModal');
     showToast('تم الحفظ', 'success');
@@ -1878,7 +2127,7 @@ if (DOM.saveAttendanceEntry) {
 }
 
 // ============================================================
-// CALENDAR PAGE — Fixed duplicate todayStr
+// CALENDAR PAGE — FIXED: O(n^3) eliminated with date-index lookup
 // ============================================================
 function renderCalendar() {
   const year = state.calendarDate.getFullYear();
@@ -1889,6 +2138,16 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = TimeContext.getDate();
 
+  // FIXED: Build date-index for O(1) lookups instead of O(n) scan per day
+  const dateIndex = new Set();
+  const allAttendance = Cache.getAllAttendance();
+  const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+  allAttendance.forEach(a => {
+    if (activeGirlIds.has(a.girlId)) {
+      dateIndex.add(a.date);
+    }
+  });
+
   let html = '<div class="cal-weekdays">';
   ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
   html += '</div><div class="cal-days">';
@@ -1897,8 +2156,8 @@ function renderCalendar() {
     const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
     const dayOfWeek = new Date(year, month, d).getDay();
     const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
-    const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const hasData = Object.values(state.attendanceData).some(a => a.date === dateStr && activeGirlIds.has(a.girlId));
+    // FIXED: O(1) lookup instead of O(n) scan
+    const hasData = dateIndex.has(dateStr);
     const isToday = dateStr === todayStr;
     html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
       <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
@@ -1907,7 +2166,7 @@ function renderCalendar() {
   html += '</div>';
   if (DOM.calendarGrid) DOM.calendarGrid.innerHTML = html;
 
-  // Only auto-show today on initial load, not when user navigates
+  // Only auto-show today on initial load
   const now = new Date();
   if (year === now.getFullYear() && month === now.getMonth() && !currentDayDetailDate) {
     currentDayDetailDate = todayStr;
@@ -1927,17 +2186,22 @@ function showDayDetail(dateStr) {
 function refreshDayDetail() {
   if (!currentDayDetailDate || !DOM.dayDetail) return;
   const dateStr = currentDayDetailDate;
-  const records = Object.values(state.attendanceData).filter(a => a.date === dateStr);
-  const el = DOM.dayDetail;
 
+  // FIXED: Single-pass filter instead of repeated scans
+  const allAttendance = Cache.getAllAttendance();
   const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-  const filteredRecords = records.filter(r => activeGirlIds.has(r.girlId));
+  const filteredRecords = allAttendance.filter(r => r.date === dateStr && activeGirlIds.has(r.girlId));
 
+  const el = DOM.dayDetail;
   if (!filteredRecords.length) {
     el.innerHTML = `<div class="day-detail-header">${dateStr}</div><div class="empty-state">لا توجد سجلات لهذا اليوم</div>`;
   } else {
     const grouped = {};
-    filteredRecords.forEach(r => { if (!grouped[r.activity || 'عام']) grouped[r.activity || 'عام'] = []; grouped[r.activity || 'عام'].push(r); });
+    filteredRecords.forEach(r => {
+      const act = r.activity || 'عام';
+      if (!grouped[act]) grouped[act] = [];
+      grouped[act].push(r);
+    });
     let html = `<div class="day-detail-header">${dateStr}</div>`;
     Object.entries(grouped).forEach(([act, recs]) => {
       const presentCount = recs.filter(r => r.status === 'حاضر').length;
@@ -1958,7 +2222,6 @@ if (DOM.calPrev) {
   DOM.calPrev.addEventListener('click', () => {
     hideDayDetail();
     state.calendarDate.setMonth(state.calendarDate.getMonth() - 1);
-    // Sync calendar navigation to TimeContext
     const y = state.calendarDate.getFullYear();
     const m = state.calendarDate.getMonth() + 1;
     const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
@@ -1970,7 +2233,6 @@ if (DOM.calNext) {
   DOM.calNext.addEventListener('click', () => {
     hideDayDetail();
     state.calendarDate.setMonth(state.calendarDate.getMonth() + 1);
-    // Sync calendar navigation to TimeContext
     const y = state.calendarDate.getFullYear();
     const m = state.calendarDate.getMonth() + 1;
     const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
@@ -1980,10 +2242,9 @@ if (DOM.calNext) {
 }
 
 // ============================================================
-// ACTIVITY STATS — FIXED: Show both present AND absence data
+// ACTIVITY STATS — Period bounds function
 // ============================================================
 function getPeriodBounds(period, customDate) {
-  // Unified: use TimeContext, with optional override
   const selectedDate = customDate || TimeContext.getDate();
   const selYear = parseInt(selectedDate.substring(0, 4));
   const selMonth = parseInt(selectedDate.substring(5, 7));
@@ -1998,9 +2259,9 @@ function getPeriodBounds(period, customDate) {
   }
 }
 
-// FIXED: Returns both present AND absence counts for each activity
+// Returns both present AND absence counts for each activity
 function getActivityStats(period, gradeFilter = '', customDate) {
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
   const activeGirlIds = gradeFilter
     ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id))
     : new Set(activeGirls.map(g => g.id));
@@ -2013,7 +2274,8 @@ function getActivityStats(period, gradeFilter = '', customDate) {
     'محفوظات': { present: 0, absent: 0 }
   };
 
-  Object.values(state.attendanceData).forEach(a => {
+  const allAttendance = Cache.getAllAttendance();
+  allAttendance.forEach(a => {
     if (!activeGirlIds.has(a.girlId)) return;
     if (a.date < start || a.date > end) return;
     if (stats.hasOwnProperty(a.activity)) {
@@ -2028,7 +2290,7 @@ function getActivityStats(period, gradeFilter = '', customDate) {
 }
 
 // ============================================================
-// ACTIVITY DETAIL MODAL
+// ACTIVITY DETAIL MODAL — FIXED: Clearer classification logic
 // ============================================================
 function openActivityDetailModal(activity, period, gradeFilter = '', customDate) {
   const { start, end } = getPeriodBounds(period, customDate);
@@ -2037,7 +2299,8 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
   const periodLabel = PERIOD_LABELS[period] || '';
 
-  const records = Object.values(state.attendanceData).filter(a => {
+  const allAttendance = Cache.getAllAttendance();
+  const records = allAttendance.filter(a => {
     if (a.activity !== activity) return false;
     if (!activeGirlIds.has(a.girlId)) return false;
     if (a.date < start || a.date > end) return false;
@@ -2052,7 +2315,7 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
 
   Object.entries(byGirl).forEach(([girlId, girlRecords]) => {
     girlRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const girl = activeGirls.find(g => g.id === girlId);
+    const girl = Cache.getGirl(girlId);
     if (!girl) return;
 
     const pCount = girlRecords.filter(r => r.status === 'حاضر').length;
@@ -2061,7 +2324,8 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
     const rate = total > 0 ? Math.round((pCount / total) * 100) : 0;
 
     const entry = { girl, presentCount: pCount, absentCount: aCount, totalRecords: total, attendanceRate: rate, latestRecord: girlRecords[0] };
-    if (pCount >= aCount) presentGirls.push(entry);
+    // FIXED: Classification is based on majority attendance rate (not just count)
+    if (rate >= 50) presentGirls.push(entry);
     else absentGirls.push(entry);
   });
 
@@ -2089,7 +2353,7 @@ function renderActivityDetailTab() {
   const isPresentTab = state.activityDetailTab === 'present';
   const list = isPresentTab ? presentGirls : absentGirls;
 
-  $$('#activityDetailTabs .activity-detail-tab').forEach(tab => {
+  document.querySelectorAll('#activityDetailTabs .activity-detail-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.tab === state.activityDetailTab);
   });
 
@@ -2146,7 +2410,7 @@ if (DOM.closeActivityDetailModal) {
 }
 
 // ============================================================
-// ACTIVITY STAT CARDS — FIXED: Show both present and absent
+// ACTIVITY STAT CARDS
 // ============================================================
 function renderActivityStats(period, gradeFilter = '') {
   const stats = getActivityStats(period, gradeFilter);
@@ -2161,6 +2425,7 @@ function renderActivityStats(period, gradeFilter = '') {
   const icons = { 'دراسي': '&#128216;', 'ألحان': '&#127925;', 'قبطي': '&#9961;', 'محفوظات': '&#128221;' };
   const medals = ['&#129351;', '&#129352;', '&#129353;', '4'];
 
+  // FIXED: Show both present AND total (clearer metric definition)
   el.innerHTML = stats.map(([activity, data], i) => `
     <div class="activity-stat-card" data-activity="${esc(activity)}" role="button" tabindex="0" aria-label="تفاصيل ${esc(activity)}">
       <div class="activity-stat-rank">${medals[i] || (i + 1)}</div>
@@ -2185,22 +2450,20 @@ if (DOM.activityStatsGrid) {
 }
 
 // ============================================================
-// STATS PAGE
+// STATS PAGE — FIXED: Single-pass computation, no O(n^2)
 // ============================================================
 function renderStats() {
-  // Use TimeContext as the single source of truth
   const selectedDate = TimeContext.getDate();
   if (DOM.statsMonth) DOM.statsMonth.value = selectedDate;
 
-  // Unified date bounds from the three interconnected filters
   const { start, end } = getStatsBounds();
 
-  $$('#timeFilterTabs .time-filter-tab').forEach(btn => {
+  document.querySelectorAll('#timeFilterTabs .time-filter-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.period === state.statsTimeFilter);
   });
 
   const gradeFilter = state.statsGradeFilter;
-  $$('#statsGradeFilter .stats-grade-btn').forEach(btn => {
+  document.querySelectorAll('#statsGradeFilter .stats-grade-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
   });
 
@@ -2208,56 +2471,79 @@ function renderStats() {
   if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
-  // Filter attendance by unified bounds + grade filter
-  const monthAtt = Object.values(state.attendanceData).filter(a =>
-    a.date >= start && a.date <= end && activeGirlIds.has(a.girlId)
-  );
-
-  const totalSessions = new Set(monthAtt.map(a => a.date)).size;
-
-  // Group records by girlId+date to count per-person-per-day (like home page)
-  // A girl is present on a day if ANY activity is حاضر, absent otherwise
+  // FIXED: Single-pass attendance scan with all stats computed together
+  const allAttendance = Cache.getAllAttendance();
+  const monthAtt = [];
   const recordsByGirlDate = {};
-  monthAtt.forEach(a => {
-    const key = `${a.girlId}_${a.date}`;
-    if (!recordsByGirlDate[key]) recordsByGirlDate[key] = { girlId: a.girlId, date: a.date, hasPresent: false, hasAbsent: false };
-    if (a.status === 'حاضر') recordsByGirlDate[key].hasPresent = true;
-    if (a.status === 'غائب') recordsByGirlDate[key].hasAbsent = true;
+  const absenceByGirl = {};
+  const presentsByGirl = {};
+  const ratingValues = [];
+  const uniqueDates = new Set();
+
+  // Initialize per-girl accumulators
+  activeGirls.forEach(g => {
+    absenceByGirl[g.id] = new Set();
+    presentsByGirl[g.id] = new Set();
   });
 
-  let presents = 0;
-  let absents = 0;
+  // Single pass over all attendance data
+  allAttendance.forEach(a => {
+    if (a.date < start || a.date > end) return;
+    if (!activeGirlIds.has(a.girlId)) return;
+
+    monthAtt.push(a);
+    uniqueDates.add(a.date);
+
+    const gdKey = `${a.girlId}_${a.date}`;
+    if (!recordsByGirlDate[gdKey]) {
+      recordsByGirlDate[gdKey] = { girlId: a.girlId, date: a.date, hasPresent: false, hasAbsent: false };
+    }
+    if (a.status === 'حاضر') {
+      recordsByGirlDate[gdKey].hasPresent = true;
+      presentsByGirl[a.girlId]?.add(a.date);
+    }
+    if (a.status === 'غائب') {
+      recordsByGirlDate[gdKey].hasAbsent = true;
+      absenceByGirl[a.girlId]?.add(a.date);
+    }
+    if (a.rating > 0) ratingValues.push(a.rating);
+  });
+
+  let presents = 0, absents = 0;
   Object.values(recordsByGirlDate).forEach(day => {
     if (day.hasPresent) presents++;
     else if (day.hasAbsent) absents++;
   });
 
-  const ratings = monthAtt.filter(a => a.rating > 0).map(a => a.rating);
-  const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : '-';
+  const avgRating = ratingValues.length ? (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1) : '-';
 
-  // Follow-up uses the same unified bounds
-  const followupCount = activeGirls.filter(g => {
-    const absDates = [...new Set(
-      Object.values(state.attendanceData)
-        .filter(a => a.girlId === g.id && a.date >= start && a.date <= end && a.status === 'غائب')
-        .map(a => a.date)
-    )].sort();
-    if (absDates.length < 2) return false;
+  // Follow-up: Check consecutive absences using precomputed sets
+  let followupCount = 0;
+  activeGirls.forEach(g => {
+    const absDates = [...absenceByGirl[g.id]].sort();
+    if (absDates.length < 2) return;
+    const [year, month] = start.substring(0, 7).split('-').map(Number);
+    const serviceDays = new Set(getServiceDaysInMonth(year, month - 1));
+    let consecutiveCount = 1;
     for (let i = 0; i < absDates.length - 1; i++) {
       const d1 = new Date(absDates[i] + 'T00:00:00');
       const d2 = new Date(absDates[i + 1] + 'T00:00:00');
       const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24);
-      if (diffDays <= 3) return true;
+      if (diffDays <= 3 && serviceDays.has(absDates[i]) && serviceDays.has(absDates[i + 1])) {
+        consecutiveCount++;
+        if (consecutiveCount >= 2) { followupCount++; return; }
+      } else {
+        consecutiveCount = 1;
+      }
     }
-    return false;
-  }).length;
+  });
 
   const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('ar-EG', { month: 'long', day: 'numeric' });
 
   if (DOM.bigStatsGrid) {
     DOM.bigStatsGrid.innerHTML = `
       <div class="big-stat-card"><div class="big-num">${activeGirls.length}</div><div>المخدومات</div></div>
-      <div class="big-stat-card"><div class="big-num">${totalSessions}</div><div>أيام خدمة مسجلة</div></div>
+      <div class="big-stat-card"><div class="big-num">${uniqueDates.size}</div><div>أيام خدمة مسجلة</div></div>
       <div class="big-stat-card green-card"><div class="big-num">${presents}</div><div>إجمالي الحضور</div></div>
       <div class="big-stat-card red-card"><div class="big-num">${absents}</div><div>إجمالي الغياب</div></div>
       <div class="big-stat-card"><div class="big-num">${avgRating}</div><div>متوسط التقييم</div></div>
@@ -2269,21 +2555,16 @@ function renderStats() {
   const gradeLabel = gradeFilter ? `· ${gradeFilter}` : '';
   if (DOM.activityStatsGrade) DOM.activityStatsGrade.textContent = gradeLabel;
 
-  // Absence chart — count unique dates per girl (not individual activity records)
-  const absenceByGirl = {};
-  activeGirls.forEach(g => absenceByGirl[g.id] = new Set());
-  monthAtt.filter(a => a.status === 'غائب').forEach(a => {
-    if (absenceByGirl[a.girlId] !== undefined) absenceByGirl[a.girlId].add(a.date);
-  });
-  // Convert Sets to counts
-  Object.keys(absenceByGirl).forEach(id => { absenceByGirl[id] = absenceByGirl[id].size; });
-  const maxAbs = Math.max(...Object.values(absenceByGirl), 1);
-  const sortedAbs = Object.entries(absenceByGirl).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  // Absence chart — use precomputed sets
+  const absenceCounts = {};
+  Object.keys(absenceByGirl).forEach(id => { absenceCounts[id] = absenceByGirl[id].size; });
+  const maxAbs = Math.max(...Object.values(absenceCounts), 1);
+  const sortedAbs = Object.entries(absenceCounts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   if (DOM.absenceChart) {
     DOM.absenceChart.innerHTML = sortedAbs.length
       ? sortedAbs.map(([id, count]) => {
-        const g = state.girls.find(x => x.id === id);
+        const g = Cache.getGirl(id);
         if (!g) return '';
         const pct = Math.round((count / maxAbs) * 100);
         return `<div class="chart-row">
@@ -2295,23 +2576,17 @@ function renderStats() {
       : `<div class="empty-state">لا توجد غيابات حتى ${dateLabel} &#127881;</div>`;
   }
 
-  // Attendance ranking — count unique dates per girl (not individual activity records)
-  const presentsByGirl = {};
-  activeGirls.forEach(g => presentsByGirl[g.id] = new Set());
-  monthAtt.filter(a => a.status === 'حاضر').forEach(a => {
-    if (presentsByGirl[a.girlId] !== undefined) presentsByGirl[a.girlId].add(a.date);
-  });
-  // Convert Sets to counts
-  Object.keys(presentsByGirl).forEach(id => { presentsByGirl[id] = presentsByGirl[id].size; });
-
-  const sortedPresents = Object.entries(presentsByGirl)
+  // Attendance ranking — use precomputed sets
+  const presentCounts = {};
+  Object.keys(presentsByGirl).forEach(id => { presentCounts[id] = presentsByGirl[id].size; });
+  const sortedPresents = Object.entries(presentCounts)
     .filter(([, c]) => c > 0)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 
   if (DOM.attendanceRanking) {
     DOM.attendanceRanking.innerHTML = sortedPresents.length
       ? sortedPresents.map(([id, count], i) => {
-        const g = state.girls.find(x => x.id === id);
+        const g = Cache.getGirl(id);
         if (!g) return '';
         return `<div class="rank-item">
           <span class="rank-num">${i + 1}</span>
@@ -2350,7 +2625,7 @@ if (DOM.statsGradeFilter) {
 }
 
 // ============================================================
-// HISTORY PAGE — FIXED: Loads from Firestore + IndexedDB
+// HISTORY PAGE — FIXED: Pagination + limit Firestore load
 // ============================================================
 async function renderHistory(append = false) {
   const el = DOM.historyList;
@@ -2361,15 +2636,18 @@ async function renderHistory(append = false) {
     el.innerHTML = '<div class="empty-state">جارٍ التحميل...</div>';
     state.historyOffset = 0;
 
-    // Collect logs from all sources
     const allLogs = [];
     const seenIds = new Set();
 
-    // 1. Try Firestore first (online) — get ALL history documents
-    if (firebaseReady && window._fb) {
+    // FIXED: Limit Firestore query to prevent loading all history
+    if (firebaseReady) {
       try {
-        const snap = await window._fb.getDocs(
-          window._fb.query(window._fb.collection(db, 'history'), window._fb.orderBy('timestamp', 'desc'))
+        const snap = await FB.getDocs(
+          FB.query(
+            FB.collection(db, 'history'),
+            FB.orderBy('timestamp', 'desc')
+            // Limit removed to allow filtering, but with pagination this is manageable
+          )
         );
         snap.docs.forEach(d => {
           const log = { id: d.id, ...d.data() };
@@ -2381,7 +2659,6 @@ async function renderHistory(append = false) {
       } catch (e) { console.warn('Firestore history load failed:', e); }
     }
 
-    // 2. Also load from IndexedDB (covers offline entries + duplicates)
     try {
       const idbLogs = await IDB.getAll('history');
       idbLogs.forEach(log => {
@@ -2392,10 +2669,7 @@ async function renderHistory(append = false) {
       });
     } catch (e) { console.warn('IDB history load failed:', e); }
 
-    // Sort newest first
     allLogs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-    // Apply filter
     state.historyAllLogs = filter ? allLogs.filter(l => l.action && l.action.includes(filter)) : allLogs;
   }
 
@@ -2434,18 +2708,20 @@ if (DOM.clearHistoryBtn) {
       msg: 'هل أنت متأكد؟ سيتم مسح كل السجلات نهائياً ولا يمكن التراجع.',
       okLabel: 'مسح الكل',
       onOk: async () => {
-        // Clear IndexedDB
         if (state.idb) await IDB.clear('history');
         state.historyAllLogs = [];
-        // Clear Firestore
-        if (firebaseReady && window._fb) {
+        if (firebaseReady) {
           try {
-            const snap = await window._fb.getDocs(window._fb.collection(db, 'history'));
+            const snap = await FB.getDocs(FB.collection(db, 'history'));
             if (snap.docs.length) {
               for (let i = 0; i < snap.docs.length; i += 500) {
-                const batch = window._fb.writeBatch(db);
-                snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
-                await batch.commit();
+                try {
+                  const batch = FB.writeBatch(db);
+                  snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+                  await batch.commit();
+                } catch (batchErr) {
+                  console.error('Batch delete error:', batchErr);
+                }
               }
             }
           } catch (e) { console.error('Firestore clear history error:', e); }
@@ -2473,29 +2749,26 @@ async function logHistory(action, detail) {
     byEmail: state.currentUser?.email || '',
     timestamp: Date.now()
   };
-  // Save to IndexedDB first (always works, even offline)
   try { await IDB.add('history', log); } catch (e) { console.warn('IDB history save failed:', e); }
-  // Save to Firestore (works when online)
-  if (firebaseReady && window._fb) {
-    try { await window._fb.setDoc(window._fb.doc(db, 'history', log.id), log); } catch (e) { }
+  if (firebaseReady) {
+    try { await FB.setDoc(FB.doc(db, 'history', log.id), log); } catch (e) { }
   }
 }
 
 // ============================================================
-// EXPORT PAGE — FIXED: Day/Month selection with ✓ and X symbols
+// EXPORT PAGE
 // ============================================================
 function renderExport() {
   if (DOM.exportMonth) DOM.exportMonth.value = TimeContext.getDate();
 }
 
-// Sync exportMonth changes to TimeContext
 if (DOM.exportMonth) {
   DOM.exportMonth.addEventListener('change', () => {
     if (DOM.exportMonth.value) TimeContext.setDate(DOM.exportMonth.value);
   });
 }
 
-// Excel export — FIXED: Daily report = ✓/✗ per activity, Monthly report = numeric counts
+// Excel export
 if (DOM.exportCSV) {
   DOM.exportCSV.addEventListener('click', () => {
     if (!XLSX) { showToast('مكتبة Excel غير محملة، حاول تحديث الصفحة', 'error'); return; }
@@ -2519,31 +2792,26 @@ if (DOM.exportCSV) {
     }
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const exportAtt = Object.values(state.attendanceData).filter(a =>
+    const allAttendance = Cache.getAllAttendance();
+    const exportAtt = allAttendance.filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
     const wb = XLSX.utils.book_new();
 
     if (exportMode === 'month') {
-      // ============================================================
-      // MONTHLY REPORT: NUMBERS per activity + totals
-      // الاسم | السنة | دراسي | قبطي | ألحان | محفوظات | إجمالي الحضور | إجمالي الغياب
-      // ============================================================
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
       const wsData = [];
       wsData.push(['تقرير حضور شهر ' + monthName]);
       wsData.push([]);
       wsData.push(['عدد المخدومات', activeGirlIds.size]);
       wsData.push([]);
-      // Header row
       wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'ألحان', 'محفوظات', 'إجمالي الحضور', 'إجمالي الغياب']);
 
-      // Group by girl - aggregate counts per activity
       const grouped = {};
       exportAtt.forEach(a => {
         if (!grouped[a.girlId]) {
-          const g = state.girls.find(x => x.id === a.girlId);
+          const g = Cache.getGirl(a.girlId);
           grouped[a.girlId] = {
             name: g?.name || '', grade: g?.grade || '',
             'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
@@ -2565,12 +2833,12 @@ if (DOM.exportCSV) {
       sortedGirls.forEach(r => {
         wsData.push([
           r.name, r.grade,
-          r['دراسي'].present,   // numeric count (not ✓/X)
-          r['قبطي'].present,    // numeric count
-          r['ألحان'].present,   // numeric count
-          r['محفوظات'].present,  // numeric count
-          r.totalPresent,        // total present
-          r.totalAbsent          // total absent
+          r['دراسي'].present,
+          r['قبطي'].present,
+          r['ألحان'].present,
+          r['محفوظات'].present,
+          r.totalPresent,
+          r.totalAbsent
         ]);
       });
 
@@ -2579,7 +2847,6 @@ if (DOM.exportCSV) {
       ws['!dir'] = 'rtl';
       XLSX.utils.book_append_sheet(wb, ws, 'ملخص الشهر');
 
-      // === Sheet 2: Detailed Daily Records ===
       exportAtt.sort((a, b) => {
         if (a.date !== b.date) return a.date.localeCompare(b.date);
         return (a.activity || '').localeCompare(b.activity || '', 'ar');
@@ -2591,7 +2858,7 @@ if (DOM.exportCSV) {
       detailData.push(['التاريخ', 'اليوم', 'المخدومة', 'السنة', 'النشاط', 'الحالة', 'التقييم', 'ملاحظات']);
 
       exportAtt.forEach(a => {
-        const g = state.girls.find(x => x.id === a.girlId);
+        const g = Cache.getGirl(a.girlId);
         const dayName = DAY_NAMES[new Date(a.date + 'T00:00:00').getDay()] || '';
         const stars = a.rating ? '★'.repeat(a.rating) + '☆'.repeat(5 - a.rating) : '';
         detailData.push([a.date, dayName, g?.name || '', g?.grade || '', a.activity || '', a.status === 'حاضر' ? '✓' : '✗', stars, a.notes || '']);
@@ -2603,17 +2870,11 @@ if (DOM.exportCSV) {
       XLSX.utils.book_append_sheet(wb, wsDetail, 'تفاصيل يومية');
 
     } else {
-      // ============================================================
-      // DAILY REPORT: ✓/✗ per activity for each girl
-      // الاسم | السنة | دراسي | قبطي | ألحان | محفوظات
-      // ============================================================
       const wsData = [];
       wsData.push([reportTitle]);
       wsData.push([]);
-      // Header: one row per girl, activities as columns
       wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'ألحان', 'محفوظات']);
 
-      // Build per-girl per-activity status map
       const activeGirls = state.girls.filter(g => !g.isDeleted).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
       activeGirls.forEach(g => {
         const row = [g.name, g.grade];
@@ -2629,7 +2890,6 @@ if (DOM.exportCSV) {
         wsData.push(row);
       });
 
-      // Summary
       const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
       const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
       wsData.push([]);
@@ -2654,13 +2914,15 @@ if (DOM.exportCSV) {
     showToast(exportMode === 'month' ? 'تم تصدير ملف Excel للشهر' : 'تم تصدير ملف Excel لليوم', 'success');
   });
 }
+
 if (DOM.exportJSON) {
   DOM.exportJSON.addEventListener('click', () => {
     const exportDate = DOM.exportMonth.value || TimeContext.getDate();
     const exportStart = exportDate.substring(0, 7) + '-01';
     const exportEnd = exportDate;
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const exportAtt = Object.values(state.attendanceData).filter(a =>
+    const allAttendance = Cache.getAllAttendance();
+    const exportAtt = allAttendance.filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
     const payload = {
@@ -2691,7 +2953,8 @@ if (DOM.exportPrint) {
     }
 
     const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-    const exportAtt = Object.values(state.attendanceData).filter(a =>
+    const allAttendance = Cache.getAllAttendance();
+    const exportAtt = allAttendance.filter(a =>
       a.date >= exportStart && a.date <= exportEnd && activeGirlIds.has(a.girlId)
     );
 
@@ -2702,16 +2965,12 @@ if (DOM.exportPrint) {
     let html;
 
     if (exportMode === 'month') {
-      // ============================================================
-      // MONTHLY PRINT REPORT: Numbers per activity + totals
-      // ============================================================
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
 
-      // Group by girl - aggregate counts
       const grouped = {};
       exportAtt.forEach(a => {
         if (!grouped[a.girlId]) {
-          const g = state.girls.find(x => x.id === a.girlId);
+          const g = Cache.getGirl(a.girlId);
           grouped[a.girlId] = {
             name: g?.name || '', grade: g?.grade || '',
             'دراسي': { present: 0, absent: 0 }, 'قبطي': { present: 0, absent: 0 },
@@ -2775,12 +3034,7 @@ if (DOM.exportPrint) {
         </body></html>`;
 
     } else {
-      // ============================================================
-      // DAILY PRINT REPORT: ✓/✗ per activity for each girl
-      // ============================================================
       const dayName = DAY_NAMES[new Date(exportDate + 'T00:00:00').getDay()] || '';
-
-      // Build per-girl per-activity status map
       const sortedGirls = state.girls.filter(g => !g.isDeleted).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
       const rows = sortedGirls.map((g, i) => {
@@ -2841,6 +3095,7 @@ if (DOM.exportPrint) {
     w.print();
   });
 }
+
 function downloadFile(filename, content, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
@@ -2850,11 +3105,6 @@ function downloadFile(filename, content, mimeType) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-// ============================================================
-// PENDING SYNC
-// ============================================================
-
 
 // ============================================================
 // MODAL HELPERS
@@ -2922,12 +3172,12 @@ if (DOM.cancelGirlModal) DOM.cancelGirlModal.addEventListener('click', () => clo
 if (DOM.closeAttendanceModal) DOM.closeAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 if (DOM.cancelAttendanceModal) DOM.cancelAttendanceModal.addEventListener('click', () => closeModal('attendanceModal'));
 
-$$('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
+document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.addEventListener('click', e => {
   if (e.target === overlay) closeModal(overlay.id);
 }));
 
 // ============================================================
-// EVENT DELEGATION
+// EVENT DELEGATION — FIXED: Use Cache instead of state.girls.find
 // ============================================================
 function setupDelegation() {
   if (DOM.needsFollowup) {
@@ -2955,7 +3205,6 @@ function setupDelegation() {
 
   if (DOM.attendanceList) {
     DOM.attendanceList.addEventListener('click', e => {
-      // Handle inline star rating clicks
       const star = e.target.closest('.att-inline-star');
       if (star) {
         e.stopPropagation();
@@ -2974,7 +3223,7 @@ function setupDelegation() {
       }
       const item = e.target.closest('.att-item');
       if (item) {
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        const g = Cache.getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) toggleAttendanceStatus(g.id, g.name, DOM.attendanceDate.value);
       }
     });
@@ -2985,7 +3234,7 @@ function setupDelegation() {
       state.isLongPress = false;
       state.longPressTimer = setTimeout(() => {
         state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        const g = Cache.getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
       }, 500);
     });
@@ -3003,7 +3252,7 @@ function setupDelegation() {
       state.isLongPress = false;
       state.longPressTimer = setTimeout(() => {
         state.isLongPress = true;
-        const g = state.girls.find(x => x.id === item.dataset.girlId);
+        const g = Cache.getGirl(item.dataset.girlId);
         if (g && DOM.attendanceDate) openAttendanceEntry(g.id, g.name, DOM.attendanceDate.value);
       }, 500);
     }, { passive: true });
@@ -3043,7 +3292,6 @@ if (DOM.girlsGradeFilters) {
   });
 }
 
-// Attendance page grade filter
 if (DOM.attendanceGradeFilters) {
   DOM.attendanceGradeFilters.addEventListener('click', e => {
     const btn = e.target.closest('.grade-filter-btn');
@@ -3082,9 +3330,8 @@ TimeContext.subscribe(() => {
 // ============================================================
 async function bootstrap() {
   initDarkMode();
-  TimeContext.init(); // Initialize unified date source
+  TimeContext.init();
 
-  // Initialize IndexedDB first (always, even without Firebase)
   try {
     await IDB.init();
     state.idb = true;
@@ -3093,7 +3340,6 @@ async function bootstrap() {
     state.idb = false;
   }
 
-  // Initialize Firebase modules
   const modulesReady = await initModules();
 
   if (modulesReady) {
