@@ -22,6 +22,16 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- FIXED: noscript tag for JavaScript-disabled browsers -->
+  <noscript>
+    <div style="position:fixed;inset:0;background:linear-gradient(160deg,#1a2744 0%,#2a3d6b 50%,#1a2744 100%);display:flex;align-items:center;justify-content:center;z-index:99999;direction:rtl;text-align:center;color:white;font-family:'Tajawal',sans-serif;padding:20px;">
+      <div>
+        <div style="font-size:64px;margin-bottom:16px;">&#10013;</div>
+        <h1 style="font-size:24px;margin-bottom:12px;">JavaScript مطلوب</h1>
+        <p style="font-size:16px;opacity:0.8;line-height:1.6;">نظام متابعة المخدومات يتطلب تفعيل JavaScript في المتصفح.<br>يرجى تفعيله من إعدادات المتصفح وإعادة تحميل الصفحة.</p>
+      </div>
+    </div>
+  </noscript>
   <div id="app">
     <!-- Splash Screen -->
     <div id="splash" class="splash">
@@ -40,13 +50,13 @@
       <!-- Hero Image -->
       <div class="login-hero">
         <img
-          src="https://i.ibb.co/Hf86pKxc/d041aaef2c786ed113ab887ce89a3b0060f9df0b8895f4103b871fc88b5e9e4b.png"
-          alt="Photo"
+          src="group_photo.jpg"
+          alt="صورة مجموعة الخدمة"
           class="login-hero-img"
           fetchpriority="high"
           width="640"
           height="381"
-         
+          onerror="this.src='https://placehold.co/640x381/0F2B5B/ffffff?text=كنيسه+مارجرجس+والشهداء';this.onerror=null;"
         >
         <div class="login-gradient-bridge"></div>
       </div>
@@ -331,6 +341,16 @@
               <label for="exportMonth">التاريخ:</label>
               <input type="date" id="exportMonth" class="month-input">
             </div>
+            <!-- NEW: Grade Filter for Export -->
+            <div class="export-grade-wrap">
+              <label class="export-grade-label">تصدير حسب السنة الدراسية:</label>
+              <div class="export-grade-filter" id="exportGradeFilter">
+                <button class="export-grade-btn active" data-grade="">الكل</button>
+                <button class="export-grade-btn" data-grade="تالتة إعدادي">تالتة إعدادي</button>
+                <button class="export-grade-btn" data-grade="تانية إعدادي">تانية إعدادي</button>
+                <button class="export-grade-btn" data-grade="أولى إعدادي">أولى إعدادي</button>
+              </div>
+            </div>
             <!-- Export Mode Selector -->
             <div class="export-mode-wrap">
               <label class="export-mode-label">نطاق التصدير:</label>
@@ -348,7 +368,7 @@
               </div>
             </div>
             <div class="export-hint">
-              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات)
+              <span>&#128161;</span> "يوم محدد" = تقرير يومي (✓ حاضر / ✗ غايب) &nbsp;|&nbsp; "الشهر كامل" = تقرير أرقام (إحصائيات) &nbsp;|&nbsp; الترتيب: تالثة ← تانية ← أولى
             </div>
             <div class="export-btns">
               <button class="export-btn csv" id="exportCSV">

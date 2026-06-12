@@ -1757,7 +1757,74 @@ body.theme-switching * {
   }
 }
 
-/* Dark mode for inline rating */
+/* ============================================================
+   EXPORT GRADE FILTER — NEW: Grade-based export selection
+   ============================================================ */
+.export-grade-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.export-grade-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.export-grade-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.export-grade-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 14px;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+}
+.export-grade-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(232, 160, 32, 0.3);
+  transform: scale(1.02);
+}
+.export-grade-btn:active {
+  transform: scale(0.97);
+}
+
+/* Dark mode for export grade filter */
+[data-theme="dark"] .export-grade-wrap {
+  background: #0f1525;
+}
+[data-theme="dark"] .export-grade-btn {
+  background: #1e293b;
+  border-color: #2a3650;
+  color: var(--text-muted);
+}
+[data-theme="dark"] .export-grade-btn.active {
+  background: var(--accent);
+  color: var(--primary);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   DARK MODE FOR INLINE RATING
+   ============================================================ */
 [data-theme="dark"] .att-inline-star {
   color: #3a4560;
 }
