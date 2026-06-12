@@ -180,8 +180,8 @@ body {
   background: radial-gradient(ellipse at 50% 60%, #142a4e 0%, #0a1a38 70%);
 }
 @keyframes bgPulse {
-  0%, 100% { background-position: 50% 60%; }
-  50% { background-position: 50% 55%; }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
 }
 #loginScreen {
   position: fixed; inset: 0; z-index: var(--z-app);
@@ -215,9 +215,14 @@ body {
   left: 0;
   right: 0;
   height: 60px;
-  background: linear-gradient(to bottom, rgba(15,43,91,0) 0%, #0F2B5B 100%);
+  background: linear-gradient(to bottom, transparent 0%, var(--login-bg-color, #0F2B5B) 100%);
   pointer-events: none;
   z-index: 2;
+}
+:root { --login-bg-color: #0F2B5B; }
+[data-theme="dark"] { --login-bg-color: #0a1a38; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) { --login-bg-color: #0a1a38; }
 }
 .login-card {
   position: relative;
@@ -267,7 +272,7 @@ body {
   font-family: 'Noto Kufi Arabic', 'Tajawal', sans-serif;
   font-size: 22px;
   font-weight: 700;
-  color: #0F2B5B;
+  color: var(--text);
   margin-bottom: 4px;
   letter-spacing: 0;
   opacity: 0;
@@ -280,7 +285,7 @@ body {
   font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: #3D4A5C;
+  color: var(--text-muted);
   margin-bottom: 20px;
   letter-spacing: 0;
   opacity: 0;
@@ -323,7 +328,7 @@ body {
   font-family: 'Noto Naskh Arabic', 'Tajawal', sans-serif;
   font-size: 15px;
   font-weight: 400;
-  color: #3D4A5C;
+  color: var(--text-muted);
   margin-bottom: 24px;
   letter-spacing: 0;
   opacity: 0;
@@ -600,7 +605,7 @@ body {
 .search-results {
   background: var(--surface); border-radius: 14px;
   box-shadow: var(--shadow-lg); margin-top: -8px;
-  overflow: hidden; z-index: var(--z-fab); position: relative;
+  overflow: hidden; z-index: 150; position: relative;
   display: none;
 }
 .search-results.show { display: block; }
@@ -1584,7 +1589,7 @@ textarea.form-input { resize: none; }
   touch-action: manipulation;
   transition: background var(--transition);
 }
-.confirm-cancel:active { background: #d0d4dc; }
+.confirm-cancel:active { background: var(--border); }
 .confirm-ok {
   flex: 1; padding: 14px; background: var(--red); border: none;
   border-radius: 12px; font-family: 'Tajawal', sans-serif;
@@ -1611,7 +1616,7 @@ textarea.form-input { resize: none; }
   transition: opacity var(--transition-slow), transform var(--transition-slow);
   pointer-events: none;
 }
-.toast.hidden { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
+.toast.toast-out { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); display: block; }
 .toast.success { background: var(--green); }
 .toast.error { background: var(--red); }
@@ -1832,13 +1837,10 @@ textarea.form-input { resize: none; }
 [data-theme="dark"] .cal-wday { color: var(--text-muted); }
 [data-theme="dark"] .cal-day.service-day { background: rgba(201,214,240,0.08); }
 [data-theme="dark"] .activity-detail-tabs { background: var(--bg); }
-[data-theme="dark"] .splash { background: linear-gradient(160deg, #0f1525 0%, #1a2744 50%, #0f1525 100%); }
-[data-theme="dark"] .login-bg {
-  background: #0a1a38;
-  background: radial-gradient(ellipse at 50% 60%, #142a4e 0%, #0a1a38 70%);
-}
-[data-theme="dark"] .login-card { background: var(--surface); color: var(--text); }
-[data-theme="dark"] .splash-cross { filter: drop-shadow(0 0 20px rgba(232,160,32,0.7)); }
+/* [data-theme="dark"] .splash — defined near .splash component */
+/* [data-theme="dark"] .splash-cross — defined near .splash-cross component */
+/* [data-theme="dark"] .login-bg — defined near .login-bg component */
+/* [data-theme="dark"] .login-card — defined near .login-card component */
 [data-theme="dark"] .export-btn.csv { background: rgba(46,204,113,0.15); }
 [data-theme="dark"] .export-btn.json { background: rgba(52,152,219,0.15); }
 [data-theme="dark"] .export-btn.print { background: rgba(26,39,68,0.2); }
@@ -2007,7 +2009,6 @@ input[type="date"], input[type="month"] {
   /* 2. Disable UI transitions on key animated elements only (NOT * selector) */
   .modal, .drawer, .toast, .confirm-box,
   .modal-overlay, .confirm-overlay, .drawer-overlay {
-    transition-duration: 0.01ms !important;
     transition: none !important;
   }
 
