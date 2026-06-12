@@ -317,6 +317,10 @@ const Cache = {
     this.attendanceByDate = null;
     this.attendanceByMonth = null;
     this.activeGirlIds = null;
+    // FIXED: Clear absence cache to prevent stale consecutive absence data
+    // after attendance edits. Cache will be rebuilt on next hasConsecutiveAbsences call.
+    state.absenceCache = {};
+    state.lastAbsenceCacheMonth = null;
   },
 
   build() {
@@ -437,7 +441,13 @@ function setStateGirls(newGirls) {
 }
 
 function setStateAttendanceData(newData) {
-  state.attendanceData = newData;
+  // FIXED: Support both direct Object and functional update (React-like pattern)
+  // toggleAttendanceStatus uses: setStateAttendanceData(prev => ({ ...prev, [key]: rec }))
+  if (typeof newData === 'function') {
+    state.attendanceData = newData(state.attendanceData);
+  } else {
+    state.attendanceData = newData;
+  }
   Cache.invalidate();
 }
 
@@ -972,7 +982,8 @@ function showToast(msg, type = 'info') {
   if (!DOM.toast) return;
   DOM.toast.textContent = msg;
   DOM.toast.className = `toast show ${type}`;
-  toastTimeout = setTimeout(() => { if (DOM.toast) DOM.toast.className = 'toast hidden'; }, 3000);
+  // FIXED: Use 'toast-out' instead of 'hidden' to avoid conflict with utility .hidden { display: none !important }
+  toastTimeout = setTimeout(() => { if (DOM.toast) DOM.toast.className = 'toast toast-out'; }, 3000);
 }
 
 // ============================================================
@@ -1573,7 +1584,8 @@ function renderHome() {
         const div = document.createElement('div');
         div.className = 'followup-item';
         div.dataset.girlId = girl.id;
-        div.innerHTML = `<span class="followup-name">${esc(girl.name)}</span><span class="followup-badge">${result.count} غياب متتالي</span>`;
+        // FIXED: result.count = total absences, not consecutive streak. Changed text to be accurate.
+        div.innerHTML = `<span class="followup-name">${esc(girl.name)}</span><span class="followup-badge">${result.count} غياب</span>`;
         frag.appendChild(div);
       });
       DOM.needsFollowup.innerHTML = '';
@@ -2650,7 +2662,9 @@ if (DOM.calPrev) {
     const y = state.calendarDate.getFullYear();
     const m = state.calendarDate.getMonth() + 1;
     const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
+    // FIXED: Use actual days in the new month instead of hardcoded 28
+    const daysInNewMonth = new Date(y, m, 0).getDate();
+    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, daysInNewMonth)).padStart(2, '0')}`);
     renderCalendar();
   });
 }
@@ -2661,7 +2675,9 @@ if (DOM.calNext) {
     const y = state.calendarDate.getFullYear();
     const m = state.calendarDate.getMonth() + 1;
     const d = parseInt(TimeContext.getDate().split('-')[2]) || 1;
-    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, 28)).padStart(2, '0')}`);
+    // FIXED: Use actual days in the new month instead of hardcoded 28
+    const daysInNewMonth = new Date(y, m, 0).getDate();
+    TimeContext.setDate(`${y}-${String(m).padStart(2, '0')}-${String(Math.min(d, daysInNewMonth)).padStart(2, '0')}`);
     renderCalendar();
   });
 }
@@ -3208,30 +3224,6 @@ if (DOM.exportGradeFilter) {
   });
 }
 
-// FIXED: Export mode selection — Sync .selected class with radio state
-// The CSS has dual selectors (.selected + :has(:checked)) but JS only
-// updates the radio checked state natively. This adds the missing .selected
-// class management so both light and dark mode styling work instantly.
-document.querySelectorAll('.export-mode-option').forEach(label => {
-  label.addEventListener('click', () => {
-    // Remove .selected from all options
-    document.querySelectorAll('.export-mode-option').forEach(opt => {
-      opt.classList.remove('selected');
-    });
-    // Add .selected to clicked option
-    label.classList.add('selected');
-    // Ensure the radio is checked (sync both systems)
-    const radio = label.querySelector('input[type="radio"]');
-    if (radio) radio.checked = true;
-  });
-});
-
-// Set initial .selected state on page load (first radio is checked by default)
-const defaultCheckedExportOption = document.querySelector('.export-mode-option input[type="radio"]:checked');
-if (defaultCheckedExportOption) {
-  defaultCheckedExportOption.closest('.export-mode-option').classList.add('selected');
-}
-
 // ============================================================
 // HELPER: Sort girls by grade order (تالته → تانية → أولى)
 // ============================================================
@@ -3256,18 +3248,6 @@ function getExportGirls() {
   }
   // Sort: تالته first, then تانية, then أولى
   return sortGirlsByGradeOrder(girls);
-}
-
-// ============================================================
-// HELPER: Get grade display name
-// ============================================================
-function getGradeDisplayName(grade) {
-  const names = {
-    'أولى إعدادي': 'أولى إعدادي',
-    'تانية إعدادي': 'تانية إعدادي',
-    'تالتة إعدادي': 'تالتة إعدادي'
-  };
-  return names[grade] || grade;
 }
 
 // ============================================================
@@ -3308,7 +3288,7 @@ if (DOM.exportCSV) {
       const monthName = DateUtil.formatMonth(exportDate.substring(0, 7));
 
       // NEW: If grade filter is set, add grade to title
-      const gradeSuffix = exportGradeFilter ? ` — ${getGradeDisplayName(exportGradeFilter)}` : '';
+      const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
 
       // ===== Sheet 1: Summary organized by grade =====
       const wsData = [];
@@ -3316,7 +3296,7 @@ if (DOM.exportCSV) {
       wsData.push([]);
       wsData.push(['عدد المخدومات', activeGirlIds.size]);
       if (exportGradeFilter) {
-        wsData.push(['السنة المحددة', getGradeDisplayName(exportGradeFilter)]);
+        wsData.push(['السنة المحددة', exportGradeFilter]);
       }
       wsData.push([]);
 
@@ -3356,7 +3336,7 @@ if (DOM.exportCSV) {
 
       // Write data organized by grade
       sortedGrades.forEach(grade => {
-        wsData.push([`═══ ${getGradeDisplayName(grade)} ═══`]);
+        wsData.push([`═══ ${grade} ═══`]);
         wsData.push(['الاسم', 'دراسي', 'قبطي', 'ألحان', 'محفوظات', 'إجمالي الحضور', 'إجمالي الغياب']);
 
         const gradeGirls = girlsByGrade[grade];
@@ -3415,11 +3395,11 @@ if (DOM.exportCSV) {
 
     } else {
       // ===== Day export: organized by grade (تالته → تانية → أولى) =====
-      const gradeSuffix = exportGradeFilter ? ` — ${getGradeDisplayName(exportGradeFilter)}` : '';
+      const gradeSuffix = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
       const wsData = [];
       wsData.push([reportTitle + gradeSuffix]);
       if (exportGradeFilter) {
-        wsData.push(['السنة المحددة:', getGradeDisplayName(exportGradeFilter)]);
+        wsData.push(['السنة المحددة:', exportGradeFilter]);
       }
       wsData.push([]);
       wsData.push(['الاسم', 'السنة', 'دراسي', 'قبطي', 'ألحان', 'محفوظات']);
@@ -3523,7 +3503,7 @@ if (DOM.exportPrint) {
     const totalPresent = exportAtt.filter(a => a.status === 'حاضر').length;
     const totalAbsent = exportAtt.filter(a => a.status === 'غائب').length;
     const exportGradeFilter = state.exportGradeFilter;
-    const gradeLabel = exportGradeFilter ? ` — ${getGradeDisplayName(exportGradeFilter)}` : '';
+    const gradeLabel = exportGradeFilter ? ` — ${exportGradeFilter}` : '';
 
     let html;
 
@@ -3586,7 +3566,7 @@ if (DOM.exportPrint) {
 
         gradeSectionsHtml += `
           <h2 style="color:#1a2744;margin-top:24px;margin-bottom:12px;padding:8px 12px;background:#f0f2f8;border-radius:8px;font-size:18px;">
-            ${esc(getGradeDisplayName(grade))} — ${gradeGirls.length} مخدومة
+            ${esc(grade)} — ${gradeGirls.length} مخدومة
           </h2>
           <table>
             <tr><th>#</th><th>الاسم</th><th>دراسي</th><th>قبطي</th><th>ألحان</th><th>محفوظات</th><th>إجمالي الحضور</th><th>إجمالي الغياب</th></tr>
@@ -3661,7 +3641,7 @@ if (DOM.exportPrint) {
 
         gradeSectionsHtml += `
           <h2 style="color:#1a2744;margin-top:20px;margin-bottom:10px;padding:6px 10px;background:#f0f2f8;border-radius:8px;font-size:16px;">
-            ${esc(getGradeDisplayName(grade))} — ${gradeGirls.length} مخدومة
+            ${esc(grade)} — ${gradeGirls.length} مخدومة
           </h2>
           <table>
             <tr><th>#</th><th>الاسم</th><th>السنة</th><th>دراسي</th><th>قبطي</th><th>ألحان</th><th>محفوظات</th></tr>
