@@ -77,27 +77,21 @@ function clearAllSnapshots() {
 }
 
 // ============================================================
-// SECURITY: Fetch Firebase config from server proxy instead of hardcoding
-// This prevents credential leak in client-side source code.
-// Fallback to a placeholder config that will fail gracefully.
+// Firebase Configuration — Embedded directly in the code
 // ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB2cycBTKMjVg8S_fBYN8C-hwUk5FUF81Q",
+  authDomain: "kenesa-e5efd.firebaseapp.com",
+  projectId: "kenesa-e5efd",
+  storageBucket: "kenesa-e5efd.firebasestorage.app",
+  messagingSenderId: "227273753184",
+  appId: "1:227273753184:web:ecdf258142ad55ed5cf905",
+  measurementId: "G-6HS8KNW1GZ"
+};
+
 async function fetchFirebaseConfig() {
-  // Attempt to fetch config from server endpoint (recommended)
-  // If that fails, the app will show a clear error message
-  try {
-    const resp = await fetch('/__/firebase/init.json');
-    if (resp.ok) return await resp.json();
-  } catch (e) { /* ignore, try next */ }
-
-  // For self-hosted: try a local config endpoint
-  try {
-    const resp = await fetch('./firebase-config.json');
-    if (resp.ok) return await resp.json();
-  } catch (e) { /* ignore, use placeholder */ }
-
-  // If no server config is available, return null
-  // The initModules function will show a clear error
-  return null;
+  // Return the embedded Firebase config directly
+  return FIREBASE_CONFIG;
 }
 
 // Module imports with error handling
@@ -107,25 +101,22 @@ async function initModules() {
     const { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
     const { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, query, orderBy, onSnapshot, writeBatch, where } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
 
-    // FIXED (Security): Fetch config from server instead of hardcoding credentials
+    // Use the embedded Firebase config
     let firebaseConfig = await fetchFirebaseConfig();
-
-    if (!firebaseConfig || !firebaseConfig.apiKey) {
-      console.warn('Firebase config not found on server. Using placeholder — authentication will not work.');
-      // Placeholder config — intentionally invalid to prevent credential leak
-      // Admin must deploy the real config to the server
-      firebaseConfig = {
-        apiKey: 'PLACEHOLDER_API_KEY',
-        authDomain: 'placeholder.firebaseapp.com',
-        projectId: 'placeholder',
-      };
-    }
-
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
     db = getFirestore(firebaseApp);
     provider = new GoogleAuthProvider();
     firebaseReady = true;
+
+    // Initialize Firebase Analytics
+    try {
+      const { getAnalytics } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js');
+      const analytics = getAnalytics(firebaseApp);
+      console.log('Firebase Analytics initialized');
+    } catch (analyticsErr) {
+      console.warn('Firebase Analytics not initialized:', analyticsErr.message);
+    }
 
     // FIXED: Use module singleton instead of window._fb
     FB.collection = collection; FB.doc = doc; FB.setDoc = setDoc;
