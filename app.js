@@ -283,7 +283,7 @@ const state = {
   absenceCache: {},
   lastAbsenceCacheMonth: null,
   // NEW: Export grade filter state
-  exportGradeFilter: '',
+  exportGradeFilter: 'أولى إعدادي',
 };
 
 // ============================================================
@@ -501,11 +501,14 @@ const TimeContext = {
 
   init() {
     const saved = localStorage.getItem('trackerSelectedDate');
-    // FIXED: Validate saved date format before using
-    if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved)) {
+    const today = DateUtil.toStr();
+    // FIXED: Validate saved date format AND check if it's today's date
+    // This prevents stale dates from previous days
+    if (saved && /^\d{4}-\d{2}-\d{2}$/.test(saved) && saved === today) {
       this._selectedDate = saved;
     } else {
-      this._selectedDate = DateUtil.toStr();
+      this._selectedDate = today;
+      localStorage.setItem('trackerSelectedDate', today);
     }
   },
 
