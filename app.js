@@ -1379,10 +1379,11 @@ function renderHome() {
     }
   }
 
-  // Needs followup — FIXED: Use optimized hasConsecutiveAbsences
-  const needs = filteredGirls.filter(g => {
+  // Needs followup — FIXED: Single-pass hasConsecutiveAbsences with cached results
+  const needs = [];
+  filteredGirls.forEach(g => {
     const result = hasConsecutiveAbsences(g.id, monthStr);
-    return result.hasConsecutive;
+    if (result.hasConsecutive) needs.push({ girl: g, result });
   });
 
   if (DOM.needsFollowup) {
@@ -1390,12 +1391,11 @@ function renderHome() {
       DOM.needsFollowup.innerHTML = '<div class="empty-state">لا توجد حالات تحتاج متابعة</div>';
     } else {
       const frag = document.createDocumentFragment();
-      needs.forEach(g => {
-        const result = hasConsecutiveAbsences(g.id, monthStr);
+      needs.forEach(({ girl, result }) => {
         const div = document.createElement('div');
         div.className = 'followup-item';
-        div.dataset.girlId = g.id;
-        div.innerHTML = `<span class="followup-name">${esc(g.name)}</span><span class="followup-badge">${result.count} غياب متتالي</span>`;
+        div.dataset.girlId = girl.id;
+        div.innerHTML = `<span class="followup-name">${esc(girl.name)}</span><span class="followup-badge">${result.count} غياب متتالي</span>`;
         frag.appendChild(div);
       });
       DOM.needsFollowup.innerHTML = '';
@@ -1863,8 +1863,7 @@ function setActiveActivity(act) {
 
 document.querySelectorAll('.day-btn').forEach(b => b.addEventListener('click', () => {
   setActiveDay(b.dataset.day);
-  state.attendancePageInitialized = false;
-  renderAttendancePage();
+  renderAttendanceList();
 }));
 document.querySelectorAll('.act-tab').forEach(b => b.addEventListener('click', () => {
   setActiveActivity(b.dataset.activity);
@@ -1957,7 +1956,7 @@ async function markAllAbsentForDate(date) {
           id: key,
           girlId: g.id,
           date,
-          day: state.selectedDay,
+          day: DateUtil.dayName(parseDateStr(date)),
           activity: activity,
           status: 'غائب',
           rating: 0,
@@ -2055,16 +2054,19 @@ async function selectAllStatus(status) {
   if (!date) { showToast('الرجاء اختيار التاريخ أولاً', 'error'); return; }
 
   const activeGirls = state.girls.filter(g => !g.isDeleted);
+  const filteredGirls = state.attendanceGradeFilter
+    ? activeGirls.filter(g => g.grade === state.attendanceGradeFilter)
+    : activeGirls;
   const newAttData = { ...state.attendanceData };
   const currentDateRecords = []; // FIXED: Track only current date records for Firestore write
 
-  for (const g of activeGirls) {
+  for (const g of filteredGirls) {
     const key = makeAttKey(g.id, date, state.selectedActivity);
     const rec = {
       id: key,
       girlId: g.id,
       date,
-      day: state.selectedDay,
+      day: DateUtil.dayName(parseDateStr(date)),
       activity: state.selectedActivity,
       status: status,
       rating: status === 'حاضر' ? (newAttData[key]?.rating || 0) : 0,
@@ -2740,7 +2742,7 @@ function renderStats() {
   // FIXED: Follow-up count using the centralized hasConsecutiveAbsences function
   let followupCount = 0;
   activeGirls.forEach(g => {
-    const result = hasConsecutiveAbsences(g.id, start.substring(0, 7));
+    const result = hasConsecutiveAbsences(g.id, TimeContext.getMonth());
     if (result.hasConsecutive) followupCount++;
   });
 
@@ -3319,7 +3321,9 @@ function downloadFile(filename, content, mimeType) {
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
