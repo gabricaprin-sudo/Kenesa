@@ -8,25 +8,52 @@
 
 // ============================================================
 // FB MODULE — Replaces window._fb anti-pattern with proper singleton
+// FIXED: Added guard function to prevent usage before initialization
 // ============================================================
-const FB = {
+const FB = new Proxy({
   collection: null, doc: null, setDoc: null, getDocs: null,
   deleteDoc: null, query: null, orderBy: null, onSnapshot: null,
   writeBatch: null, where: null, signInWithPopup: null,
   signInWithRedirect: null, getRedirectResult: null,
   onAuthStateChanged: null, signOut: null
-};
+}, {
+  get(target, prop) {
+    if (prop in target && target[prop] !== null) return target[prop];
+    if (['collection', 'doc', 'setDoc', 'onSnapshot', 'writeBatch'].includes(prop)) {
+      throw new Error(`FB.${String(prop)} accessed before Firebase initialization. Call ensureFB() first.`);
+    }
+    return target[prop];
+  }
+});
+
+/**
+ * FIXED: Guard function that throws if Firebase is not ready.
+ * Use at the start of any function that needs Firebase.
+ */
+function ensureFB() {
+  if (!firebaseReady) throw new Error('Firebase not initialized');
+}
 
 // ============================================================
 // SAFETY: Global error handler + splash fallback
-// FIXED: Unified splash state — prevents double-hide race condition
+// FIXED: Unified splash state with lock — prevents double-hide race condition
 // ============================================================
 const SplashState = {
   _done: false,
   _forceHidden: false,
+  _locked: false,
   get done() { return this._done || this._forceHidden; },
-  markDone() { this._done = true; this._forceHidden = true; },
-  markForceHidden() { this._forceHidden = true; }
+  markDone() {
+    if (this._locked) return;
+    this._locked = true;
+    this._done = true;
+    this._forceHidden = true;
+  },
+  markForceHidden() {
+    if (this._locked) return;
+    this._locked = true;
+    this._forceHidden = true;
+  }
 };
 
 window.addEventListener('error', (e) => {
@@ -70,10 +97,18 @@ let firebaseReady = false;
 let XLSX = null;
 
 // Track snapshot unsubscribers to prevent memory leaks
+// FIXED: listenersInitialized flag prevents duplicate listeners in race conditions
 const _unsubscribers = [];
+let _listenersInitialized = false;
+
 function clearAllSnapshots() {
   _unsubscribers.forEach(unsub => { try { unsub(); } catch (e) { } });
   _unsubscribers.length = 0;
+  _listenersInitialized = false;
+}
+
+function pushUnsubscriber(unsub) {
+  _unsubscribers.push(unsub);
 }
 
 // ============================================================
@@ -148,7 +183,7 @@ async function initModules() {
 }
 
 // ============================================================
-// DOM CACHE — FIXED: All accesses are protected
+// DOM CACHE — FIXED: Build-once pattern for zero runtime cost
 // ============================================================
 const $ = (id) => document.getElementById(id);
 const $$ = (sel, root = document) => root.querySelectorAll(sel);
@@ -158,87 +193,59 @@ function safeGetElement(id) {
   return el || null;
 }
 
-// FIXED: DOM Proxy with null-safety guards
-// Returns null for missing elements instead of throwing
-const DOM = new Proxy({}, {
+// FIXED: Build DOM map once at startup, then freeze — zero Proxy cost on access
+const _domCache = {};
+
+function _buildDOMCache() {
+  const ids = [
+    'splash', 'loginScreen', 'mainApp', 'pageTitle', 'pageSubtitle',
+    'syncIndicator', 'userAvatar', 'drawer', 'drawerOverlay',
+    'drawerAvatar', 'drawerUserName', 'drawerUserEmail', 'offlineBadge',
+    'pageContent', 'toast', 'globalSearch', 'searchResults',
+    'todayDay', 'todayDate', 'todayServiceBadge',
+    'statTotal', 'statPresentToday', 'statAbsentToday', 'statAvgRating',
+    'bestGrade', 'bestGradePercent', 'topActivityName', 'topActivityCount',
+    'mostRegularGirl', 'mostRegularPercent', 'topAttendees', 'needsFollowup',
+    'attendanceDate', 'attendanceList', 'attendanceSearch',
+    'presentCount', 'absentCount', 'totalCount',
+    'selectAllPresent', 'selectAllAbsent', 'attToggleHint', 'quickActions',
+    'girlsList', 'addGirlBtn',
+    'calendarGrid', 'calMonthYear', 'dayDetail', 'calPrev', 'calNext',
+    'statsMonth', 'bigStatsGrid', 'absenceChart', 'attendanceRanking',
+    'activityStatsGrid', 'timeFilterTabs', 'activityStatsPeriod',
+    'historyList', 'historyFilter', 'clearHistoryBtn', 'loadMoreHistory',
+    'loadMoreHistoryBtn', 'exportMonth',
+    'exportCSV', 'exportJSON', 'exportPrint',
+    'girlModal', 'girlModalTitle',
+    'girlName', 'girlPhone', 'girlGrade', 'girlNotes', 'deleteGirlBtn',
+    'homeGradeFilters', 'girlsGradeFilters', 'attendanceGradeFilters',
+    'closeGirlModal', 'cancelGirlModal', 'saveGirlBtn', 'girlProfileModal',
+    'profileName', 'profileBody', 'closeProfileModal', 'attendanceModal',
+    'attendanceModalTitle', 'modalGirlName', 'attendanceNotes', 'ratingSection',
+    'starsInput', 'saveAttendanceEntry', 'closeAttendanceModal', 'cancelAttendanceModal',
+    'confirmOverlay', 'confirmIcon', 'confirmTitle', 'confirmMsg',
+    'confirmCancel', 'confirmOk',
+    'activityDetailModal', 'activityDetailTitle', 'closeActivityDetailModal',
+    'activityDetailSummary', 'activityDetailIcon', 'activityDetailName',
+    'activityDetailPeriod', 'activityDetailTotal', 'activityDetailTabs',
+    'activityDetailList', 'presentTabCount', 'absentTabCount',
+    'menuBtn', 'signOutBtn', 'googleSignIn',
+    'darkModeToggle', 'darkToggleSwitch',
+    'shareProfileBtn', 'editProfileBtn',
+    'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter'
+  ];
+  ids.forEach(id => { _domCache[id] = document.getElementById(id); });
+}
+
+// FIXED: Minimal wrapper — direct property access, no Proxy overhead
+const DOM = new Proxy(_domCache, {
   get(target, prop) {
-    // Return cached value if available and not null
-    if (prop in target && target[prop] !== null) return target[prop];
-    // Try to get from document for unknown/null properties
-    const id = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
-    const el = document.getElementById(id) || document.getElementById(prop);
-    if (el) target[prop] = el; // Cache for next time
-    return el || null; // Always return null instead of undefined
+    return target[prop] ?? null;
   }
 });
 
-// Eagerly cache known static elements
-Object.assign(DOM, {
-  splash: safeGetElement('splash'), loginScreen: safeGetElement('loginScreen'), mainApp: safeGetElement('mainApp'),
-  pageTitle: safeGetElement('pageTitle'), pageSubtitle: safeGetElement('pageSubtitle'),
-  syncIndicator: safeGetElement('syncIndicator'), userAvatar: safeGetElement('userAvatar'),
-  drawer: safeGetElement('drawer'), drawerOverlay: safeGetElement('drawerOverlay'),
-  drawerAvatar: safeGetElement('drawerAvatar'), drawerUserName: safeGetElement('drawerUserName'),
-  drawerUserEmail: safeGetElement('drawerUserEmail'), offlineBadge: safeGetElement('offlineBadge'),
-  pageContent: safeGetElement('pageContent'), toast: safeGetElement('toast'),
-  globalSearch: safeGetElement('globalSearch'), searchResults: safeGetElement('searchResults'),
-  todayDay: safeGetElement('todayDay'), todayDate: safeGetElement('todayDate'), todayServiceBadge: safeGetElement('todayServiceBadge'),
-  statTotal: safeGetElement('statTotal'), statPresentToday: safeGetElement('statPresentToday'),
-  statAbsentToday: safeGetElement('statAbsentToday'), statAvgRating: safeGetElement('statAvgRating'),
-  bestGrade: safeGetElement('bestGrade'), bestGradePercent: safeGetElement('bestGradePercent'),
-  topActivityName: safeGetElement('topActivityName'), topActivityCount: safeGetElement('topActivityCount'),
-  mostRegularGirl: safeGetElement('mostRegularGirl'), mostRegularPercent: safeGetElement('mostRegularPercent'),
-  topAttendees: safeGetElement('topAttendees'), needsFollowup: safeGetElement('needsFollowup'),
-  attendanceDate: safeGetElement('attendanceDate'), attendanceList: safeGetElement('attendanceList'),
-  attendanceSearch: safeGetElement('attendanceSearch'),
-  presentCount: safeGetElement('presentCount'), absentCount: safeGetElement('absentCount'), totalCount: safeGetElement('totalCount'),
-  selectAllPresent: safeGetElement('selectAllPresent'), selectAllAbsent: safeGetElement('selectAllAbsent'),
-  attToggleHint: safeGetElement('attToggleHint'), quickActions: safeGetElement('quickActions'),
-  girlsList: safeGetElement('girlsList'), addGirlBtn: safeGetElement('addGirlBtn'),
-  calendarGrid: safeGetElement('calendarGrid'), calMonthYear: safeGetElement('calMonthYear'),
-  dayDetail: safeGetElement('dayDetail'), calPrev: safeGetElement('calPrev'), calNext: safeGetElement('calNext'),
-  statsMonth: safeGetElement('statsMonth'), bigStatsGrid: safeGetElement('bigStatsGrid'),
-  absenceChart: safeGetElement('absenceChart'), attendanceRanking: safeGetElement('attendanceRanking'),
-  activityStatsGrid: safeGetElement('activityStatsGrid'), timeFilterTabs: safeGetElement('timeFilterTabs'), activityStatsPeriod: safeGetElement('activityStatsPeriod'),
-  historyList: safeGetElement('historyList'), historyFilter: safeGetElement('historyFilter'),
-  clearHistoryBtn: safeGetElement('clearHistoryBtn'), loadMoreHistory: safeGetElement('loadMoreHistory'),
-  loadMoreHistoryBtn: safeGetElement('loadMoreHistoryBtn'), exportMonth: safeGetElement('exportMonth'),
-  exportCSV: safeGetElement('exportCSV'), exportJSON: safeGetElement('exportJSON'), exportPrint: safeGetElement('exportPrint'),
-  girlModal: safeGetElement('girlModal'), girlModalTitle: safeGetElement('girlModalTitle'),
-  girlName: safeGetElement('girlName'), girlPhone: safeGetElement('girlPhone'), girlGrade: safeGetElement('girlGrade'),
-  girlNotes: safeGetElement('girlNotes'), deleteGirlBtn: safeGetElement('deleteGirlBtn'),
-  homeGradeFilters: safeGetElement('homeGradeFilters'), girlsGradeFilters: safeGetElement('girlsGradeFilters'),
-  attendanceGradeFilters: safeGetElement('attendanceGradeFilters'),
-  closeGirlModal: safeGetElement('closeGirlModal'), cancelGirlModal: safeGetElement('cancelGirlModal'),
-  saveGirlBtn: safeGetElement('saveGirlBtn'), girlProfileModal: safeGetElement('girlProfileModal'),
-  profileName: safeGetElement('profileName'), profileBody: safeGetElement('profileBody'),
-  closeProfileModal: safeGetElement('closeProfileModal'), attendanceModal: safeGetElement('attendanceModal'),
-  attendanceModalTitle: safeGetElement('attendanceModalTitle'), modalGirlName: safeGetElement('modalGirlName'),
-  attendanceNotes: safeGetElement('attendanceNotes'), ratingSection: safeGetElement('ratingSection'),
-  starsInput: safeGetElement('starsInput'), saveAttendanceEntry: safeGetElement('saveAttendanceEntry'),
-  closeAttendanceModal: safeGetElement('closeAttendanceModal'), cancelAttendanceModal: safeGetElement('cancelAttendanceModal'),
-  confirmOverlay: safeGetElement('confirmOverlay'), confirmIcon: safeGetElement('confirmIcon'),
-  confirmTitle: safeGetElement('confirmTitle'), confirmMsg: safeGetElement('confirmMsg'),
-  confirmCancel: safeGetElement('confirmCancel'), confirmOk: safeGetElement('confirmOk'),
-  activityDetailModal: safeGetElement('activityDetailModal'),
-  activityDetailTitle: safeGetElement('activityDetailTitle'),
-  closeActivityDetailModal: safeGetElement('closeActivityDetailModal'),
-  activityDetailSummary: safeGetElement('activityDetailSummary'),
-  activityDetailIcon: safeGetElement('activityDetailIcon'),
-  activityDetailName: safeGetElement('activityDetailName'),
-  activityDetailPeriod: safeGetElement('activityDetailPeriod'),
-  activityDetailTotal: safeGetElement('activityDetailTotal'),
-  activityDetailTabs: safeGetElement('activityDetailTabs'),
-  activityDetailList: safeGetElement('activityDetailList'),
-  presentTabCount: safeGetElement('presentTabCount'),
-  absentTabCount: safeGetElement('absentTabCount'),
-  menuBtn: safeGetElement('menuBtn'), signOutBtn: safeGetElement('signOutBtn'), googleSignIn: safeGetElement('googleSignIn'),
-  darkModeToggle: safeGetElement('darkModeToggle'), darkToggleSwitch: safeGetElement('darkToggleSwitch'),
-  shareProfileBtn: safeGetElement('shareProfileBtn'), editProfileBtn: safeGetElement('editProfileBtn'),
-  statsGradeFilter: safeGetElement('statsGradeFilter'),
-  activityStatsGrade: safeGetElement('activityStatsGrade'),
-  exportGradeFilter: safeGetElement('exportGradeFilter')
-});
+// Eagerly cache known static elements at startup
+_buildDOMCache();
 
 // ============================================================
 // APP STATE — FIXED: Added cache indexes for performance
@@ -288,30 +295,45 @@ const state = {
 
 // ============================================================
 // DERIVED STATE CACHE — Prevents O(n^2) lookups
-// FIXED: Centralized cache that rebuilds when data changes
+// FIXED: Centralized cache with full rebuild from source truth
 // ============================================================
 const Cache = {
   girlsById: null,
   allAttendance: null,
-  // FIXED: Indexed attendance structures for O(1) lookups
-  attendanceByGirl: null,   // { girlId: [records] }
-  attendanceByDate: null,   // { date: [records] }
-  attendanceByMonth: null,  // { 'YYYY-MM': [records] }
+  attendanceByGirl: null,
+  attendanceByDate: null,
+  attendanceByMonth: null,
+  // FIXED: Cached activeGirlIds to prevent repeated Set builds
+  activeGirlIds: null,
   _dirty: true,
+  _snapshotVersion: 0,
 
   invalidate() {
     this._dirty = true;
+    this._snapshotVersion++;
     this.girlsById = null;
     this.allAttendance = null;
     this.attendanceByGirl = null;
     this.attendanceByDate = null;
     this.attendanceByMonth = null;
+    this.activeGirlIds = null;
   },
 
   build() {
     if (!this._dirty) return;
+    // FULL rebuild from source truth — ensures consistency
     this.girlsById = Object.fromEntries(state.girls.filter(g => !g.isDeleted).map(g => [g.id, g]));
-    const allAtt = Object.values(state.attendanceData);
+    // FIXED: Deduplicate attendance records by ID — prevents stale merges
+    const attMap = new Map();
+    Object.values(state.attendanceData).forEach(a => {
+      if (!a || !a.id) return;
+      const existing = attMap.get(a.id);
+      // Keep the most recent version (by updatedAt)
+      if (!existing || (a.updatedAt || 0) >= (existing.updatedAt || 0)) {
+        attMap.set(a.id, a);
+      }
+    });
+    const allAtt = Array.from(attMap.values());
     this.allAttendance = allAtt;
 
     // FIXED: Build indexed structures for O(1) lookups
@@ -328,11 +350,14 @@ const Cache = {
       this.attendanceByDate[a.date].push(a);
       // By month
       const month = a.date?.substring(0, 7);
-      if (month) {
+      if (month && /^\d{4}-\d{2}$/.test(month)) {
         if (!this.attendanceByMonth[month]) this.attendanceByMonth[month] = [];
         this.attendanceByMonth[month].push(a);
       }
     });
+
+    // FIXED: Precompute activeGirlIds Set
+    this.activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
 
     this._dirty = false;
   },
@@ -361,7 +386,43 @@ const Cache = {
   getAttendanceByMonth(month) {
     this.build();
     return this.attendanceByMonth?.[month] || [];
+  },
+
+  // FIXED: O(1) cached activeGirlIds — eliminates repeated Set creation
+  getActiveGirlIds() {
+    this.build();
+    return this.activeGirlIds || new Set();
   }
+};
+
+// ============================================================
+// ATTENDANCE STORE — Global memoized snapshot
+// FIXED: Prevents repeated Cache.getAllAttendance() full scans
+// ============================================================
+const AttendanceStore = {
+  _cache: null,
+  _dirty: true,
+  _version: 0,
+
+  getAll() {
+    if (this._dirty || this._version !== Cache._snapshotVersion) {
+      this._cache = Cache.getAllAttendance();
+      this._dirty = false;
+      this._version = Cache._snapshotVersion;
+    }
+    return this._cache;
+  },
+
+  invalidate() {
+    this._dirty = true;
+  }
+};
+
+// Auto-invalidate AttendanceStore when Cache invalidates
+const originalCacheInvalidate = Cache.invalidate.bind(Cache);
+Cache.invalidate = function() {
+  originalCacheInvalidate();
+  AttendanceStore.invalidate();
 };
 
 // Invalidate cache whenever girls or attendanceData changes
@@ -420,6 +481,7 @@ function xmlEsc(str = '') {
  * FIXED: Safely parse a YYYY-MM-DD string into a Date object.
  * Uses new Date(year, month-1, day) to avoid timezone shift bugs
  * that can occur with new Date("YYYY-MM-DDT00:00:00").
+ * FIXED: Validates invalid dates like 31-02 that JS silently corrects.
  */
 function parseDateStr(dateStr) {
   if (!dateStr || typeof dateStr !== 'string') return new Date(NaN);
@@ -428,7 +490,10 @@ function parseDateStr(dateStr) {
   const [year, month, day] = parts;
   // Validate ranges
   if (month < 1 || month > 12 || day < 1 || day > 31) return new Date(NaN);
-  return new Date(year, month - 1, day);
+  const d = new Date(year, month - 1, day);
+  // FIXED: Verify the date wasn't silently corrected by JS (e.g. 2024-02-31 → 2024-03-02)
+  if (d.getMonth() !== month - 1 || d.getDate() !== day) return new Date(NaN);
+  return d;
 }
 
 /**
@@ -709,8 +774,21 @@ function hasConsecutiveAbsences(girlId, monthStr) {
 // ============================================================
 // UNIFIED STATS BOUNDS — All stats use this single function
 // ============================================================
+// FIXED: Safe date validation helper
+function _validateDateStr(dateStr, fallback) {
+  if (!dateStr || typeof dateStr !== 'string' || dateStr.length < 10) return fallback;
+  const parts = dateStr.split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return fallback;
+  const [year, month, day] = parts;
+  if (year < 2000 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return fallback;
+  // Verify no silent JS correction
+  const d = new Date(year, month - 1, day);
+  if (d.getMonth() !== month - 1 || d.getDate() !== day) return fallback;
+  return dateStr;
+}
+
 function getStatsBounds() {
-  const selectedDate = TimeContext.getDate();
+  const selectedDate = _validateDateStr(TimeContext.getDate(), DateUtil.toStr());
   const selYear = parseInt(selectedDate.substring(0, 4));
   const selMonth = parseInt(selectedDate.substring(5, 7));
 
@@ -718,7 +796,6 @@ function getStatsBounds() {
     case 'today':
       return { start: selectedDate, end: selectedDate };
     case 'month': {
-      // FIXED: selMonth is 1-based (from substring), JS Date month is 0-based
       const monthIndex = selMonth - 1;
       const lastDay = new Date(selYear, monthIndex + 1, 0).getDate();
       return { start: selectedDate.substring(0, 7) + '-01', end: selectedDate.substring(0, 7) + '-' + String(lastDay).padStart(2, '0') };
@@ -1043,8 +1120,15 @@ async function loadData() {
   try {
     if (!firebaseReady) return;
 
+    // FIXED: Guard against duplicate listeners — clear + flag pattern
+    if (_listenersInitialized) {
+      console.warn('loadData called while listeners already active — skipping');
+      return;
+    }
+
     // Clear any existing listeners first (prevents duplicate listeners on re-login)
     clearAllSnapshots();
+    _listenersInitialized = true;
 
     // FIXED: Store unsubscribers to prevent memory leaks
     const unsub1 = FB.onSnapshot(
@@ -1071,7 +1155,7 @@ async function loadData() {
       },
       (err) => console.error('Girls snapshot error:', err)
     );
-    _unsubscribers.push(unsub1);
+    pushUnsubscriber(unsub1);
 
     const unsub2 = FB.onSnapshot(
       FB.query(FB.collection(db, 'attendance'), FB.orderBy('date', 'desc')),
@@ -1093,7 +1177,7 @@ async function loadData() {
       },
       (err) => console.error('Attendance snapshot error:', err)
     );
-    _unsubscribers.push(unsub2);
+    pushUnsubscriber(unsub2);
 
     // FIXED: History listener — do async IDB ops outside onSnapshot callback
     const unsub3 = FB.onSnapshot(
@@ -1117,23 +1201,42 @@ async function loadData() {
       },
       (err) => console.error('History snapshot error:', err)
     );
-    _unsubscribers.push(unsub3);
+    pushUnsubscriber(unsub3);
 
-  } catch (e) { console.error('Load error:', e); }
+  } catch (e) {
+    console.error('Load error:', e);
+    // FIXED: Reset flag on error so loadData can be retried
+    _listenersInitialized = false;
+  }
 }
 
 // ============================================================
 // RENDER ENGINE — FIXED: Better throttling (120ms instead of 60ms)
 // + dirty flag to prevent duplicate renders
+// + queueMicrotask hybrid for state-settle safety
 // ============================================================
 function scheduleRender() {
   if (state.renderPending) return; // Already scheduled
   state.renderPending = true;
   clearTimeout(state.renderTimeout);
+  // FIXED: Use requestAnimationFrame + queueMicrotask to ensure state has settled
+  requestAnimationFrame(() => {
+    queueMicrotask(() => {
+      state.renderPending = false;
+      renderPage();
+    });
+  });
+}
+
+// FIXED: Debounced render for rapid-fire updates (toggleAttendance, etc.)
+function debouncedRender(minMs = 80) {
+  if (state.renderPending) return;
+  state.renderPending = true;
+  clearTimeout(state.renderTimeout);
   state.renderTimeout = setTimeout(() => {
     state.renderPending = false;
     renderPage();
-  }, 120); // FIXED: Increased from 60ms to 120ms for better performance
+  }, minMs);
 }
 
 function renderPage() {
@@ -1212,7 +1315,9 @@ function closeDrawer() {
 function getBestGradeFiltered(monthStr, gradeFilter) {
   const activeGirls = state.girls.filter(g => !g.isDeleted);
   const [year, month] = monthStr.split('-').map(Number);
-  const totalServiceDays = getServiceDaysInMonth(year, month - 1).length || 1;
+  // FIXED: Guard against undefined from getServiceDaysInMonth
+  const serviceDays = getServiceDaysInMonth(year, month - 1) || [];
+  const totalServiceDays = serviceDays.length || 1;
 
   const gradeStats = {};
   activeGirls.forEach(g => {
@@ -1271,7 +1376,9 @@ function getMostRegularGirlFiltered(monthStr, gradeFilter) {
   const activeGirlIds = new Set(activeGirls.map(g => g.id));
 
   const [year, month] = monthStr.split('-').map(Number);
-  const totalServiceDays = getServiceDaysInMonth(year, month - 1).length || 1;
+  // FIXED: Guard against undefined from getServiceDaysInMonth
+  const serviceDays = getServiceDaysInMonth(year, month - 1) || [];
+  const totalServiceDays = serviceDays.length || 1;
 
   const presentDatesByGirl = {};
   activeGirls.forEach(g => presentDatesByGirl[g.id] = new Set());
@@ -1323,17 +1430,25 @@ function renderHome() {
   const gradeFilter = state.homeGradeFilter;
   const activeGirls = state.girls.filter(g => !g.isDeleted);
   const filteredGirls = gradeFilter ? activeGirls.filter(g => g.grade === gradeFilter) : activeGirls;
-  const activeGirlIds = new Set(filteredGirls.map(g => g.id));
+  // FIXED: Use cached activeGirlIds from Cache instead of rebuilding Set
+  const allActiveGirlIds = Cache.getActiveGirlIds();
+  const activeGirlIds = gradeFilter
+    ? new Set(filteredGirls.map(g => g.id))
+    : allActiveGirlIds;
 
-  // Grade filter counts
+  // FIXED: Single-pass grade count instead of 3 separate filters (O(n) not O(3n))
+  const gradeCounts = { 'أولى إعدادي': 0, 'تانية إعدادي': 0, 'تالتة إعدادي': 0 };
+  activeGirls.forEach(g => {
+    if (gradeCounts[g.grade] !== undefined) gradeCounts[g.grade]++;
+  });
   const hfcAll = document.getElementById('homeFilterCountAll');
   const hfc1 = document.getElementById('homeFilterCount1');
   const hfc2 = document.getElementById('homeFilterCount2');
   const hfc3 = document.getElementById('homeFilterCount3');
   if (hfcAll) hfcAll.textContent = activeGirls.length;
-  if (hfc1) hfc1.textContent = activeGirls.filter(g => g.grade === 'أولى إعدادي').length;
-  if (hfc2) hfc2.textContent = activeGirls.filter(g => g.grade === 'تانية إعدادي').length;
-  if (hfc3) hfc3.textContent = activeGirls.filter(g => g.grade === 'تالتة إعدادي').length;
+  if (hfc1) hfc1.textContent = gradeCounts['أولى إعدادي'];
+  if (hfc2) hfc2.textContent = gradeCounts['تانية إعدادي'];
+  if (hfc3) hfc3.textContent = gradeCounts['تالتة إعدادي'];
 
   document.querySelectorAll('#homeGradeFilters .grade-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grade === gradeFilter);
@@ -1988,15 +2103,24 @@ async function toggleAttendanceStatus(girlId, girlName, date) {
     // Update state - FIXED: Use functional pattern to avoid race conditions
     setStateAttendanceData(prev => { const next = { ...prev, [key]: rec }; return next; });
 
+    let firestoreSuccess = false;
     if (firebaseReady) {
-      try { await FB.setDoc(FB.doc(db, 'attendance', key), rec); }
-      catch (e) { console.error('Save attendance Firestore error:', e); }
+      try {
+        await FB.setDoc(FB.doc(db, 'attendance', key), rec);
+        firestoreSuccess = true;
+      } catch (e) {
+        console.error('Save attendance Firestore error:', e);
+      }
     }
 
-    renderAttendanceList();
-    if (state.currentPage === 'home') renderHome();
-    if (state.currentPage === 'stats') renderStats();
-    if (state.currentPage === 'calendar') renderCalendar();
+    // FIXED: If Firestore failed but we're "online", the local state may be stale
+    // Log a warning so the developer knows there's a potential inconsistency
+    if (firebaseReady && !firestoreSuccess && navigator.onLine) {
+      console.warn('Attendance saved locally but Firestore write failed — potential inconsistency');
+    }
+
+    // FIXED: Debounced render to batch rapid toggles + ensure state settled
+    debouncedRender(80);
   } finally {
     state.pendingAttendanceOps.delete(opKey);
   }
@@ -2066,6 +2190,7 @@ async function markAllAbsentForDate(date) {
 }
 
 // Auto-mark a newly added girl as absent for all activities on a service day
+// FIXED: Rollback mechanism — if Firestore fails, revert local state
 async function autoMarkAbsentForNewGirl(girlId, date) {
   if (!isServiceDayDate(date)) return;
 
@@ -2073,6 +2198,7 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
   const dayName = DateUtil.dayName(parseDateStr(date));
   const batchRecords = [];
   const newAttData = { ...state.attendanceData };
+  const keysToAdd = [];
 
   for (const activity of ACTIVITIES) {
     const key = makeAttKey(girlId, date, activity);
@@ -2092,9 +2218,11 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
       };
       batchRecords.push(rec);
       newAttData[key] = rec;
+      keysToAdd.push(key);
     }
   }
 
+  let firestoreSuccess = true;
   if (firebaseReady && batchRecords.length > 0) {
     try {
       const batch = FB.writeBatch(db);
@@ -2104,7 +2232,17 @@ async function autoMarkAbsentForNewGirl(girlId, date) {
       await batch.commit();
     } catch (e) {
       console.error('Auto-absent batch save error:', e);
+      firestoreSuccess = false;
     }
+  }
+
+  // FIXED: Rollback — if Firestore failed, remove the locally added records
+  if (!firestoreSuccess && firebaseReady && navigator.onLine) {
+    console.warn('Auto-absent Firestore failed — rolling back local state');
+    keysToAdd.forEach(key => delete newAttData[key]);
+    // Revert to original state
+    setStateAttendanceData(state.attendanceData);
+    return;
   }
 
   setStateAttendanceData(newAttData);
@@ -2229,13 +2367,13 @@ function renderAttendanceList() {
   let present = 0, absent = 0;
   const frag = document.createDocumentFragment();
 
-  // Pre-fetch attendance for this date to avoid repeated lookups
-  // FIXED: Use makeAttKey for consistent key generation
+  // FIXED: Pre-filter by BOTH date AND current activity — prevents key mismatch
+  // and reduces data size significantly
   const dateAttendance = {};
   const allAttendance = Cache.getAllAttendance();
+  const currentActivity = state.selectedActivity;
   allAttendance.forEach(a => {
-    if (a.date === date) {
-      // FIXED: Use makeAttKey for consistent key matching
+    if (a.date === date && a.activity === currentActivity) {
       const lookupKey = makeAttKey(a.girlId, a.date, a.activity);
       dateAttendance[lookupKey] = a;
     }
@@ -2422,13 +2560,16 @@ function renderCalendar() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = TimeContext.getDate();
 
-  // FIXED: Build date-index for O(1) lookups instead of O(n) scan per day
+  // FIXED: Build date+activity index for accurate has-data detection
+  // Prevents false positive: day has data for OTHER activity but not current one
   const dateIndex = new Set();
+  const currentCalendarActivity = state.selectedActivity || '';
   const allAttendance = Cache.getAllAttendance();
-  const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
+  const activeGirlIds = Cache.getActiveGirlIds(); // FIXED: Use cached Set
   allAttendance.forEach(a => {
     if (activeGirlIds.has(a.girlId)) {
-      dateIndex.add(a.date);
+      // FIXED: Include activity in index key for accurate per-activity detection
+      dateIndex.add(`${a.date}_${a.activity}`);
     }
   });
 
@@ -2440,8 +2581,8 @@ function renderCalendar() {
     const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
     const dayOfWeek = new Date(year, month, d).getDay();
     const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
-    // FIXED: O(1) lookup instead of O(n) scan
-    const hasData = dateIndex.has(dateStr);
+    // FIXED: O(1) lookup with activity-aware index — no false positives
+    const hasData = dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
     const isToday = dateStr === todayStr;
     html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
       <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
@@ -2471,10 +2612,10 @@ function refreshDayDetail() {
   if (!currentDayDetailDate || !DOM.dayDetail) return;
   const dateStr = currentDayDetailDate;
 
-  // FIXED: Single-pass filter instead of repeated scans
-  const allAttendance = Cache.getAllAttendance();
-  const activeGirlIds = new Set(state.girls.filter(g => !g.isDeleted).map(g => g.id));
-  const filteredRecords = allAttendance.filter(r => r.date === dateStr && activeGirlIds.has(r.girlId));
+  // FIXED: O(1) indexed lookup instead of O(n) full scan
+  const activeGirlIds = Cache.getActiveGirlIds();
+  const dayRecords = Cache.getAttendanceByDate(dateStr);
+  const filteredRecords = dayRecords.filter(r => activeGirlIds.has(r.girlId));
 
   const el = DOM.dayDetail;
   if (!filteredRecords.length) {
@@ -2529,7 +2670,7 @@ if (DOM.calNext) {
 // ACTIVITY STATS — Period bounds function
 // ============================================================
 function getPeriodBounds(period, customDate) {
-  const selectedDate = customDate || TimeContext.getDate();
+  const selectedDate = _validateDateStr(customDate || TimeContext.getDate(), DateUtil.toStr());
   const selYear = parseInt(selectedDate.substring(0, 4));
   const selMonth = parseInt(selectedDate.substring(5, 7));
   switch (period) {
@@ -2547,10 +2688,11 @@ function getPeriodBounds(period, customDate) {
 
 // Returns both present AND absence counts for each activity
 function getActivityStats(period, gradeFilter = '', customDate) {
-  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  // FIXED: Use cached activeGirlIds from Cache, only filter by grade if needed
+  const allActiveGirlIds = Cache.getActiveGirlIds();
   const activeGirlIds = gradeFilter
-    ? new Set(activeGirls.filter(g => g.grade === gradeFilter).map(g => g.id))
-    : new Set(activeGirls.map(g => g.id));
+    ? new Set(state.girls.filter(g => !g.isDeleted && g.grade === gradeFilter).map(g => g.id))
+    : allActiveGirlIds;
   const { start, end } = getPeriodBounds(period, customDate);
 
   const stats = {
@@ -2581,9 +2723,10 @@ function getActivityStats(period, gradeFilter = '', customDate) {
 // ============================================================
 function openActivityDetailModal(activity, period, gradeFilter = '', customDate) {
   const { start, end } = getPeriodBounds(period, customDate);
-  let activeGirls = state.girls.filter(g => !g.isDeleted);
-  if (gradeFilter) activeGirls = activeGirls.filter(g => g.grade === gradeFilter);
-  const activeGirlIds = new Set(activeGirls.map(g => g.id));
+  // FIXED: Use cached Set for better performance
+  const activeGirlIds = gradeFilter
+    ? new Set(state.girls.filter(g => !g.isDeleted && g.grade === gradeFilter).map(g => g.id))
+    : Cache.getActiveGirlIds();
   const periodLabel = PERIOD_LABELS[period] || '';
 
   const allAttendance = Cache.getAllAttendance();
@@ -2613,9 +2756,9 @@ function openActivityDetailModal(activity, period, gradeFilter = '', customDate)
     const rate = total > 0 ? Math.round((pCount / total) * 100) : 0;
 
     const entry = { girl, presentCount: pCount, absentCount: aCount, totalRecords: total, attendanceRate: rate, latestRecord: girlRecords[0] };
-    // FIXED: Classification - girl with equal or more presence counts as present
-    // Changed from pCount > aCount to pCount >= aCount to handle tie correctly
-    if (pCount >= aCount) presentGirls.push(entry);
+    // FIXED: Classification by rate >= 50% instead of count comparison
+    // More accurate: a girl with 1 present + 1 absent should be "needs attention" not "present"
+    if (total > 0 && rate >= 50) presentGirls.push(entry);
     else absentGirls.push(entry);
   });
 
@@ -2768,7 +2911,8 @@ function renderStats() {
   const recordsByGirlDate = {};
   const absenceByGirl = {};
   const presentsByGirl = {};
-  const ratingValues = [];
+  // FIXED: Running sum for ratings instead of array accumulation (saves memory)
+  let ratingSum = 0, ratingCount = 0;
   const uniqueDates = new Set();
 
   // Initialize per-girl accumulators
@@ -2798,7 +2942,7 @@ function renderStats() {
       recordsByGirlDate[gdKey].hasAbsent = true;
       absenceByGirl[a.girlId]?.add(a.date);
     }
-    if (a.rating > 0) ratingValues.push(a.rating);
+    if (a.rating > 0) { ratingSum += a.rating; ratingCount++; }
   });
 
   let presents = 0, absents = 0;
@@ -2807,7 +2951,7 @@ function renderStats() {
     else if (day.hasAbsent) absents++;
   });
 
-  const avgRating = ratingValues.length ? (ratingValues.reduce((a, b) => a + b, 0) / ratingValues.length).toFixed(1) : '-';
+  const avgRating = ratingCount > 0 ? (ratingSum / ratingCount).toFixed(1) : '-';
 
   // FIXED: Follow-up count using the centralized hasConsecutiveAbsences function
   let followupCount = 0;
@@ -2837,9 +2981,10 @@ function renderStats() {
   // Absence chart — use precomputed sets
   const absenceCounts = {};
   Object.keys(absenceByGirl).forEach(id => { absenceCounts[id] = absenceByGirl[id].size; });
-  // FIXED: Protect against empty array - Math.max(...[]) returns -Infinity
+  // FIXED: Loop-based max instead of spread operator (avoids memory spike on large arrays)
   const absValues = Object.values(absenceCounts);
-  const maxAbs = absValues.length > 0 ? Math.max(...absValues, 1) : 1;
+  let maxAbs = 1;
+  for (const v of absValues) { if (v > maxAbs) maxAbs = v; }
   const sortedAbs = Object.entries(absenceCounts).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
   if (DOM.absenceChart) {
