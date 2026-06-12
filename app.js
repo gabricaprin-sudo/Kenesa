@@ -3208,6 +3208,30 @@ if (DOM.exportGradeFilter) {
   });
 }
 
+// FIXED: Export mode selection — Sync .selected class with radio state
+// The CSS has dual selectors (.selected + :has(:checked)) but JS only
+// updates the radio checked state natively. This adds the missing .selected
+// class management so both light and dark mode styling work instantly.
+document.querySelectorAll('.export-mode-option').forEach(label => {
+  label.addEventListener('click', () => {
+    // Remove .selected from all options
+    document.querySelectorAll('.export-mode-option').forEach(opt => {
+      opt.classList.remove('selected');
+    });
+    // Add .selected to clicked option
+    label.classList.add('selected');
+    // Ensure the radio is checked (sync both systems)
+    const radio = label.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+  });
+});
+
+// Set initial .selected state on page load (first radio is checked by default)
+const defaultCheckedExportOption = document.querySelector('.export-mode-option input[type="radio"]:checked');
+if (defaultCheckedExportOption) {
+  defaultCheckedExportOption.closest('.export-mode-option').classList.add('selected');
+}
+
 // ============================================================
 // HELPER: Sort girls by grade order (تالته → تانية → أولى)
 // ============================================================
