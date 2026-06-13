@@ -291,6 +291,8 @@ const state = {
   lastAbsenceCacheMonth: null,
   // NEW: Export grade filter state
   exportGradeFilter: 'أولى إعدادي',
+  // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
+  autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
 };
 
 // ============================================================
@@ -1047,6 +1049,8 @@ async function initAuth() {
         state.appInitialized = true;
         await loadData();
         renderPage();
+        // NEW: Auto-mark absence for today if it's a service day
+        await checkAndAutoMarkAbsence();
       }
     });
   } catch (e) {
@@ -1293,6 +1297,8 @@ function navigateTo(page) {
 
   if (page === 'attendance') {
     state.attendancePageInitialized = false;
+    // NEW: Auto-mark absence when opening attendance page on a service day
+    checkAndAutoMarkAbsence();
   }
   if (page !== 'calendar') {
     hideDayDetail();
@@ -2027,6 +2033,73 @@ function isServiceDayDate(dateStr) {
   return SERVICE_DAY_NUMBERS.includes(d.getDay());
 }
 
+// ============================================================
+// AUTO MARK ABSENCE — NEW: Automatically mark all girls as absent on service days
+// ============================================================
+
+/**
+ * Persist the auto-marked dates Set to localStorage
+ */
+function persistAutoMarkedDates() {
+  try {
+    localStorage.setItem('autoMarkedDates', JSON.stringify([...state.autoMarkedDates]));
+  } catch (e) { console.warn('Failed to persist autoMarkedDates:', e); }
+}
+
+/**
+ * Check if a service day has already been auto-marked for all 4 activities
+ * We consider it complete only if ALL activities have records for ALL active girls
+ */
+function isDayFullyAutoMarked(date) {
+  if (!state.autoMarkedDates.has(date)) return false;
+  // Additional check: ensure we have records for all activities
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  if (activeGirls.length === 0) return true; // No girls yet, consider it done
+
+  for (const g of activeGirls) {
+    for (const activity of ACTIVITIES) {
+      const key = makeAttKey(g.id, date, activity);
+      if (!state.attendanceData[key]) return false; // Missing record
+    }
+  }
+  return true;
+}
+
+/**
+ * NEW: Automatically mark all girls as absent on service days.
+ * This runs once per service day when the app loads or when navigating to attendance page.
+ * Uses localStorage to persist across reloads.
+ */
+async function checkAndAutoMarkAbsence() {
+  const today = DateUtil.toStr();
+
+  // Only run on service days
+  if (!isServiceDayDate(today)) return;
+
+  // Check if we already fully marked this day
+  if (isDayFullyAutoMarked(today)) return;
+
+  // Also check if there are already any attendance records for today
+  // (user may have manually started marking attendance)
+  const todayRecords = Cache.getAttendanceByDate(today);
+  const hasAnyRecords = todayRecords.length > 0;
+
+  if (hasAnyRecords && state.autoMarkedDates.has(today)) {
+    // Already processed and has records, skip
+    return;
+  }
+
+  // Mark all girls as absent for all activities
+  showToast('جاري تسجيل الغياب التلقائي ليوم الخدمة...', 'info');
+  await markAllAbsentForDate(today);
+
+  // Track that we auto-marked this day
+  state.autoMarkedDates.add(today);
+  persistAutoMarkedDates();
+
+  showToast('تم تسجيل الغياب التلقائي — اضغط على اسم المخدومة لتسجيل الحضور', 'success');
+}
+
 // FIXED: Renamed to clarify this is a hardcoded lookup, not dynamic
 function getHardcodedServiceDay(dayOfWeek) {
   const dayMap = { 6: 'السبت', 1: 'الاثنين', 3: 'الاربعاء' };
@@ -2047,6 +2120,15 @@ function renderAttendancePage() {
 
   state.attendancePageInitialized = true;
   renderAttendanceList();
+
+  // NEW: Show indicator if auto-absence has been applied for today
+  const today = DateUtil.toStr();
+  const date = DOM.attendanceDate.value;
+  if (date === today && isServiceDayDate(today) && state.autoMarkedDates.has(today)) {
+    showAutoMarkIndicator();
+  } else {
+    hideAutoMarkIndicator();
+  }
 }
 
 function setActiveDay(day) {
@@ -2589,25 +2671,14 @@ function renderCalendar() {
   ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
   html += '</div><div class="cal-days">';
   for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
-  // FIXED: Precompute all service days for this month to detect unrecorded service days
-  const serviceDaysSet = new Set();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dow = new Date(year, month, d).getDay();
-    if (SERVICE_DAY_NUMBERS.includes(dow)) {
-      serviceDaysSet.add(`${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`);
-    }
-  }
-
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
     const dayOfWeek = new Date(year, month, d).getDay();
     const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
     // FIXED: O(1) lookup with activity-aware index — no false positives
     const hasData = dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
-    // FIXED: Detect service days that haven't been recorded yet (no attendance data at all for this day)
-    const notRecorded = isService && !dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
     const isToday = dateStr === todayStr;
-    html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${notRecorded ? 'not-recorded' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+    html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
       <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
     </div>`;
   }
@@ -3952,6 +4023,29 @@ if (girlsSearchInput) {
       renderGirlsList();
     }, 250);
   });
+}
+
+// ============================================================
+// AUTO-ABSORB INDICATOR — NEW: Visual feedback for auto-marked absence
+// ============================================================
+function showAutoMarkIndicator() {
+  const existing = document.getElementById('autoMarkIndicator');
+  if (existing) return; // Already showing
+
+  const indicator = document.createElement('div');
+  indicator.id = 'autoMarkIndicator';
+  indicator.style.cssText = 'background:rgba(231,76,60,0.1);color:var(--red);border:1px solid rgba(231,76,60,0.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;';
+  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي — اضغط على اسم المخدومة لتسجيل الحضور';
+
+  const attendanceList = DOM.attendanceList;
+  if (attendanceList && attendanceList.parentNode) {
+    attendanceList.parentNode.insertBefore(indicator, attendanceList);
+  }
+}
+
+function hideAutoMarkIndicator() {
+  const existing = document.getElementById('autoMarkIndicator');
+  if (existing) existing.remove();
 }
 
 setupDelegation();
