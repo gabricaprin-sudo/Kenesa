@@ -2589,14 +2589,25 @@ function renderCalendar() {
   ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'].forEach(d => html += `<div class="cal-wday">${d}</div>`);
   html += '</div><div class="cal-days">';
   for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
+  // FIXED: Precompute all service days for this month to detect unrecorded service days
+  const serviceDaysSet = new Set();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month, d).getDay();
+    if (SERVICE_DAY_NUMBERS.includes(dow)) {
+      serviceDaysSet.add(`${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`);
+    }
+  }
+
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${DateUtil.pad(month + 1)}-${DateUtil.pad(d)}`;
     const dayOfWeek = new Date(year, month, d).getDay();
     const isService = SERVICE_DAY_NUMBERS.includes(dayOfWeek);
     // FIXED: O(1) lookup with activity-aware index — no false positives
     const hasData = dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
+    // FIXED: Detect service days that haven't been recorded yet (no attendance data at all for this day)
+    const notRecorded = isService && !dateIndex.has(`${dateStr}_${currentCalendarActivity}`);
     const isToday = dateStr === todayStr;
-    html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
+    html += `<div class="cal-day ${isService ? 'service-day' : ''} ${hasData ? 'has-data' : ''} ${notRecorded ? 'not-recorded' : ''} ${isToday ? 'today' : ''}" data-date="${dateStr}">
       <span>${d}</span>${isService ? '<div class="service-dot"></div>' : ''}
     </div>`;
   }
