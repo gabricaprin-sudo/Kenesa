@@ -2097,7 +2097,7 @@ async function checkAndAutoMarkAbsence() {
   state.autoMarkedDates.add(today);
   persistAutoMarkedDates();
 
-  showToast('تم تسجيل الغياب التلقائي — اضغط على اسم المخدومة لتسجيل الحضور', 'success');
+  showToast('تم تسجيل الغياب التلقائي — ', 'success');
 }
 
 // FIXED: Renamed to clarify this is a hardcoded lookup, not dynamic
@@ -4035,7 +4035,7 @@ function showAutoMarkIndicator() {
   const indicator = document.createElement('div');
   indicator.id = 'autoMarkIndicator';
   indicator.style.cssText = 'background:rgba(231,76,60,0.1);color:var(--red);border:1px solid rgba(231,76,60,0.3);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:14px;font-weight:600;text-align:center;';
-  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي — اضغط على اسم المخدومة لتسجيل الحضور';
+  indicator.innerHTML = '&#9888; تم تسجيل الغياب التلقائي';
 
   const attendanceList = DOM.attendanceList;
   if (attendanceList && attendanceList.parentNode) {
