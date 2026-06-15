@@ -233,7 +233,10 @@ function _buildDOMCache() {
     'darkModeToggle', 'darkToggleSwitch',
     'shareProfileBtn', 'editProfileBtn',
     'statsGradeFilter', 'activityStatsGrade', 'exportGradeFilter',
-    'exportStatusFilter'
+    'exportStatusFilter',
+    // Settings page elements
+    'exportFullBackup', 'importBackup', 'importFileInput',
+    'clearAllData', 'settingsGirlCount', 'settingsAttCount', 'settingsLastUpdate'
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -1266,6 +1269,7 @@ function renderPage() {
     case 'stats': renderStats(); break;
     case 'history': renderHistory(false); break;
     case 'export': renderExport(); break;
+    case 'settings': renderSettings(); break;
   }
 }
 
@@ -1279,7 +1283,8 @@ const PAGE_TITLES = {
   calendar: ['التقويم الشهري', 'أيام الخدمة'],
   stats: ['الإحصائيات', 'تحليلات وتقارير'],
   history: ['السجل التاريخي', 'سجل التعديلات'],
-  export: ['التصدير', 'تصدير البيانات']
+  export: ['التصدير', 'تصدير البيانات'],
+  settings: ['الإعدادات', 'النسخ الاحتياطي والاستيراد']
 };
 
 function navigateTo(page) {
@@ -4184,3 +4189,261 @@ async function bootstrap() {
 }
 
 bootstrap();
+
+
+// ============================================================
+// SETTINGS PAGE — Backup, Import, and Data Management
+// ============================================================
+
+function renderSettings() {
+  // Update stats info
+  const activeGirls = state.girls.filter(g => !g.isDeleted);
+  const attCount = Object.keys(state.attendanceData).length;
+
+  const girlCountEl = document.getElementById('settingsGirlCount');
+  const attCountEl = document.getElementById('settingsAttCount');
+  const lastUpdateEl = document.getElementById('settingsLastUpdate');
+
+  if (girlCountEl) girlCountEl.textContent = activeGirls.length;
+  if (attCountEl) attCountEl.textContent = attCount;
+  if (lastUpdateEl) {
+    const now = new Date();
+    lastUpdateEl.textContent = now.toLocaleDateString('ar-EG', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+}
+
+// Export full backup (all data as JSON)
+async function exportFullBackup() {
+  try {
+    const backup = {
+      version: 2,
+      exportedAt: Date.now(),
+      exportedBy: state.currentUser?.email || 'unknown',
+      girls: state.girls,
+      attendanceData: state.attendanceData
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = DateUtil.toStr();
+    a.href = url;
+    a.download = `نسخة_احتياطية_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('تم تصدير النسخة الاحتياطية بنجاح', 'success');
+    await logHistory('تصدير نسخة احتياطية', 'تصدير كامل للبيانات');
+  } catch (e) {
+    console.error('Backup export error:', e);
+    showToast('فشل تصدير النسخة الاحتياطية', 'error');
+  }
+}
+
+// Import backup from JSON file
+async function importBackup(file) {
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+
+    // Validate backup format
+    if (!backup.girls || !Array.isArray(backup.girls)) {
+      showToast('ملف النسخة الاحتياطية غير صالح: لا يوجد بيانات مخدومات', 'error');
+      return;
+    }
+
+    showConfirm({
+      icon: '&#9888;',
+      title: 'تأكيد الاستيراد',
+      msg: `سيتم استيراد ${backup.girls.length} مخدومة و ${Object.keys(backup.attendanceData || {}).length} سجل حضور. سيتم دمج البيانات مع الموجودة حالياً.`,
+      okLabel: 'استيراد',
+      okClass: 'confirm-ok',
+      onOk: async () => {
+        try {
+          // Merge girls — avoid duplicates by ID
+          const existingGirlIds = new Set(state.girls.map(g => g.id));
+          let addedGirls = 0;
+          let mergedGirls = 0;
+
+          for (const girl of backup.girls) {
+            if (!existingGirlIds.has(girl.id)) {
+              // New girl — add it
+              state.girls.push(girl);
+              addedGirls++;
+            } else {
+              // Existing girl — update if newer
+              const idx = state.girls.findIndex(g => g.id === girl.id);
+              if (idx >= 0 && (girl.updatedAt || 0) > (state.girls[idx].updatedAt || 0)) {
+                state.girls[idx] = girl;
+                mergedGirls++;
+              }
+            }
+          }
+
+          // Merge attendance data
+          const newAttData = { ...state.attendanceData };
+          let addedAtt = 0;
+          let mergedAtt = 0;
+
+          if (backup.attendanceData) {
+            for (const [key, record] of Object.entries(backup.attendanceData)) {
+              if (!newAttData[key]) {
+                newAttData[key] = record;
+                addedAtt++;
+              } else if ((record.updatedAt || 0) > (newAttData[key].updatedAt || 0)) {
+                newAttData[key] = record;
+                mergedAtt++;
+              }
+            }
+          }
+
+          setStateGirls([...state.girls]);
+          setStateAttendanceData(newAttData);
+
+          // Save to Firestore if online
+          if (firebaseReady) {
+            showToast('جاري مزامنة البيانات مع السحابة...', 'info');
+            const batch = FB.writeBatch(db);
+            let batchCount = 0;
+
+            for (const girl of backup.girls) {
+              batch.set(FB.doc(db, 'girls', girl.id), girl);
+              batchCount++;
+              if (batchCount >= 400) {
+                await batch.commit();
+                batchCount = 0;
+              }
+            }
+
+            if (backup.attendanceData) {
+              for (const [key, record] of Object.entries(backup.attendanceData)) {
+                batch.set(FB.doc(db, 'attendance', key), record);
+                batchCount++;
+                if (batchCount >= 400) {
+                  await batch.commit();
+                  batchCount = 0;
+                }
+              }
+            }
+
+            if (batchCount > 0) {
+              await batch.commit();
+            }
+          }
+
+          showToast(`تم الاستيراد: ${addedGirls} مخدومة جديدة، ${addedAtt} سجل حضور جديد`, 'success');
+          await logHistory('استيراد نسخة احتياطية', `استيراد ${addedGirls} مخدومة و ${addedAtt} سجل`);
+          renderSettings();
+        } catch (e) {
+          console.error('Import error:', e);
+          showToast('فشل الاستيراد: ' + e.message, 'error');
+        }
+      }
+    });
+  } catch (e) {
+    console.error('Import parse error:', e);
+    showToast('فشل قراءة الملف: تأكد من أنه ملف JSON صالح', 'error');
+  }
+}
+
+// Clear all data
+async function clearAllData() {
+  showConfirm({
+    icon: '&#128465;',
+    title: 'مسح كل البيانات',
+    msg: 'هل أنت متأكد من حذف كل المخدومات وسجلات الحضور؟ هذا الإجراء لا يمكن التراجع عنه!',
+    okLabel: 'نعم، امسح الكل',
+    okClass: 'confirm-delete',
+    onOk: async () => {
+      try {
+        // Create backup first
+        const backup = {
+          version: 2,
+          exportedAt: Date.now(),
+          exportedBy: state.currentUser?.email || 'unknown',
+          girls: state.girls,
+          attendanceData: state.attendanceData
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `نسخة_احتياطية_قبل_المسح_${DateUtil.toStr()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Clear local state
+        setStateGirls([]);
+        setStateAttendanceData({});
+
+        // Clear Firestore if online
+        if (firebaseReady) {
+          showToast('جاري المسح من السحابة...', 'info');
+
+          // Delete all girls
+          const girlsSnap = await FB.getDocs(FB.collection(db, 'girls'));
+          for (let i = 0; i < girlsSnap.docs.length; i += 500) {
+            const batch = FB.writeBatch(db);
+            girlsSnap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+
+          // Delete all attendance
+          const attSnap = await FB.getDocs(FB.collection(db, 'attendance'));
+          for (let i = 0; i < attSnap.docs.length; i += 500) {
+            const batch = FB.writeBatch(db);
+            attSnap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+        }
+
+        await logHistory('مسح البيانات', 'تم مسح كل المخدومات وسجلات الحضور');
+        showToast('تم مسح كل البيانات بنجاح', 'success');
+        renderSettings();
+      } catch (e) {
+        console.error('Clear all data error:', e);
+        showToast('فشل المسح: ' + e.message, 'error');
+      }
+    }
+  });
+}
+
+// Event listeners for Settings page
+document.addEventListener('DOMContentLoaded', () => {
+  // Export full backup button
+  const exportFullBackupBtn = document.getElementById('exportFullBackup');
+  if (exportFullBackupBtn) {
+    exportFullBackupBtn.addEventListener('click', exportFullBackup);
+  }
+
+  // Import backup button (triggers file input)
+  const importBackupBtn = document.getElementById('importBackup');
+  const importFileInput = document.getElementById('importFileInput');
+  if (importBackupBtn && importFileInput) {
+    importBackupBtn.addEventListener('click', () => importFileInput.click());
+    importFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        importBackup(file);
+      }
+      // Reset input so same file can be selected again
+      e.target.value = '';
+    });
+  }
+
+  // Clear all data button
+  const clearAllDataBtn = document.getElementById('clearAllData');
+  if (clearAllDataBtn) {
+    clearAllDataBtn.addEventListener('click', clearAllData);
+  }
+});
+
+
+/* === End of App === */

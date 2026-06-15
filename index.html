@@ -128,6 +128,7 @@
           <li><a href="#" data-page="stats" class="menu-item"><span>&#128202;</span> الإحصائيات</a></li>
           <li><a href="#" data-page="history" class="menu-item"><span>&#128220;</span> السجل التاريخي</a></li>
           <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
+          <li><a href="#" data-page="settings" class="menu-item"><span>&#9881;&#65039;</span> الإعدادات</a></li>
           <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
         </ul>
@@ -393,6 +394,82 @@
                 <div><b>تقرير للطباعة</b><small>PDF قابل للطباعة</small></div>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS PAGE -->
+        <div id="page-settings" class="page">
+          <div class="settings-card">
+            <div class="settings-icon">&#9881;&#65039;</div>
+            <h3>الإعدادات</h3>
+            <p class="settings-desc">إدارة البيانات والنسخ الاحتياطي</p>
+
+            <!-- Backup & Restore Section -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <span>&#128228;</span> النسخ الاحتياطي
+              </div>
+
+              <!-- Export Full Backup -->
+              <div class="settings-item" id="exportFullBackup">
+                <div class="settings-item-icon">&#128190;</div>
+                <div class="settings-item-info">
+                  <div class="settings-item-label">تصدير نسخة احتياطية</div>
+                  <div class="settings-item-desc">تصدير كل البيانات (المخدومات + الحضور) كملف JSON</div>
+                </div>
+                <div class="settings-item-arrow">&#9664;</div>
+              </div>
+
+              <!-- Import Backup -->
+              <div class="settings-item" id="importBackup">
+                <div class="settings-item-icon">&#128229;</div>
+                <div class="settings-item-info">
+                  <div class="settings-item-label">استيراد نسخة احتياطية</div>
+                  <div class="settings-item-desc">استعادة البيانات من ملف JSON سابق</div>
+                </div>
+                <div class="settings-item-arrow">&#9664;</div>
+              </div>
+
+              <!-- Hidden file input for import -->
+              <input type="file" id="importFileInput" accept=".json" style="display: none;">
+            </div>
+
+            <!-- Data Management Section -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <span>&#128295;</span> إدارة البيانات
+              </div>
+
+              <!-- Clear All Data -->
+              <div class="settings-item danger" id="clearAllData">
+                <div class="settings-item-icon">&#128465;</div>
+                <div class="settings-item-info">
+                  <div class="settings-item-label">مسح كل البيانات</div>
+                  <div class="settings-item-desc">حذف كل المخدومات وسجلات الحضور (لا يمكن التراجع)</div>
+                </div>
+                <div class="settings-item-arrow">&#9664;</div>
+              </div>
+            </div>
+
+            <!-- Info Section -->
+            <div class="settings-section">
+              <div class="settings-section-title">
+                <span>&#8505;&#65039;</span> معلومات
+              </div>
+              <div class="settings-info-row">
+                <span>عدد المخدومات:</span>
+                <span id="settingsGirlCount">0</span>
+              </div>
+              <div class="settings-info-row">
+                <span>سجلات الحضور:</span>
+                <span id="settingsAttCount">0</span>
+              </div>
+              <div class="settings-info-row">
+                <span>آخر تحديث:</span>
+                <span id="settingsLastUpdate">-</span>
+              </div>
+            </div>
+
           </div>
         </div>
 

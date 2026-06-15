@@ -2151,3 +2151,148 @@ textarea:focus:not(:focus-visible) {
   from { opacity: 0; transform: translateY(-10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+
+/* ============================================================
+   SETTINGS PAGE
+   ============================================================ */
+.settings-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  box-shadow: var(--shadow);
+}
+.settings-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.settings-card h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 4px;
+}
+.settings-desc {
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.settings-section {
+  margin-bottom: 20px;
+}
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 12px;
+}
+.settings-section-title span {
+  font-size: 20px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg);
+  border-radius: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--easing-default);
+  border: 2px solid transparent;
+  touch-action: manipulation;
+}
+.settings-item:active {
+  transform: scale(0.98);
+  background: var(--surface);
+  border-color: var(--border);
+}
+.settings-item-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(52, 152, 219, 0.1);
+  color: #2980b9;
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.settings-item.danger .settings-item-icon {
+  background: rgba(231, 76, 60, 0.1);
+  color: var(--red);
+}
+.settings-item-info {
+  flex: 1;
+}
+.settings-item-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.settings-item-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.settings-item-arrow {
+  font-size: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.settings-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 15px;
+}
+.settings-info-row span:first-child {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.settings-info-row span:last-child {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+/* Dark mode for settings */
+[data-theme="dark"] .settings-card {
+  background: var(--surface);
+}
+[data-theme="dark"] .settings-section-title {
+  background: #0f1525;
+}
+[data-theme="dark"] .settings-item {
+  background: #0f1525;
+}
+[data-theme="dark"] .settings-item:active {
+  background: var(--surface);
+  border-color: #2a3650;
+}
+[data-theme="dark"] .settings-item-icon {
+  background: rgba(52, 152, 219, 0.15);
+}
+[data-theme="dark"] .settings-item.danger .settings-item-icon {
+  background: rgba(231, 76, 60, 0.15);
+}
+[data-theme="dark"] .settings-info-row {
+  background: #0f1525;
+}
+
