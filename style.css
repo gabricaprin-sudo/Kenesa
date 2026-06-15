@@ -1903,6 +1903,71 @@ textarea.form-input { resize: none; }
   border-color: var(--accent);
 }
 
+/* ============================================================
+   EXPORT STATUS FILTER
+   ============================================================ */
+.export-status-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  text-align: right;
+}
+.export-status-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.export-status-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.export-status-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition) var(--easing-default);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+}
+.export-status-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(26, 39, 68, 0.3);
+  transform: scale(1.02);
+}
+.export-status-btn:active {
+  transform: scale(0.97);
+}
+
+/* Dark mode for export status filter */
+[data-theme="dark"] .export-status-wrap {
+  background: #0f1525;
+}
+[data-theme="dark"] .export-status-btn {
+  background: #1e293b;
+  border-color: #2a3650;
+  color: var(--text-muted);
+}
+[data-theme="dark"] .export-status-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
 /* Dark mode for inline rating */
 [data-theme="dark"] .att-inline-star {
   color: #3a4560;
