@@ -440,6 +440,17 @@
                 <span>&#128295;</span> إدارة البيانات
               </div>
 
+              <!-- Delete Day Attendance -->
+              <div class="delete-day-wrap">
+                <label class="delete-day-label">حذف سجلات يوم معين:</label>
+                <div class="delete-day-row">
+                  <input type="date" id="deleteDayDate" class="delete-day-input">
+                  <button id="deleteDayBtn" class="btn-delete-day">&#128465; حذف</button>
+                </div>
+                <div class="delete-day-info" id="deleteDayInfo">اختر تاريخ لحذف جميع سجلات الحضور المسجلة فيه من Firebase</div>
+                <div class="delete-day-count" id="deleteDayCount"></div>
+              </div>
+
               <!-- Clear All Data -->
               <div class="settings-item danger" id="clearAllData">
                 <div class="settings-item-icon">&#128465;</div>

@@ -236,7 +236,9 @@ function _buildDOMCache() {
     'exportStatusFilter',
     // Settings page elements
     'exportFullBackup', 'importBackup', 'importFileInput',
-    'clearAllData', 'settingsGirlCount', 'settingsAttCount', 'settingsLastUpdate'
+    'clearAllData', 'settingsGirlCount', 'settingsAttCount', 'settingsLastUpdate',
+    // Delete day attendance elements
+    'deleteDayDate', 'deleteDayBtn', 'deleteDayInfo', 'deleteDayCount'
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -4213,6 +4215,29 @@ function renderSettings() {
       hour: '2-digit', minute: '2-digit'
     });
   }
+
+  // Show record count for the selected delete day
+  updateDeleteDayCount();
+}
+
+// Update the count display for delete day
+function updateDeleteDayCount() {
+  const dateInput = document.getElementById('deleteDayDate');
+  const countEl = document.getElementById('deleteDayCount');
+  if (!dateInput || !countEl) return;
+
+  const date = dateInput.value;
+  if (!date) {
+    countEl.textContent = '';
+    return;
+  }
+
+  const records = Cache.getAttendanceByDate(date);
+  if (records.length > 0) {
+    countEl.textContent = `سيتم حذف ${records.length} سجل حضور ليوم ${date}`;
+  } else {
+    countEl.textContent = 'لا توجد سجلات حضور لهذا اليوم';
+  }
 }
 
 // Export full backup (all data as JSON)
@@ -4415,6 +4440,67 @@ async function clearAllData() {
   });
 }
 
+// Delete all attendance records for a specific day (from Firebase + local state)
+async function deleteDayAttendance() {
+  const dateInput = document.getElementById('deleteDayDate');
+  if (!dateInput) return;
+  const date = dateInput.value;
+  if (!date) { showToast('الرجاء اختيار تاريخ أولاً', 'error'); return; }
+
+  const records = Cache.getAttendanceByDate(date);
+  if (records.length === 0) { showToast('لا توجد سجلات حضور لهذا اليوم', 'warning'); return; }
+
+  showConfirm({
+    icon: '&#9888;',
+    title: 'حذف سجلات يوم',
+    msg: `هل أنت متأكد من حذف ${records.length} سجل حضور ليوم ${date}؟ سيتم الحذف من Firebase بشكل نهائي.`,
+    okLabel: 'نعم، احذف',
+    okClass: 'confirm-delete',
+    onOk: async () => {
+      try {
+        // 1. Delete from Firestore first
+        if (firebaseReady) {
+          showToast('جاري الحذف من Firebase...', 'info');
+          let deletedCount = 0;
+          for (let i = 0; i < records.length; i += 500) {
+            const batch = FB.writeBatch(db);
+            records.slice(i, i + 500).forEach(r => {
+              batch.delete(FB.doc(db, 'attendance', r.id));
+            });
+            await batch.commit();
+            deletedCount += Math.min(500, records.length - i);
+          }
+          console.log(`Deleted ${deletedCount} records from Firestore for ${date}`);
+        }
+
+        // 2. Remove from local state
+        const newAttData = { ...state.attendanceData };
+        records.forEach(r => {
+          delete newAttData[r.id];
+        });
+        setStateAttendanceData(newAttData);
+
+        // 3. Remove from auto-marked dates if present
+        if (state.autoMarkedDates.has(date)) {
+          state.autoMarkedDates.delete(date);
+          persistAutoMarkedDates();
+        }
+
+        // 4. Log history
+        await logHistory('حذف سجلات يوم', `تم حذف ${records.length} سجل حضور ليوم ${date}`);
+
+        // 5. Update UI
+        updateDeleteDayCount();
+        showToast(`تم حذف ${records.length} سجل من Firebase بنجاح`, 'success');
+
+      } catch (e) {
+        console.error('Delete day attendance error:', e);
+        showToast('فشل الحذف: ' + e.message, 'error');
+      }
+    }
+  });
+}
+
 // Event listeners for Settings page
 document.addEventListener('DOMContentLoaded', () => {
   // Export full backup button
@@ -4442,6 +4528,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearAllDataBtn = document.getElementById('clearAllData');
   if (clearAllDataBtn) {
     clearAllDataBtn.addEventListener('click', clearAllData);
+  }
+
+  // Delete day attendance button
+  const deleteDayBtn = document.getElementById('deleteDayBtn');
+  const deleteDayDate = document.getElementById('deleteDayDate');
+  if (deleteDayBtn) {
+    deleteDayBtn.addEventListener('click', deleteDayAttendance);
+  }
+  if (deleteDayDate) {
+    deleteDayDate.addEventListener('change', updateDeleteDayCount);
   }
 });
 

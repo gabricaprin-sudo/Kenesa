@@ -2296,3 +2296,97 @@ textarea:focus:not(:focus-visible) {
   background: #0f1525;
 }
 
+
+/* ============================================================
+   DELETE DAY ATTENDANCE — Settings Page
+   ============================================================ */
+.delete-day-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 2px solid transparent;
+  transition: border-color var(--transition);
+}
+.delete-day-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.delete-day-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.delete-day-input {
+  flex: 1;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 15px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--transition);
+  direction: ltr;
+  text-align: left;
+  min-height: var(--tap-target);
+}
+.delete-day-input:focus {
+  border-color: var(--primary);
+}
+.btn-delete-day {
+  padding: 12px 20px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+  transition: all var(--transition) var(--easing-default);
+  min-height: var(--tap-target);
+  touch-action: manipulation;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-delete-day:active {
+  transform: scale(0.97);
+}
+.btn-delete-day:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.delete-day-info {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: right;
+}
+.delete-day-count {
+  font-size: 14px;
+  color: var(--red);
+  font-weight: 700;
+  text-align: right;
+  min-height: 20px;
+}
+
+/* Dark mode for delete day */
+[data-theme="dark"] .delete-day-wrap {
+  background: #0f1525;
+}
+[data-theme="dark"] .delete-day-input {
+  background: var(--surface);
+  border-color: #2a3650;
+  color: var(--text);
+}
+[data-theme="dark"] .delete-day-input:focus {
+  border-color: var(--accent);
+}
