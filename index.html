@@ -61,22 +61,7 @@
         <div class="login-gradient-bridge"></div>
       </div>
 
-      <!-- Gold Particles -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<!-- White Content Card -->
+      <!-- White Content Card -->
       <div class="login-card" id="loginCard">
         <div class="login-cross-icon">&#10013;</div>
         <div class="login-church-name">كنيسه مارجرجس والشهداء</div>
@@ -89,7 +74,7 @@
           <span class="btn-spinner"></span>
           <span class="btn-text">تسجيل الدخول بـ Google</span>
         </button>
-</div>
+      </div>
     </div>
 
     <!-- Main App -->
@@ -137,7 +122,7 @@
           <span>&#127769;</span> الوضع الداكن
           <div class="dark-toggle-switch" id="darkToggleSwitch"></div>
         </div>
-</nav>
+      </nav>
 
       <!-- Page Content -->
       <main class="page-content" id="pageContent">
@@ -212,6 +197,18 @@
 
         <!-- ATTENDANCE PAGE -->
         <div id="page-attendance" class="page">
+          <!-- Service Day Toggle -->
+          <div class="service-day-toggle-wrap" id="serviceDayToggleWrap">
+            <div class="service-day-toggle-inner">
+              <span class="service-toggle-label">&#128161; اليوم فيه خدمة؟</span>
+              <label class="service-switch">
+                <input type="checkbox" id="serviceDayToggle" checked>
+                <span class="service-slider"></span>
+              </label>
+            </div>
+            <p class="service-toggle-hint" id="serviceToggleHint">إطفي التبديل لو اليوم مفيش خدمة عشان ميحصلش غياب تلقائي</p>
+          </div>
+
           <div class="day-selector">
             <button class="day-btn" data-day="السبت">السبت</button>
             <button class="day-btn" data-day="الاثنين">الإثنين</button>
@@ -245,11 +242,27 @@
             <span class="summ-item red-text">&#10007; <span id="absentCount">0</span> غائب</span>
             <span class="summ-item gray-text"><span id="totalCount">0</span> إجمالي</span>
           </div>
-          <div class="quick-actions" id="quickActions">
-            <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
-            <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
+
+          <!-- Quick Actions Row -->
+          <div class="quick-actions-row" id="quickActionsRow">
+            <div class="quick-actions" id="quickActions">
+              <button class="quick-action-btn all-present" id="selectAllPresent">&#10003; تحديد الكل حاضر</button>
+              <button class="quick-action-btn all-absent" id="selectAllAbsent">&#10007; تحديد الكل غائب</button>
+            </div>
+            <button class="reset-attendance-btn" id="resetAttendanceBtn" title="تصفير الحضور لليوم ده">
+              &#128260; تصفير
+            </button>
           </div>
+
           <div class="att-toggle-hint" id="attToggleHint">&#128161; اضغط للتبديل بين حاضر &#10003; وغائب &#10007; &middot; اضغط مطولاً للتفاصيل والتقييم</div>
+
+          <!-- No Service Message -->
+          <div class="no-service-message hidden" id="noServiceMessage">
+            <div class="no-service-icon">&#127780;</div>
+            <div class="no-service-title">مفيش خدمة اليوم</div>
+            <div class="no-service-desc">التبديل فوق مقفول "اليوم مفيش خدمة" — لو فيه خدمة شغله من فوق</div>
+          </div>
+
           <div id="attendanceList" class="attendance-list"></div>
         </div>
 

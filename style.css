@@ -1,8 +1,7 @@
 /* ============================================================
-   نظام متابعة المخدومات — Production Ready v3.0
-   Fixes: unified z-index, 3-shadow system, drawer animation,
-          reduced-motion dedup, touch feedback, position wrapper,
-          design token cleanup, utility classes
+   نظام متابعة المخدومات — Production Ready v3.1
+   Added: Service day toggle, Reset attendance button,
+          No-service message, Improved visual feedback
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -702,6 +701,153 @@ body {
 }
 
 /* ============================================================
+   SERVICE DAY TOGGLE (NEW)
+   ============================================================ */
+.service-day-toggle-wrap {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  border: 2px solid var(--border);
+  transition: border-color var(--transition);
+}
+.service-day-toggle-wrap.service-on {
+  border-color: var(--green);
+  background: rgba(46, 204, 113, 0.05);
+}
+.service-day-toggle-wrap.service-off {
+  border-color: var(--red);
+  background: rgba(231, 76, 60, 0.05);
+}
+.service-day-toggle-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.service-toggle-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.service-toggle-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: right;
+}
+
+/* Service Switch (toggle) */
+.service-switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.service-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.service-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--border);
+  border-radius: 28px;
+  transition: background var(--transition-slow);
+}
+.service-slider::before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  right: 3px;
+  transition: transform var(--transition-slow);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.service-switch input:checked + .service-slider {
+  background: var(--green);
+}
+.service-switch input:checked + .service-slider::before {
+  transform: translateX(-24px);
+}
+.service-switch input:focus + .service-slider {
+  box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.3);
+}
+
+/* No Service Message */
+.no-service-message {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+}
+.no-service-message.hidden { display: none; }
+.no-service-icon { font-size: 56px; margin-bottom: 12px; }
+.no-service-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.no-service-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   RESET ATTENDANCE BUTTON (NEW)
+   ============================================================ */
+.quick-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: stretch;
+}
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.reset-attendance-btn {
+  padding: 12px 16px;
+  background: rgba(231, 76, 60, 0.08);
+  border: 2px solid var(--red);
+  border-radius: 12px;
+  font-family: 'Tajawal', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+  cursor: pointer;
+  transition: all var(--transition) var(--easing-default);
+  min-height: var(--tap-target);
+  min-width: var(--tap-target);
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.reset-attendance-btn:hover {
+  background: var(--red);
+  color: white;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+.reset-attendance-btn:active {
+  transform: scale(0.95);
+}
+
+/* ============================================================
    ATTENDANCE PAGE
    ============================================================ */
 .day-selector { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -782,6 +928,28 @@ body {
   border-right: 4px solid var(--border);
   min-height: var(--tap-target);
   will-change: transform;
+  position: relative;
+  overflow: hidden;
+}
+.att-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: var(--green);
+  transition: height var(--transition-fast);
+  opacity: 0.1;
+}
+.att-item.present::before {
+  height: 100%;
+  background: var(--green);
+}
+.att-item.absent::before {
+  height: 100%;
+  background: var(--red);
+  opacity: 0.05;
 }
 .att-item:active { transform: scale(0.98); }
 .att-item.present { border-color: var(--green); }
@@ -833,9 +1001,6 @@ body {
 .fab-save:active { transform: scale(0.95); }
 
 /* Quick Action Buttons */
-.quick-actions {
-  display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
-}
 .quick-action-btn {
   flex: 1; min-width: 100px; padding: 12px 14px;
   border: 2px solid var(--border); background: var(--surface);
@@ -1469,7 +1634,8 @@ textarea.form-input { resize: none; }
   transition: all var(--transition) var(--easing-default);
   min-height: var(--tap-target);
   touch-action: manipulation;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center; justify-content: center;
   gap: 6px;
 }
 .btn-danger:active { transform: scale(0.97); }
@@ -1483,7 +1649,8 @@ textarea.form-input { resize: none; }
   transition: all var(--transition) var(--easing-default);
   min-height: var(--tap-target);
   touch-action: manipulation;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center; justify-content: center;
   gap: 6px;
 }
 .btn-share:active { transform: scale(0.97); }
@@ -1772,6 +1939,66 @@ textarea.form-input { resize: none; }
 }
 
 /* ============================================================
+   THEME SWITCHING — Disable transitions on key elements
+   ============================================================ */
+body.theme-switching .modal,
+body.theme-switching .drawer,
+body.theme-switching .card,
+body.theme-switching .login-card,
+body.theme-switching .stat-card,
+body.theme-switching .girl-card,
+body.theme-switching .today-card {
+  transition: none !important;
+}
+
+/* ============================================================
+   SETTINGS PAGE
+   ============================================================ */
+.settings-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.settings-icon { font-size: 48px; margin-bottom: 12px; }
+.settings-card h3 { font-size: 22px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+.settings-desc { font-size: 15px; color: var(--text-muted); margin-bottom: 24px; }
+
+.settings-section { margin-bottom: 24px; text-align: right; }
+.settings-section-title {
+  font-size: 14px; font-weight: 700; color: var(--text-muted);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.settings-section-title span { font-size: 18px; }
+
+.settings-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; background: var(--bg);
+  border-radius: 12px; margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition) var(--easing-default);
+  touch-action: manipulation;
+}
+.settings-item:active { transform: scale(0.98); }
+.settings-item.danger { background: rgba(231,76,60,0.05); }
+.settings-item.danger .settings-item-label { color: var(--red); }
+.settings-item-icon { font-size: 24px; flex-shrink: 0; }
+.settings-item-info { flex: 1; }
+.settings-item-label { font-size: 15px; font-weight: 700; color: var(--text); display: block; }
+.settings-item-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.settings-item-arrow { font-size: 14px; color: var(--text-muted); }
+
+.settings-info-row {
+  display: flex; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.settings-info-row:last-child { border-bottom: none; }
+.settings-info-row span:first-child { color: var(--text-muted); }
+.settings-info-row span:last-child { font-weight: 700; color: var(--primary); }
+
+/* ============================================================
    DARK MODE FOR COMPONENTS
    ============================================================ */
 
@@ -1903,56 +2130,6 @@ textarea.form-input { resize: none; }
   border-color: var(--accent);
 }
 
-/* ============================================================
-   EXPORT STATUS FILTER
-   ============================================================ */
-.export-status-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--bg);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
-  text-align: right;
-}
-.export-status-label {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--primary);
-}
-.export-status-filter {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.export-status-btn {
-  flex: 1;
-  min-width: 80px;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: 12px;
-  font-family: 'Tajawal', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all var(--transition) var(--easing-default);
-  min-height: var(--tap-target);
-  touch-action: manipulation;
-}
-.export-status-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(26, 39, 68, 0.3);
-  transform: scale(1.02);
-}
-.export-status-btn:active {
-  transform: scale(0.97);
-}
-
 /* Dark mode for export status filter */
 [data-theme="dark"] .export-status-wrap {
   background: #0f1525;
@@ -1992,307 +2169,31 @@ textarea.form-input { resize: none; }
   background: rgba(232, 160, 32, 0.2);
 }
 
-/* ============================================================
-   THEME SWITCHING — Disable transitions on key elements
-   ============================================================ */
-body.theme-switching .modal,
-body.theme-switching .drawer,
-body.theme-switching .card,
-body.theme-switching .stat-card,
-body.theme-switching .girl-card,
-body.theme-switching .btn-primary,
-body.theme-switching .btn-danger,
-body.theme-switching .btn-cancel,
-body.theme-switching .nav-btn,
-body.theme-switching .menu-item,
-body.theme-switching .form-input,
-body.theme-switching .bottom-nav,
-body.theme-switching .app-header {
-  transition: none !important;
-  animation: none !important;
-}
-
-/* ============================================================
-   UTILS
-   ============================================================ */
-.hidden { display: none !important; }
-
-/* ============================================================
-   MOBILE SHADOW REDUCTION — Reduced to 3 levels
-   ============================================================ */
-@media (max-width: 480px) {
-  /* Only reduce non-essential shadows; keep key ones */
-  .top-item, .followup-item, .history-item, .rank-item,
-  .date-input-wrap, .attendance-summary, .stats-month-selector {
-    box-shadow: var(--shadow-sm);
-  }
-}
-
-/* ============================================================
-   SCROLLBAR
-   ============================================================ */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-/* iOS specific */
-input[type="date"], input[type="month"] {
-  -webkit-appearance: none;
-  direction: ltr;
-  text-align: left;
-}
-
-/* ============================================================
-   REDUCED MOTION — Single unified block (targeted only)
-   ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  /* 1. Disable login animations */
-  .login-hero-img,
-  .login-card,
-  .login-cross-icon,
-  .login-church-name,
-  .login-system-title,
-  .login-divider,
-  .login-welcome,
-  .btn-google,
-  .btn-guest,
-  .login-hint {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  .login-card { transform: translateY(0) !important; }
-  .login-divider { transform: scaleX(1) !important; }
-  .login-divider::after { animation: none !important; }
-  .gold-particle { display: none !important; }
-  .login-bg { animation: none !important; }
-
-  /* 2. Disable UI transitions on key animated elements only (NOT * selector) */
-  .modal, .drawer, .toast, .confirm-box,
-  .modal-overlay, .confirm-overlay, .drawer-overlay {
-    transition-duration: 0.01ms !important;
-    transition: none !important;
-  }
-
-  /* 3. Keep functional animations only (loading spinner) */
-  .btn-spinner,
-  .splash-loader div {
-    animation: none !important;
-  }
-}
-
-/* ============================================================
-   ACCESSIBILITY — Focus-visible states
-   ============================================================ */
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-button:focus:not(:focus-visible),
-a:focus:not(:focus-visible),
-input:focus:not(:focus-visible),
-select:focus:not(:focus-visible),
-textarea:focus:not(:focus-visible) {
-  outline: none;
-}
-
-.girl-card:focus-visible,
-.att-item:focus-visible,
-.top-item:focus-visible,
-.followup-item:focus-visible,
-.rank-item:focus-visible,
-.detail-girl-item:focus-visible,
-.history-item:focus-visible,
-.search-item:focus-visible,
-.cal-day:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  border-radius: var(--radius-sm);
-}
-
-.modal-close:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
-  border-radius: 10px;
-   }
-
-
-/* ============================================================
-   AUTO-MARK INDICATOR — NEW
-   ============================================================ */
-#autoMarkIndicator {
-  background: rgba(231,76,60,0.08);
-  color: var(--red);
-  border: 1.5px solid rgba(231,76,60,0.25);
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-  animation: fadeSlideDown 0.3s ease-out;
-}
-[data-theme="dark"] #autoMarkIndicator {
-  background: rgba(255,107,107,0.1);
-  border-color: rgba(255,107,107,0.3);
-}
-@keyframes fadeSlideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-
-/* ============================================================
-   SETTINGS PAGE
-   ============================================================ */
-.settings-card {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 28px 20px;
-  box-shadow: var(--shadow);
-}
-.settings-icon {
-  font-size: 48px;
-  text-align: center;
-  margin-bottom: 12px;
-}
-.settings-card h3 {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--primary);
-  text-align: center;
-  margin-bottom: 4px;
-}
-.settings-desc {
-  text-align: center;
-  font-size: 15px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
-}
-
-.settings-section {
-  margin-bottom: 20px;
-}
-.settings-section-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--primary);
-  margin-bottom: 12px;
-  padding: 12px 16px;
-  background: var(--bg);
-  border-radius: 12px;
-}
-.settings-section-title span {
-  font-size: 20px;
-}
-
-.settings-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  background: var(--bg);
-  border-radius: 14px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: all var(--transition-fast) var(--easing-default);
-  border: 2px solid transparent;
-  touch-action: manipulation;
-}
-.settings-item:active {
-  transform: scale(0.98);
+/* Dark mode for service day toggle */
+[data-theme="dark"] .service-day-toggle-wrap {
   background: var(--surface);
   border-color: var(--border);
 }
-.settings-item-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(52, 152, 219, 0.1);
-  color: #2980b9;
-  font-size: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+[data-theme="dark"] .service-day-toggle-wrap.service-on {
+  border-color: var(--green);
+  background: rgba(46, 204, 113, 0.08);
 }
-.settings-item.danger .settings-item-icon {
-  background: rgba(231, 76, 60, 0.1);
+[data-theme="dark"] .service-day-toggle-wrap.service-off {
+  border-color: var(--red);
+  background: rgba(231, 76, 60, 0.08);
+}
+[data-theme="dark"] .service-slider {
+  background: #2a3650;
+}
+[data-theme="dark"] .no-service-message {
+  background: var(--surface);
+}
+[data-theme="dark"] .reset-attendance-btn {
+  background: rgba(231, 76, 60, 0.15);
+  border-color: var(--red);
   color: var(--red);
 }
-.settings-item-info {
-  flex: 1;
+[data-theme="dark"] .reset-attendance-btn:hover {
+  background: var(--red);
+  color: white;
 }
-.settings-item-label {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 2px;
-}
-.settings-item-desc {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-.settings-item-arrow {
-  font-size: 14px;
-  color: var(--text-muted);
-  flex-shrink: 0;
-}
-
-.settings-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--bg);
-  border-radius: 10px;
-  margin-bottom: 8px;
-  font-size: 15px;
-}
-.settings-info-row span:first-child {
-  color: var(--text-muted);
-  font-weight: 600;
-}
-.settings-info-row span:last-child {
-  color: var(--primary);
-  font-weight: 700;
-}
-
-/* Dark mode for settings */
-[data-theme="dark"] .settings-card {
-  background: var(--surface);
-}
-[data-theme="dark"] .settings-section-title {
-  background: #0f1525;
-}
-[data-theme="dark"] .settings-item {
-  background: #0f1525;
-}
-[data-theme="dark"] .settings-item:active {
-  background: var(--surface);
-  border-color: #2a3650;
-}
-[data-theme="dark"] .settings-item-icon {
-  background: rgba(52, 152, 219, 0.15);
-}
-[data-theme="dark"] .settings-item.danger .settings-item-icon {
-  background: rgba(231, 76, 60, 0.15);
-}
-[data-theme="dark"] .settings-info-row {
-  background: #0f1525;
-}
-
