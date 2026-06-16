@@ -33,6 +33,16 @@
     </div>
   </noscript>
   <div id="app">
+    <!-- Notification Banner -->
+    <div id="notifBanner" class="notif-banner hidden" role="alert" aria-live="polite">
+      <div class="notif-banner-icon" id="notifBannerIcon">&#128161;</div>
+      <div class="notif-banner-content">
+        <div class="notif-banner-title" id="notifBannerTitle"></div>
+        <div class="notif-banner-body" id="notifBannerBody"></div>
+      </div>
+      <button class="notif-banner-close" id="notifBannerClose" aria-label="إغلاق الإشعار">&#10005;</button>
+    </div>
+
     <!-- Splash Screen -->
     <div id="splash" class="splash">
       <div class="splash-content">

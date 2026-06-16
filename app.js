@@ -238,7 +238,9 @@ function _buildDOMCache() {
     'exportFullBackup', 'importBackup', 'importFileInput',
     'clearAllData', 'settingsGirlCount', 'settingsAttCount', 'settingsLastUpdate',
     // Delete day attendance elements
-    'deleteDayDate', 'deleteDayBtn', 'deleteDayInfo', 'deleteDayCount'
+    'deleteDayDate', 'deleteDayBtn', 'deleteDayInfo', 'deleteDayCount',
+    // Notification banner elements
+    'notifBanner', 'notifBannerIcon', 'notifBannerTitle', 'notifBannerBody', 'notifBannerClose'
   ];
   ids.forEach(id => { _domCache[id] = document.getElementById(id); });
 }
@@ -301,6 +303,11 @@ const state = {
   exportStatusFilter: '',
   // NEW: Track which service days have been auto-marked as absent (to prevent duplicates)
   autoMarkedDates: new Set(JSON.parse(localStorage.getItem('autoMarkedDates') || '[]')),
+  // Notification system state
+  notifications: [],
+  dismissedNotifs: new Set(JSON.parse(localStorage.getItem('dismissedNotifs') || '[]')),
+  notifListenerStarted: false,
+  currentNotifId: null,
 };
 
 // ============================================================
@@ -1226,11 +1233,144 @@ async function loadData() {
     );
     pushUnsubscriber(unsub3);
 
+    // NOTIFICATION LISTENER — Listen for admin notifications
+    const unsub4 = FB.onSnapshot(
+      FB.query(FB.collection(db, 'notifications'), FB.orderBy('createdAt', 'desc')),
+      (snap) => {
+        let changed = false;
+        const newNotifs = [];
+        for (const change of snap.docChanges()) {
+          const n = { id: change.doc.id, ...change.doc.data() };
+          if (change.type === 'removed') {
+            changed = true;
+          } else {
+            newNotifs.push(n);
+            changed = true;
+          }
+        }
+        if (changed) {
+          // Update full list from snapshot
+          state.notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          // Show the most recent active notification
+          showActiveNotification();
+        }
+      },
+      (err) => console.error('Notifications snapshot error:', err)
+    );
+    pushUnsubscriber(unsub4);
+
   } catch (e) {
     console.error('Load error:', e);
     // FIXED: Reset flag on error so loadData can be retried
     _listenersInitialized = false;
   }
+}
+
+// ============================================================
+// NOTIFICATION SYSTEM — Display admin notifications to users
+// ============================================================
+
+/**
+ * Show the most recent active notification that hasn't been dismissed.
+ * Respects targetGrade filtering if the user has a grade context.
+ */
+function showActiveNotification() {
+  const banner = DOM.notifBanner;
+  if (!banner) return;
+
+  const now = Date.now();
+
+  // Find the most recent active, non-dismissed notification
+  const activeNotif = state.notifications.find(n => {
+    // Check expiry
+    if (n.expiresAt && n.expiresAt < now) return false;
+    // Check if dismissed
+    if (state.dismissedNotifs.has(n.id)) return false;
+    return true;
+  });
+
+  if (!activeNotif) {
+    banner.classList.add('hidden');
+    banner.classList.remove('hiding');
+    state.currentNotifId = null;
+    return;
+  }
+
+  // Don't re-show the same notification if it's already displayed
+  if (state.currentNotifId === activeNotif.id) return;
+
+  state.currentNotifId = activeNotif.id;
+
+  // Update banner content
+  const iconEl = DOM.notifBannerIcon;
+  const titleEl = DOM.notifBannerTitle;
+  const bodyEl = DOM.notifBannerBody;
+
+  const typeIcons = {
+    info: '&#128161;',
+    warning: '&#9888;',
+    success: '&#10003;',
+    error: '&#10007;'
+  };
+
+  if (iconEl) iconEl.innerHTML = typeIcons[activeNotif.type] || '&#128161;';
+
+  // Reset type classes
+  banner.className = 'notif-banner';
+  if (activeNotif.type) {
+    banner.classList.add(activeNotif.type);
+  }
+
+  if (titleEl) {
+    if (activeNotif.title) {
+      titleEl.textContent = activeNotif.title;
+      titleEl.style.display = 'block';
+    } else {
+      titleEl.style.display = 'none';
+    }
+  }
+
+  if (bodyEl) bodyEl.textContent = activeNotif.body || '';
+
+  // Show banner
+  banner.classList.remove('hidden', 'hiding');
+
+  // Auto-hide after 30 seconds if not manually dismissed
+  setTimeout(() => {
+    if (state.currentNotifId === activeNotif.id) {
+      dismissNotification(activeNotif.id);
+    }
+  }, 30000);
+}
+
+/**
+ * Dismiss a notification — hides the banner and remembers the dismissal
+ */
+function dismissNotification(notifId) {
+  const banner = DOM.notifBanner;
+  if (banner) {
+    banner.classList.add('hiding');
+    setTimeout(() => {
+      banner.classList.add('hidden');
+      banner.classList.remove('hiding');
+    }, 300);
+  }
+
+  if (notifId) {
+    state.dismissedNotifs.add(notifId);
+    try {
+      localStorage.setItem('dismissedNotifs', JSON.stringify([...state.dismissedNotifs]));
+    } catch (e) { /* ignore */ }
+  }
+
+  state.currentNotifId = null;
+}
+
+// Close button handler
+if (DOM.notifBannerClose) {
+  DOM.notifBannerClose.addEventListener('click', () => {
+    dismissNotification(state.currentNotifId);
+  });
 }
 
 // ============================================================
