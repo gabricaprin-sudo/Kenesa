@@ -1059,10 +1059,6 @@ async function initAuth() {
         renderPage();
         // NEW: Auto-mark absence for today if it's a service day
         await checkAndAutoMarkAbsence();
-        // NEW: Initialize notification system for live notifications from dashboard
-        if (typeof window.initNotificationSystem === 'function') {
-          window.initNotificationSystem(db);
-        }
       }
     });
   } catch (e) {

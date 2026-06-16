@@ -130,8 +130,6 @@
           <li><a href="#" data-page="export" class="menu-item"><span>&#128228;</span> التصدير</a></li>
           <li><a href="#" data-page="settings" class="menu-item"><span>&#9881;&#65039;</span> الإعدادات</a></li>
           <li class="drawer-divider"></li>
-          <li><a href="./index.html" class="menu-item" style="color:var(--accent);"><span>&#9881;&#65039;</span> لوحة التحكم</a></li>
-          <li class="drawer-divider"></li>
           <li><a href="#" id="signOutBtn" class="menu-item sign-out"><span>&#128682;</span> تسجيل الخروج</a></li>
         </ul>
         <!-- Dark Mode Toggle -->
@@ -633,30 +631,5 @@
   </div>
 
   <script src="app.js"></script>
-
-  <!-- Notification System Integration -->
-  <script type="module">
-    import { NotificationSystem } from './notification-system.js';
-
-    // Initialize notification system when Firebase is ready
-    // The app.js file sets window._notificationSystemReady callback
-    window.initNotificationSystem = function(db) {
-      if (db) {
-        try {
-          NotificationSystem.init(db);
-          console.log('✅ Notification system initialized in main app');
-        } catch (e) {
-          console.error('Failed to initialize notification system:', e);
-        }
-      }
-    };
-
-    // Also try to init if db becomes available later
-    document.addEventListener('firebaseReady', function(e) {
-      if (e.detail && e.detail.db) {
-        window.initNotificationSystem(e.detail.db);
-      }
-    });
-  </script>
 </body>
 </html>
